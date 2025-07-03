@@ -1,3 +1,8 @@
+use std::{
+    fs::{File, OpenOptions},
+    io::Write,
+};
+
 use crossbeam_channel::{Receiver, Sender};
 use evdev::KeyCode;
 
@@ -9,24 +14,41 @@ pub struct PassThrough {
     state: PassThroughState,
     tx: Sender<Event>,
     rx: Receiver<Event>,
+    hidg: File,
 }
 
 impl PassThrough {
     pub fn new(tx: Sender<Event>, rx: Receiver<Event>) -> Self {
         let state = PassThroughState::new();
-        Self { tx, rx, state }
+        let hidg = OpenOptions::new()
+            .write(true)
+            .open("/dev/hidg0")
+            .expect("Failed to open HID gadget device");
+        Self {
+            tx,
+            rx,
+            state,
+            hidg,
+        }
     }
 
     fn handle_key_press(&mut self, key: &KeyCode) {
         let key = HidKeyCode::try_from(key).unwrap();
         self.state.update_on_press(key);
-        println!("Sending key: {:?}", key.code());
+        self.send_report();
     }
 
     fn handle_key_release(&mut self, key: &KeyCode) {
         let key = HidKeyCode::try_from(key).unwrap();
         self.state.update_on_release(key);
-        println!("Releasing key: {:?}", key.code());
+        self.send_report();
+    }
+
+    fn send_report(&mut self) {
+        let report = self.state.to_report();
+        if let Err(e) = self.hidg.write_all(&report) {
+            eprintln!("Failed to write HID report: {}", e);
+        }
     }
 
     fn handle_event(&mut self, event: &Event) {
@@ -41,6 +63,11 @@ impl PassThrough {
                 println!("Unhandled event: {:?}", e);
             }
         }
+    }
+
+    pub fn reset(&mut self) {
+        self.state.reset();
+        self.send_report();
     }
 }
 
