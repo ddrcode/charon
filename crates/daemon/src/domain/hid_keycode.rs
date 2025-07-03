@@ -24,11 +24,11 @@ impl HidKeyCode {
     }
 }
 
-impl TryFrom<KeyCode> for HidKeyCode {
+impl TryFrom<&KeyCode> for HidKeyCode {
     type Error = KOSError;
 
-    fn try_from(kc: KeyCode) -> Result<Self, Self::Error> {
-        let code = match kc {
+    fn try_from(kc: &KeyCode) -> Result<Self, Self::Error> {
+        let code = match *kc {
             KeyCode::KEY_A => 0x04,
             KeyCode::KEY_B => 0x05,
             KeyCode::KEY_C => 0x06,

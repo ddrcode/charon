@@ -1,7 +1,5 @@
 use std::borrow::Cow;
 
-use crate::error::KOSError;
-
 use super::Mode;
 use evdev::KeyCode;
 
@@ -12,5 +10,4 @@ pub enum DomainEvent {
     KeyRelease(KeyCode),
     ModeChange(Mode),
     Warning(Cow<'static, str>),
-    Error(KOSError),
 }

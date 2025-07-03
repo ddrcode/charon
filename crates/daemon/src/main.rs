@@ -23,5 +23,7 @@ fn main() {
     broker.add_subscriber(pt_tx, passthrough::filter);
     spawn_pass_through(event_tx.clone(), pt_rx);
 
+    broker.run();
+
     println!("Hello, world!");
 }

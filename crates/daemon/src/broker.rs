@@ -29,7 +29,20 @@ impl EventBroker {
     fn emit(&self, event: &Event) {
         for (sender, filter) in &self.subscribers {
             if filter(event) {
-                let _ = sender.send(event.clone());
+                sender.send(event.clone()).unwrap();
+            }
+        }
+    }
+
+    pub fn run(&self) {
+        loop {
+            match self.receiver.recv() {
+                Ok(event) => {
+                    self.emit(&event);
+                }
+                Err(e) => {
+                    eprintln!("Error receiving event: {}", e);
+                }
             }
         }
     }
