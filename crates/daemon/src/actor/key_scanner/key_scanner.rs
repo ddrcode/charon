@@ -1,6 +1,5 @@
 use crossbeam_channel::{Receiver, Sender};
-use evdev::{Device, EventSummary, KeyCode};
-use std::{thread, time};
+use evdev::{Device, EventSummary};
 
 use crate::domain::{Actor, DomainEvent, Event};
 
@@ -27,19 +26,9 @@ impl Actor for KeyScanner {
             let key_events: Vec<_> = self.device.fetch_events().unwrap().collect();
             for event in key_events {
                 let kos_event = match event.destructure() {
-                    EventSummary::Key(ev, key, 1) => {
-                        println!("Key '{:?}' was pressed, got event: {:?}", key, ev);
-                        DomainEvent::KeyPress(key)
-                    }
-                    EventSummary::Key(_, key, 0) => {
-                        println!("Key {:?} was released", key);
-                        DomainEvent::KeyRelease(key)
-                    }
-                    EventSummary::Synchronization(..) | EventSummary::Misc(..) => {
-                        // Sync event isn't important in case of keyboard. Skipping
-                        // Misc provides system time. Can be usef for timestamping, eventually
-                        continue;
-                    }
+                    EventSummary::Key(_, key, 1) => DomainEvent::KeyPress(key),
+                    EventSummary::Key(_, key, 0) => DomainEvent::KeyRelease(key),
+                    EventSummary::Synchronization(..) | EventSummary::Misc(..) => continue,
                     e => {
                         println!("got a different event: {:?}", e);
                         DomainEvent::Warning(format!("{:?}", e).into())
