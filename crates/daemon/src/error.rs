@@ -8,6 +8,9 @@ pub enum KOSError {
     #[error("Couldn't handle the keycode: {0:?}")]
     UnsupportedKeyCode(KeyCode),
 
+    #[error("Couldn't produce key sequence for char: {0}")]
+    UnsupportedCharacter(char),
+
     #[error("Unhandled device event: {0}")]
     UnhandledDeviceEvent(String),
 

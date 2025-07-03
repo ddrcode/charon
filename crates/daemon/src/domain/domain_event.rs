@@ -8,6 +8,8 @@ use evdev::KeyCode;
 pub enum DomainEvent {
     KeyPress(KeyCode),
     KeyRelease(KeyCode),
+    SendText(String),
+    SendFile(String),
     ModeChange(Mode),
     Warning(Cow<'static, str>),
 }

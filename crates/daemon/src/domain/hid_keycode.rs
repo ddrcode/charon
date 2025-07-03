@@ -22,6 +22,24 @@ impl HidKeyCode {
         }
         0
     }
+
+    pub fn seq_from_char(c: char) -> Result<Vec<Self>, KOSError> {
+        let mut seq = Vec::with_capacity(4);
+        let mut c = c;
+        if c.is_ascii_uppercase() {
+            seq.push(HidKeyCode(0xE1));
+            c.make_ascii_lowercase();
+        }
+        let key_code = match c {
+            'a'..='z' => (c as u8) - b'a' + 4,
+            '1'..='9' => (c as u8) - b'1' + 0x1e,
+            '0' => 0x27,
+            ' ' => 0x2C,
+            _ => return Err(KOSError::UnsupportedCharacter(c)),
+        };
+        seq.push(HidKeyCode(key_code));
+        Ok(seq)
+    }
 }
 
 impl TryFrom<&KeyCode> for HidKeyCode {

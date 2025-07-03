@@ -42,4 +42,9 @@ impl PassThroughState {
         }
         report
     }
+
+    pub fn reset(&mut self) {
+        self.modifiers = 0;
+        self.keys.clear();
+    }
 }

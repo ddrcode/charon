@@ -20,11 +20,13 @@ impl PassThrough {
     fn handle_key_press(&mut self, key: &KeyCode) {
         let key = HidKeyCode::try_from(key).unwrap();
         self.state.update_on_press(key);
+        println!("Sending key: {:?}", key.code());
     }
 
     fn handle_key_release(&mut self, key: &KeyCode) {
         let key = HidKeyCode::try_from(key).unwrap();
         self.state.update_on_release(key);
+        println!("Releasing key: {:?}", key.code());
     }
 
     fn handle_event(&mut self, event: &Event) {
