@@ -1,0 +1,10 @@
+[package]
+name = "keyboardos-daemon"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+crossbeam-channel = "0.5.15"
+evdev = "0.13.1"
+thiserror.workspace = true
+uuid = { version = "1.17.0", features = ["v4"] }
