@@ -1,12 +1,11 @@
-use std::thread;
+use tokio::sync::mpsc::{Receiver, Sender};
 
 use super::KeyScanner;
-use crate::domain::{Actor, Event};
-use crossbeam_channel::{Receiver, Sender};
+use crate::domain::Event;
 
-pub fn spawn_key_scanner(tx: Sender<Event>, rx: Receiver<Event>) {
+pub async fn spawn_key_scanner(tx: Sender<Event>, rx: Receiver<Event>) {
     let mut scanner = KeyScanner::new(tx, rx);
-    thread::spawn(move || {
+    tokio::task::spawn_blocking(move || {
         scanner.run();
     });
 }

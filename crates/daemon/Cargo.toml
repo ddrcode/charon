@@ -4,7 +4,12 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-crossbeam-channel = "0.5.15"
+anyhow.workspace = true
+async-trait = "0.1.88"
 evdev = "0.13.1"
+futures = "0.3.31"
 thiserror.workspace = true
+tokio = { version = "1.46.0", features=["full"] }
+tracing = "0.1.41"
+tracing-subscriber = "0.3.19"
 uuid = { version = "1.17.0", features = ["v4"] }

@@ -20,4 +20,13 @@ impl Event {
             payload,
         }
     }
+
+    pub fn with_time(sender: &'static str, payload: DomainEvent, timestamp: SystemTime) -> Self {
+        Self {
+            id: Uuid::new_v4(),
+            timestamp,
+            sender,
+            payload,
+        }
+    }
 }

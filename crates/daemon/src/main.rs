@@ -7,23 +7,39 @@ use actor::{
     key_scanner::{self, spawn_key_scanner},
     passthrough::{self, spawn_pass_through},
 };
+use anyhow;
 use broker::EventBroker;
-use crossbeam_channel;
 use domain::Event;
+use tokio::{self, signal, sync::mpsc};
+use tracing_subscriber::FmtSubscriber;
 
-fn main() {
-    let (event_tx, broker_rx) = crossbeam_channel::unbounded::<Event>();
+#[tokio::main]
+async fn main() -> Result<(), anyhow::Error> {
+    let subscriber = FmtSubscriber::builder()
+        .with_max_level(tracing::Level::INFO)
+        .finish();
+
+    tracing::subscriber::set_global_default(subscriber).expect("Setting default subscriber failed");
+
+    let (event_tx, broker_rx) = mpsc::channel::<Event>(128);
     let mut broker = EventBroker::new(broker_rx);
 
-    let (scan_tx, scan_rx) = crossbeam_channel::unbounded::<Event>();
+    let (scan_tx, scan_rx) = mpsc::channel::<Event>(128);
     broker.add_subscriber(scan_tx, key_scanner::filter);
-    spawn_key_scanner(event_tx.clone(), scan_rx);
+    spawn_key_scanner(event_tx.clone(), scan_rx).await;
 
-    let (pt_tx, pt_rx) = crossbeam_channel::unbounded::<Event>();
+    let (pt_tx, pt_rx) = mpsc::channel::<Event>(128);
     broker.add_subscriber(pt_tx, passthrough::filter);
     spawn_pass_through(event_tx.clone(), pt_rx);
 
-    broker.run();
+    tokio::select! {
+        _ = broker.run() => {},
+        _ = signal::ctrl_c() => {
+            println!("Received Ctrl+C, shutting down gracefully...");
+            broker.exit().await;
+        }
+    }
 
-    println!("Hello, world!");
+    println!("Charon says goodbye. Hades is waiting...");
+    Ok(())
 }

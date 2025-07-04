@@ -1,5 +1,6 @@
 use evdev::KeyCode;
 use thiserror;
+use tokio::sync::mpsc::error::SendError;
 
 use crate::domain::Event;
 
@@ -15,5 +16,5 @@ pub enum KOSError {
     UnhandledDeviceEvent(String),
 
     #[error("Event channel error: {0}")]
-    EventChannelError(#[from] crossbeam_channel::SendError<Event>),
+    EventChannelError(#[from] SendError<Event>),
 }
