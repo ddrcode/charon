@@ -1,10 +1,13 @@
-use crossbeam_channel::{Receiver, Sender};
+use futures::{StreamExt, stream::FuturesUnordered};
+use tokio::sync::mpsc::{Receiver, Sender};
+use tracing::warn;
 
-use crate::domain::Event;
+use crate::domain::{DomainEvent, Event};
 
 type Subscriber = (Sender<Event>, fn(&Event) -> bool);
 
 pub struct EventBroker {
+    alive: bool,
     receiver: Receiver<Event>,
     subscribers: Vec<Subscriber>,
 }
@@ -12,6 +15,7 @@ pub struct EventBroker {
 impl EventBroker {
     pub fn new(receiver: Receiver<Event>) -> Self {
         EventBroker {
+            alive: true,
             receiver,
             subscribers: Vec::new(),
         }
@@ -26,24 +30,41 @@ impl EventBroker {
         self
     }
 
-    fn emit(&self, event: &Event) {
-        for (sender, filter) in &self.subscribers {
-            if filter(event) {
-                sender.send(event.clone()).unwrap();
+    pub async fn run(&mut self) {
+        while self.alive {
+            match self.receiver.recv().await {
+                Some(event) => {
+                    self.emit(&event, false).await;
+                }
+                None => {
+                    warn!("The global channel is no more.");
+                    break;
+                }
             }
         }
     }
 
-    pub fn run(&self) {
-        loop {
-            match self.receiver.recv() {
-                Ok(event) => {
-                    self.emit(&event);
-                }
-                Err(e) => {
-                    eprintln!("Error receiving event: {}", e);
-                }
+    async fn emit(&self, event: &Event, force: bool) {
+        let mut futures = FuturesUnordered::new();
+
+        for (sender, filter) in &self.subscribers {
+            if force || filter(event) {
+                let evt = event.clone();
+                let sender = sender.clone();
+                futures.push(async move {
+                    if let Err(e) = sender.send(evt).await {
+                        warn!("Failed to send to subscriber: {}", e);
+                    }
+                });
             }
         }
+
+        while let Some(_) = futures.next().await {}
+    }
+
+    pub async fn exit(&mut self) {
+        let event = Event::new("broker", DomainEvent::Exit);
+        self.emit(&event, true).await;
+        self.alive = false;
     }
 }

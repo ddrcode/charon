@@ -1,61 +1,99 @@
-use crossbeam_channel::{Receiver, Sender};
-use evdev::{Device, EventSummary};
+use tokio::sync::mpsc::{Receiver, Sender, error::TryRecvError};
 
-use crate::domain::{Actor, DomainEvent, Event};
+use crate::domain::{DomainEvent, Event};
+use evdev::{Device, EventSummary};
+use tracing::{error, info, warn};
 
 pub struct KeyScanner {
     tx: Sender<Event>,
-    _rx: Receiver<Event>,
+    rx: Receiver<Event>,
     device: Device,
+    alive: bool,
 }
 
 impl KeyScanner {
     pub fn new(tx: Sender<Event>, rx: Receiver<Event>) -> Self {
-        let device = Device::open("/dev/input/event5").unwrap();
+        let device = Device::open("/dev/input/event6").unwrap();
         KeyScanner {
             device,
             tx,
-            _rx: rx,
+            rx,
+            alive: true,
         }
     }
-}
 
-impl Actor for KeyScanner {
-    fn run(&mut self) {
-        loop {
+    pub fn run(&mut self) {
+        info!("Starting Key Scanner");
+        while self.alive {
+            self.check_messages();
             let key_events: Vec<_> = self.device.fetch_events().unwrap().collect();
             for event in key_events {
                 let kos_event = match event.destructure() {
-                    EventSummary::Key(_, key, 1) => DomainEvent::KeyPress(key),
-                    EventSummary::Key(_, key, 0) => DomainEvent::KeyRelease(key),
+                    EventSummary::Key(_, key, value) => match value {
+                        1 | 2 => DomainEvent::KeyPress(key),
+                        0 => DomainEvent::KeyRelease(key),
+                        other => {
+                            warn!("Unhandled key event value: {}", other);
+                            continue;
+                        }
+                    },
                     EventSummary::Synchronization(..) | EventSummary::Misc(..) => continue,
                     e => {
-                        println!("got a different event: {:?}", e);
-                        DomainEvent::Warning(format!("{:?}", e).into())
+                        warn!("Unhandled device event: {:?}", e);
+                        continue;
                     }
                 };
-                self.send(kos_event).unwrap();
+                self.send(kos_event);
             }
         }
     }
-
-    // fn run(&mut self) {
-    //     let chars: Vec<u16> = vec![30, 31, 32, 33, 34, 35, 36, 37, 38, 44, 45]; // Example key codes
-    //     for c in chars.into_iter() {
-    //         let key = KeyCode(c);
-    //         self.send(DomainEvent::KeyPress(key)).unwrap();
-    //         thread::sleep(time::Duration::from_millis(100));
-    //         self.send(DomainEvent::KeyRelease(key)).unwrap();
-    //         thread::sleep(time::Duration::from_millis(100));
-    //     }
-    //     loop {}
-    // }
 
     fn id() -> &'static str {
         "key_scanner"
     }
 
-    fn sender(&self) -> &Sender<Event> {
-        &self.tx
+    fn send(&mut self, payload: DomainEvent) {
+        let event = Event::new(Self::id(), payload);
+        self.send_raw(event);
+    }
+
+    fn send_raw(&mut self, event: Event) {
+        if let Err(_) = self.tx.blocking_send(event) {
+            warn!("Can't send messages - channel closed. Quitting.");
+            self.alive = false;
+        }
+    }
+
+    fn check_messages(&mut self) {
+        match self.rx.try_recv() {
+            Ok(event) => self.handle_event(&event),
+            Err(TryRecvError::Disconnected) => {
+                warn!("Can't read messages - channel closed. Quitting.");
+                self.alive = false;
+            }
+            Err(TryRecvError::Empty) => {}
+        }
+    }
+
+    fn handle_event(&mut self, event: &Event) {
+        match &event.payload {
+            DomainEvent::Exit => {
+                info!("Exit event received. Quittig...");
+                self.alive = false;
+            }
+            other => {
+                warn!("Unhandled event: {:?}", other);
+            }
+        }
+    }
+}
+
+impl Drop for KeyScanner {
+    fn drop(&mut self) {
+        if self.device.is_grabbed() {
+            if let Err(e) = self.device.ungrab() {
+                error!("Couldn't ungrab device: {}", e);
+            }
+        }
     }
 }

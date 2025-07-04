@@ -1,10 +1,10 @@
+use evdev::KeyCode;
 use std::{
     fs::{File, OpenOptions},
     io::Write,
 };
-
-use crossbeam_channel::{Receiver, Sender};
-use evdev::KeyCode;
+use tokio::sync::mpsc::{Receiver, Sender};
+use tracing::{error, info, warn};
 
 use crate::domain::{Actor, DomainEvent, Event, HidKeyCode};
 
@@ -15,6 +15,7 @@ pub struct PassThrough {
     tx: Sender<Event>,
     rx: Receiver<Event>,
     hidg: File,
+    alive: bool,
 }
 
 impl PassThrough {
@@ -29,6 +30,7 @@ impl PassThrough {
             rx,
             state,
             hidg,
+            alive: true,
         }
     }
 
@@ -47,7 +49,7 @@ impl PassThrough {
     fn send_report(&mut self) {
         let report = self.state.to_report();
         if let Err(e) = self.hidg.write_all(&report) {
-            eprintln!("Failed to write HID report: {}", e);
+            error!("Failed to write HID report: {}", e);
         }
     }
 
@@ -59,8 +61,12 @@ impl PassThrough {
             DomainEvent::KeyRelease(key) => {
                 self.handle_key_release(key);
             }
+            DomainEvent::Exit => {
+                info!("Exit event received. Quitting...");
+                self.alive = false;
+            }
             e => {
-                println!("Unhandled event: {:?}", e);
+                warn!("Unhandled event: {:?}", e);
             }
         }
     }
@@ -71,17 +77,18 @@ impl PassThrough {
     }
 }
 
+impl Drop for PassThrough {
+    fn drop(&mut self) {
+        self.reset();
+    }
+}
+
+#[async_trait::async_trait]
 impl Actor for PassThrough {
-    fn run(&mut self) {
-        loop {
-            match self.rx.recv() {
-                Ok(event) => {
-                    self.handle_event(&event);
-                }
-                Err(e) => {
-                    eprintln!("Error receiving event: {}", e);
-                    break;
-                }
+    async fn run(&mut self) {
+        while self.alive {
+            if let Some(event) = self.rx.recv().await {
+                self.handle_event(&event);
             }
         }
     }

@@ -12,4 +12,5 @@ pub enum DomainEvent {
     SendFile(String),
     ModeChange(Mode),
     Warning(Cow<'static, str>),
+    Exit,
 }
