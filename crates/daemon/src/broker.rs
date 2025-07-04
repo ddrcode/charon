@@ -34,7 +34,7 @@ impl EventBroker {
         while self.alive {
             match self.receiver.recv().await {
                 Some(event) => {
-                    self.emit(&event, false).await;
+                    self.broadcast(&event, false).await;
                 }
                 None => {
                     warn!("The global channel is no more.");
@@ -44,7 +44,7 @@ impl EventBroker {
         }
     }
 
-    async fn emit(&self, event: &Event, force: bool) {
+    pub async fn broadcast(&self, event: &Event, force: bool) {
         let mut futures = FuturesUnordered::new();
 
         for (sender, filter) in &self.subscribers {
@@ -64,7 +64,7 @@ impl EventBroker {
 
     pub async fn exit(&mut self) {
         let event = Event::new("broker", DomainEvent::Exit);
-        self.emit(&event, true).await;
+        self.broadcast(&event, true).await;
         self.alive = false;
     }
 }

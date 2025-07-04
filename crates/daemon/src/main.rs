@@ -10,7 +10,8 @@ use actor::{
 use anyhow;
 use broker::EventBroker;
 use domain::Event;
-use tokio::{self, signal, sync::mpsc};
+use tokio::{self, signal::unix, sync::mpsc};
+use tracing::info;
 use tracing_subscriber::FmtSubscriber;
 
 #[tokio::main]
@@ -32,11 +33,17 @@ async fn main() -> Result<(), anyhow::Error> {
     broker.add_subscriber(pt_tx, passthrough::filter);
     spawn_pass_through(event_tx.clone(), pt_rx);
 
+    let mut sigterm = unix::signal(unix::SignalKind::terminate())?;
+
     tokio::select! {
         _ = broker.run() => {},
-        _ = signal::ctrl_c() => {
-            println!("Received Ctrl+C, shutting down gracefully...");
+        _ = tokio::signal::ctrl_c() => {
+            info!("Received Ctrl+C, shutting down gracefully...");
             broker.exit().await;
+        },
+        _ = sigterm.recv() => {
+            info!("Received SIGTERM, shutting down");
+            broker.exit().await
         }
     }
 

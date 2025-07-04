@@ -24,6 +24,9 @@ impl KeyScanner {
 
     pub fn run(&mut self) {
         info!("Starting Key Scanner");
+
+        self.device.grab().unwrap();
+
         while self.alive {
             self.check_messages();
             let key_events: Vec<_> = self.device.fetch_events().unwrap().collect();
@@ -86,14 +89,26 @@ impl KeyScanner {
             }
         }
     }
+
+    fn grab(&mut self) {
+        if !self.device.is_grabbed() {
+            if let Err(e) = self.device.grab() {
+                error!("Couldn't grab the device: {}", e);
+            }
+        }
+    }
+
+    fn ungrab(&mut self) {
+        if self.device.is_grabbed() {
+            if let Err(e) = self.device.ungrab() {
+                error!("Couldn't ungrab the device: {}", e);
+            }
+        }
+    }
 }
 
 impl Drop for KeyScanner {
     fn drop(&mut self) {
-        if self.device.is_grabbed() {
-            if let Err(e) = self.device.ungrab() {
-                error!("Couldn't ungrab device: {}", e);
-            }
-        }
+        self.ungrab();
     }
 }
