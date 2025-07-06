@@ -42,6 +42,12 @@ impl HidKeyCode {
     }
 }
 
+impl From<HidKeyCode> for u8 {
+    fn from(key: HidKeyCode) -> Self {
+        key.code()
+    }
+}
+
 impl TryFrom<&KeyCode> for HidKeyCode {
     type Error = KOSError;
 

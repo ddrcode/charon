@@ -47,4 +47,8 @@ impl PassThroughState {
         self.modifiers = 0;
         self.keys.clear();
     }
+
+    pub fn is(&self, key: HidKeyCode, modifiers: u8) -> bool {
+        self.modifiers == modifiers && self.keys.len() == 1 && self.keys[0] == key.into()
+    }
 }
