@@ -10,7 +10,7 @@ use actor::{
 use anyhow;
 use broker::EventBroker;
 use domain::Event;
-use tokio::{self, signal::unix, sync::mpsc};
+use tokio::{self, signal::unix, sync::mpsc, task::JoinHandle};
 use tracing::info;
 use tracing_subscriber::FmtSubscriber;
 
@@ -24,16 +24,18 @@ async fn main() -> Result<(), anyhow::Error> {
 
     tracing::subscriber::set_global_default(subscriber).expect("Setting default subscriber failed");
 
+    let mut tasks: Vec<JoinHandle<()>> = Vec::new();
+
     let (event_tx, broker_rx) = mpsc::channel::<Event>(128);
     let mut broker = EventBroker::new(broker_rx);
 
     let (scan_tx, scan_rx) = mpsc::channel::<Event>(128);
     broker.add_subscriber(scan_tx, key_scanner::filter);
-    spawn_key_scanner(event_tx.clone(), scan_rx).await;
+    tasks.push(spawn_key_scanner(event_tx.clone(), scan_rx).await);
 
     let (pt_tx, pt_rx) = mpsc::channel::<Event>(128);
     broker.add_subscriber(pt_tx, passthrough::filter);
-    spawn_pass_through(event_tx.clone(), pt_rx);
+    tasks.push(spawn_pass_through(event_tx.clone(), pt_rx));
 
     let mut sigterm = unix::signal(unix::SignalKind::terminate())?;
 
@@ -47,6 +49,10 @@ async fn main() -> Result<(), anyhow::Error> {
             info!("Received SIGTERM, shutting down");
             exit(&mut broker).await
         }
+    }
+
+    for handle in tasks {
+        let _ = handle.await;
     }
 
     info!("Charon says goodbye. Hades is waiting...");
