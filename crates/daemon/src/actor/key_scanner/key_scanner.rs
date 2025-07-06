@@ -13,7 +13,7 @@ pub struct KeyScanner {
 
 impl KeyScanner {
     pub fn new(tx: Sender<Event>, rx: Receiver<Event>) -> Self {
-        let device = Device::open("/dev/input/event6").unwrap();
+        let device = Device::open("/dev/input/event5").unwrap();
         KeyScanner {
             device,
             tx,
@@ -25,7 +25,7 @@ impl KeyScanner {
     pub fn run(&mut self) {
         info!("Starting Key Scanner");
 
-        self.device.grab().unwrap();
+        self.grab();
 
         while self.alive {
             self.check_messages();

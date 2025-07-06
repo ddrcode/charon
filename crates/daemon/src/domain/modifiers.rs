@@ -1,6 +1,7 @@
 use crate::domain::HidKeyCode;
 
 #[derive(Debug, PartialEq, Clone, Default)]
+#[repr(transparent)]
 pub struct Modifiers(u8);
 
 impl Modifiers {
@@ -15,6 +16,28 @@ impl Modifiers {
 
     pub fn new(val: u8) -> Self {
         Self(val)
+    }
+
+    pub fn value(&self) -> u8 {
+        self.0
+    }
+
+    pub fn add(&mut self, modifiers: Modifiers) {
+        self.0 |= modifiers.value();
+    }
+
+    pub fn remove(&mut self, modifiers: Modifiers) {
+        self.0 &= !modifiers.value();
+    }
+
+    pub fn reset(&mut self) {
+        self.0 = 0;
+    }
+}
+
+impl From<Modifiers> for u8 {
+    fn from(value: Modifiers) -> Self {
+        value.value()
     }
 }
 

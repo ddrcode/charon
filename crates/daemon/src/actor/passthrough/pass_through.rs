@@ -37,6 +37,9 @@ impl PassThrough {
     fn handle_key_press(&mut self, key: &KeyCode) {
         let key = HidKeyCode::try_from(key).unwrap();
         self.state.update_on_press(key);
+        // if self.state.is() {
+        //
+        // }
         self.send_report();
     }
 
@@ -86,6 +89,7 @@ impl Drop for PassThrough {
 #[async_trait::async_trait]
 impl Actor for PassThrough {
     async fn run(&mut self) {
+        info!("Starting pass-through service");
         while self.alive {
             if let Some(event) = self.rx.recv().await {
                 self.handle_event(&event);
