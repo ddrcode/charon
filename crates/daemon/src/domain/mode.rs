@@ -4,3 +4,9 @@ pub enum Mode {
     PassThrough,
     InApp,
 }
+
+impl Default for Mode {
+    fn default() -> Self {
+        Mode::PassThrough
+    }
+}

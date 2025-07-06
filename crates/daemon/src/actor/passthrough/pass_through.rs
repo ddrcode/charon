@@ -4,9 +4,9 @@ use std::{
     io::Write,
 };
 use tokio::sync::mpsc::{Receiver, Sender};
-use tracing::{error, info, warn};
+use tracing::{debug, error, info, warn};
 
-use crate::domain::{Actor, DomainEvent, Event, HidKeyCode};
+use crate::domain::{Actor, DomainEvent, Event, HidKeyCode, Mode, Modifiers};
 
 pub use super::PassThroughState;
 
@@ -16,6 +16,7 @@ pub struct PassThrough {
     rx: Receiver<Event>,
     hidg: File,
     alive: bool,
+    mode: Mode,
 }
 
 impl PassThrough {
@@ -25,22 +26,30 @@ impl PassThrough {
             .write(true)
             .open("/dev/hidg0")
             .expect("Failed to open HID gadget device");
+
         Self {
             tx,
             rx,
             state,
             hidg,
             alive: true,
+            mode: Mode::PassThrough,
         }
     }
 
-    fn handle_key_press(&mut self, key: &KeyCode) {
+    async fn handle_key_press(&mut self, key: &KeyCode) {
         let key = HidKeyCode::try_from(key).unwrap();
         self.state.update_on_press(key);
-        // if self.state.is() {
-        //
-        // }
-        self.send_report();
+        if self
+            .state
+            .is(HidKeyCode::KEY_CAPSLOCK, Modifiers::default())
+        {
+            self.toggle_mode().await;
+        } else if self.state.is(HidKeyCode::KEY_Q, Modifiers::LEFT_CTRL) {
+            self.send(DomainEvent::Exit).await.unwrap();
+        } else {
+            self.send_report();
+        }
     }
 
     fn handle_key_release(&mut self, key: &KeyCode) {
@@ -49,17 +58,32 @@ impl PassThrough {
         self.send_report();
     }
 
+    async fn toggle_mode(&mut self) {
+        self.reset();
+        self.mode = if self.mode == Mode::PassThrough {
+            Mode::InApp
+        } else {
+            Mode::PassThrough
+        };
+        debug!("Switching mode to {:?}", self.mode);
+        self.send(DomainEvent::ModeChange(self.mode.clone()))
+            .await
+            .unwrap();
+    }
+
     fn send_report(&mut self) {
-        let report = self.state.to_report();
-        if let Err(e) = self.hidg.write_all(&report) {
-            error!("Failed to write HID report: {}", e);
+        if self.mode == Mode::PassThrough {
+            let report = self.state.to_report();
+            if let Err(e) = self.hidg.write_all(&report) {
+                error!("Failed to write HID report: {}", e);
+            }
         }
     }
 
-    fn handle_event(&mut self, event: &Event) {
+    async fn handle_event(&mut self, event: &Event) {
         match &event.payload {
             DomainEvent::KeyPress(key) => {
-                self.handle_key_press(key);
+                self.handle_key_press(key).await;
             }
             DomainEvent::KeyRelease(key) => {
                 self.handle_key_release(key);
@@ -92,7 +116,7 @@ impl Actor for PassThrough {
         info!("Starting pass-through service");
         while self.alive {
             if let Some(event) = self.rx.recv().await {
-                self.handle_event(&event);
+                self.handle_event(&event).await;
             }
         }
     }

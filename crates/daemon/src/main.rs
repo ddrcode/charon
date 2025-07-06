@@ -14,6 +14,8 @@ use tokio::{self, signal::unix, sync::mpsc};
 use tracing::info;
 use tracing_subscriber::FmtSubscriber;
 
+use crate::domain::DomainEvent;
+
 #[tokio::main]
 async fn main() -> Result<(), anyhow::Error> {
     let subscriber = FmtSubscriber::builder()
@@ -39,14 +41,19 @@ async fn main() -> Result<(), anyhow::Error> {
         _ = broker.run() => {},
         _ = tokio::signal::ctrl_c() => {
             info!("Received Ctrl+C, shutting down gracefully...");
-            broker.exit().await;
+            exit(&mut broker).await;
         },
         _ = sigterm.recv() => {
             info!("Received SIGTERM, shutting down");
-            broker.exit().await
+            exit(&mut broker).await
         }
     }
 
-    println!("Charon says goodbye. Hades is waiting...");
+    info!("Charon says goodbye. Hades is waiting...");
     Ok(())
+}
+
+async fn exit(broker: &mut EventBroker) {
+    let event = Event::new("broker", DomainEvent::Exit);
+    broker.broadcast(&event, true).await;
 }

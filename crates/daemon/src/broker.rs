@@ -34,7 +34,11 @@ impl EventBroker {
         while self.alive {
             match self.receiver.recv().await {
                 Some(event) => {
-                    self.broadcast(&event, false).await;
+                    let force = event.payload == DomainEvent::Exit;
+                    self.broadcast(&event, force).await;
+                    if force {
+                        self.alive = false;
+                    }
                 }
                 None => {
                     warn!("The global channel is no more.");
@@ -60,11 +64,5 @@ impl EventBroker {
         }
 
         while let Some(_) = futures.next().await {}
-    }
-
-    pub async fn exit(&mut self) {
-        let event = Event::new("broker", DomainEvent::Exit);
-        self.broadcast(&event, true).await;
-        self.alive = false;
     }
 }
