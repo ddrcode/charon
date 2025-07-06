@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use tokio::sync::mpsc::{Receiver, Sender, error::TryRecvError};
 
 use crate::domain::{DomainEvent, Event, Mode};
@@ -13,8 +15,8 @@ pub struct KeyScanner {
 }
 
 impl KeyScanner {
-    pub fn new(tx: Sender<Event>, rx: Receiver<Event>) -> Self {
-        let device = Device::open("/dev/input/event5").unwrap();
+    pub fn new(tx: Sender<Event>, rx: Receiver<Event>, device_path: PathBuf) -> Self {
+        let device = Device::open(device_path).unwrap();
         KeyScanner {
             device,
             tx,
