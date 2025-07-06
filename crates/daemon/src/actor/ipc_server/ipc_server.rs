@@ -1,65 +1,51 @@
-use tokio::{
-    io::AsyncReadExt,
-    net::{UnixListener, UnixStream},
-    sync::mpsc::{Receiver, Sender},
-};
+use crate::domain::Event;
+use tokio::net::UnixListener;
+use tokio::sync::mpsc::{Receiver, Sender};
 
-use crate::domain::{Actor, Event};
+use super::ClientSession;
 
 pub struct IPCServer {
-    tx: Sender<Event>,
-    rx: Receiver<Event>,
-    client: Option<UnixStream>,
     listener: UnixListener,
+    broker_tx: Sender<Event>,
+    ipc_rx: Receiver<Event>,
+    session: Option<ClientSession>,
 }
 
 impl IPCServer {
-    // fn handle(&self, cmd: ClientCommand) {
-    //     match cmd {
-    //         ClientCommand::OpenVim => {
-    //             self.tx.send(Event::OpenVim).unwrap();
-    //         }
-    //         ClientCommand::PausePassThrough => {
-    //             self.tx.send(Event::PausePassThrough).unwrap();
-    //         }
-    //         _ => { /* etc */ }
-    //     }
-    // }
-}
-
-#[async_trait::async_trait]
-impl Actor for IPCServer {
-    async fn run(&mut self) {
-        // let listener = UnixListener::bind("/tmp/charon.sock").unwrap();
-        // let (stream, _addr) = listener.accept().await.unwrap();
-        // loop {
-        //     tokio::select! {
-        //         Result(cmd) = stream.read() => {
-        //             self.tx.send(Event::from(cmd));
-        //         }
-        //         Some(evt) = self.rx.recv() => {
-        //             // socket.write(serialize(evt)).await;
-        //         }
-        //     }
-        // }
-        // for stream in listener.incoming() {
-        //     match stream {
-        //         Ok(mut s) => {
-        //             let mut buf = String::new();
-        //             s.read_to_string(&mut buf).unwrap();
-        //             let cmd: ClientCommand = serde_json::from_str(&buf).unwrap();
-        //             self.handle(cmd);
-        //         }
-        //         Err(e) => eprintln!("IPC error: {}", e),
-        //     }
-        // }
+    pub fn new(tx: Sender<Event>, rx: Receiver<Event>) -> Self {
+        let listener = UnixListener::bind("/tmp/charon.sock").unwrap();
+        Self {
+            broker_tx: tx,
+            ipc_rx: rx,
+            session: None,
+            listener,
+        }
     }
 
-    fn id() -> &'static str {
-        "ipc-server"
-    }
+    pub async fn run(&mut self) -> anyhow::Result<()> {
+        loop {
+            tokio::select! {
+                // Accept a new connection
+                Ok((stream, _)) = self.listener.accept() => {
+                    tracing::info!("Accepted new IPC client");
+                    if let Some(old) = self.session.take() {
+                        tracing::warn!("Replacing existing session");
+                        old.shutdown().await;
+                    }
+                    let session = ClientSession::new(stream, self.broker_tx.clone());
+                    tokio::spawn(session.run());
+                    self.session = Some(session);
+                }
 
-    fn sender(&self) -> &Sender<Event> {
-        &self.tx
+                // Read broker events and push to session
+                Some(event) = self.ipc_rx.recv() => {
+                    if let Some(session) = &self.session {
+                        if let Err(e) = session.send(event).await {
+                            tracing::warn!("Failed to send event to session: {e}");
+                        }
+                    }
+                }
+            }
+        }
     }
 }

@@ -1,9 +1,10 @@
+use serde::Serialize;
 use std::time::SystemTime;
 use uuid::Uuid;
 
 use super::DomainEvent;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct Event {
     pub id: Uuid,
     pub timestamp: SystemTime,
