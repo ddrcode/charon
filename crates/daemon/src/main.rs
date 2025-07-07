@@ -3,13 +3,18 @@ pub mod broker;
 pub mod daemon;
 pub mod domain;
 pub mod error;
+pub mod utils;
 
 use anyhow;
 use tokio::{self, signal::unix};
 use tracing::info;
 use tracing_subscriber::FmtSubscriber;
 
-use crate::daemon::Daemon;
+use crate::{
+    actor::{ipc_server::IPCServer, key_scanner::KeyScanner, passthrough::PassThrough},
+    daemon::Daemon,
+    domain::Actor,
+};
 
 #[tokio::main]
 async fn main() -> Result<(), anyhow::Error> {
@@ -23,11 +28,15 @@ async fn main() -> Result<(), anyhow::Error> {
     tracing::subscriber::set_global_default(subscriber).expect("Setting default subscriber failed");
 
     let mut daemon = Daemon::new();
+    daemon
+        .add_actor("KeyScanner", KeyScanner::spawn, KeyScanner::filter)
+        .add_actor("PassThrough", PassThrough::spawn, PassThrough::filter)
+        .add_actor("IPCServer", IPCServer::spawn, IPCServer::filter);
 
     let mut sigterm = unix::signal(unix::SignalKind::terminate())?;
 
     tokio::select! {
-        _ = daemon.start() => {},
+        _ = daemon.run() => {},
         _ = tokio::signal::ctrl_c() => {
             info!("Received Ctrl+C, shutting down gracefully...");
             daemon.stop().await;

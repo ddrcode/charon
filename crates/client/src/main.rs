@@ -1,9 +1,9 @@
+use charon_lib::domain::Event;
 use serde_json::Result as JsonResult;
 use tokio::{
     io::{AsyncBufReadExt, BufReader},
     net::UnixStream,
 };
-use your_crate::domain::Event; // adjust this path!
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {

@@ -1,20 +1,8 @@
 use std::{fs, path::PathBuf};
 
-use tokio::task::JoinHandle;
 use tracing::info;
 
-use super::KeyScanner;
-use crate::domain::{Actor, ActorState};
-
-pub fn spawn_key_scanner(state: ActorState) -> JoinHandle<()> {
-    let device_path = find_keyboard_device().unwrap();
-    let mut scanner = KeyScanner::new(state, device_path);
-    tokio::task::spawn(async move {
-        scanner.run().await;
-    })
-}
-
-fn find_keyboard_device() -> Option<PathBuf> {
+pub fn find_keyboard_device() -> Option<PathBuf> {
     let dir = "/dev/input/by-id";
     for entry in fs::read_dir(dir).ok()? {
         let entry = entry.ok()?;

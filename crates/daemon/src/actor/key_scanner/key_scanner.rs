@@ -1,9 +1,12 @@
 use std::path::PathBuf;
 
 use charon_lib::domain::{DomainEvent, Event, Mode};
-use tokio::io::unix::AsyncFd;
+use tokio::{io::unix::AsyncFd, task::JoinHandle};
 
-use crate::domain::{Actor, ActorState};
+use crate::{
+    domain::{Actor, ActorState},
+    utils::keyboard::find_keyboard_device,
+};
 use evdev::{Device, EventSummary, InputEvent};
 use tracing::{error, info, warn};
 
@@ -89,6 +92,14 @@ impl Drop for KeyScanner {
 
 #[async_trait::async_trait]
 impl Actor for KeyScanner {
+    fn spawn(state: ActorState) -> JoinHandle<()> {
+        let device_path = find_keyboard_device().expect("Couldn't find keyboard device");
+        let mut scanner = KeyScanner::new(state, device_path);
+        tokio::task::spawn(async move {
+            scanner.run().await;
+        })
+    }
+
     fn state(&self) -> &ActorState {
         &self.state
     }
@@ -114,6 +125,13 @@ impl Actor for KeyScanner {
                 };
                 self.handle_device_events(events).await;
             }
+        }
+    }
+
+    fn filter(event: &Event) -> bool {
+        match event.payload {
+            DomainEvent::ModeChange(_) => true,
+            _ => false,
         }
     }
 }

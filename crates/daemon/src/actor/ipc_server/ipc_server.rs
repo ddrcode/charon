@@ -3,8 +3,8 @@ use std::path::Path;
 
 use crate::domain::{Actor, ActorState};
 use charon_lib::domain::{DomainEvent, Event};
-use tokio::net::UnixListener;
 use tokio::sync::mpsc;
+use tokio::{net::UnixListener, task::JoinHandle};
 use tracing::info;
 
 use super::{ClientSession, ClientSessionState};
@@ -45,6 +45,13 @@ impl IPCServer {
 
 #[async_trait::async_trait]
 impl Actor for IPCServer {
+    fn spawn(state: ActorState) -> JoinHandle<()> {
+        let mut ipc_server = IPCServer::new(state);
+        tokio::spawn(async move {
+            ipc_server.run().await;
+        })
+    }
+
     async fn tick(&mut self) {
         tokio::select! {
             // Accept a new connection

@@ -4,6 +4,7 @@ use std::{
     fs::{File, OpenOptions},
     io::Write,
 };
+use tokio::task::JoinHandle;
 use tracing::{debug, error, info, warn};
 
 use crate::domain::{Actor, ActorState, HidKeyCode, Modifiers};
@@ -108,6 +109,13 @@ impl Drop for PassThrough {
 
 #[async_trait::async_trait]
 impl Actor for PassThrough {
+    fn spawn(state: ActorState) -> JoinHandle<()> {
+        let mut passthrough = PassThrough::new(state);
+        tokio::spawn(async move {
+            passthrough.run().await;
+        })
+    }
+
     async fn tick(&mut self) {
         if let Some(event) = self.recv().await {
             self.handle_event(&event).await;

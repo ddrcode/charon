@@ -1,4 +1,5 @@
 use charon_lib::domain::{DomainEvent, Event};
+use tokio::task::JoinHandle;
 use tracing::{info, warn};
 
 use crate::domain::ActorState;
@@ -47,4 +48,10 @@ pub trait Actor {
 
     async fn init(&mut self) {}
     async fn shutdown(&mut self) {}
+
+    fn spawn(state: ActorState) -> JoinHandle<()>;
+
+    fn filter(_event: &Event) -> bool {
+        true
+    }
 }

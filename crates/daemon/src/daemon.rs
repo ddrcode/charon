@@ -10,15 +10,7 @@ use tokio::{
 };
 use tracing::info;
 
-use crate::{
-    actor::{
-        ipc_server::{self, spawn_ipc_server},
-        key_scanner::{self, spawn_key_scanner},
-        passthrough::{self, spawn_pass_through},
-    },
-    broker::EventBroker,
-    domain::ActorState,
-};
+use crate::{broker::EventBroker, domain::ActorState};
 
 pub struct Daemon {
     tasks: Vec<JoinHandle<()>>,
@@ -38,11 +30,7 @@ impl Daemon {
         }
     }
 
-    pub async fn start(&mut self) {
-        self.add_actor("KeyScanner", spawn_key_scanner, key_scanner::filter)
-            .add_actor("PassThrough", spawn_pass_through, passthrough::filter)
-            .add_actor("IPCServer", spawn_ipc_server, ipc_server::filter);
-
+    pub async fn run(&mut self) {
         info!("Charon is ready...");
         self.broker.run().await;
     }
@@ -58,7 +46,7 @@ impl Daemon {
         }
     }
 
-    fn add_actor(
+    pub fn add_actor(
         &mut self,
         name: &'static str,
         spawn_fn: fn(ActorState) -> JoinHandle<()>,
