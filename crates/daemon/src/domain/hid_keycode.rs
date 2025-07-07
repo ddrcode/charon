@@ -5,161 +5,281 @@ use crate::error::KOSError;
 /// Represents a USB HID Usage ID for a key.
 /// See: https://www.usb.org/sites/default/files/hut1_3_0.pdf for details
 #[derive(Clone, Copy, PartialEq, Eq)]
-pub struct HidKeyCode(u8);
+#[repr(u8)]
+#[allow(non_camel_case_types)]
+#[non_exhaustive]
+pub enum HidKeyCode {
+    KEY_A = 0x04,
+    KEY_B = 0x05,
+    KEY_C = 0x06,
+    KEY_D = 0x07,
+    KEY_E = 0x08,
+    KEY_F = 0x09,
+    KEY_G = 0x0A,
+    KEY_H = 0x0B,
+    KEY_I = 0x0C,
+    KEY_J = 0x0D,
+    KEY_K = 0x0E,
+    KEY_L = 0x0F,
+    KEY_M = 0x10,
+    KEY_N = 0x11,
+    KEY_O = 0x12,
+    KEY_P = 0x13,
+    KEY_Q = 0x14,
+    KEY_R = 0x15,
+    KEY_S = 0x16,
+    KEY_T = 0x17,
+    KEY_U = 0x18,
+    KEY_V = 0x19,
+    KEY_W = 0x1A,
+    KEY_X = 0x1B,
+    KEY_Y = 0x1C,
+    KEY_Z = 0x1D,
+
+    KEY_1 = 0x1E,
+    KEY_2 = 0x1F,
+    KEY_3 = 0x20,
+    KEY_4 = 0x21,
+    KEY_5 = 0x22,
+    KEY_6 = 0x23,
+    KEY_7 = 0x24,
+    KEY_8 = 0x25,
+    KEY_9 = 0x26,
+    KEY_0 = 0x27,
+
+    KEY_ENTER = 0x28,
+    KEY_ESC = 0x29,
+    KEY_BACKSPACE = 0x2A,
+    KEY_TAB = 0x2B,
+    KEY_SPACE = 0x2C,
+
+    KEY_MINUS = 0x2D,
+    KEY_EQUAL = 0x2E,
+    KEY_LEFTBRACE = 0x2F,
+    KEY_RIGHTBRACE = 0x30,
+    KEY_BACKSLASH = 0x31,
+    KEY_SEMICOLON = 0x33,
+    KEY_APOSTROPHE = 0x34,
+    KEY_GRAVE = 0x35,
+    KEY_COMMA = 0x36,
+    KEY_DOT = 0x37,
+    KEY_SLASH = 0x38,
+
+    KEY_CAPSLOCK = 0x39,
+
+    KEY_F1 = 0x3A,
+    KEY_F2 = 0x3B,
+    KEY_F3 = 0x3C,
+    KEY_F4 = 0x3D,
+    KEY_F5 = 0x3E,
+    KEY_F6 = 0x3F,
+    KEY_F7 = 0x40,
+    KEY_F8 = 0x41,
+    KEY_F9 = 0x42,
+    KEY_F10 = 0x43,
+    KEY_F11 = 0x44,
+    KEY_F12 = 0x45,
+
+    KEY_INSERT = 0x49,
+    KEY_DELETE = 0x4C,
+    KEY_HOME = 0x4A,
+    KEY_END = 0x4D,
+    KEY_PAGEUP = 0x4B,
+    KEY_PAGEDOWN = 0x4E,
+    KEY_UP = 0x52,
+    KEY_DOWN = 0x51,
+    KEY_LEFT = 0x50,
+    KEY_RIGHT = 0x4F,
+
+    KEY_NUMLOCK = 0x53,
+    KEY_SCROLLLOCK = 0x47,
+
+    KEY_KP0 = 0x62,
+    KEY_KP1 = 0x59,
+    KEY_KP2 = 0x5A,
+    KEY_KP3 = 0x5B,
+    KEY_KP4 = 0x5C,
+    KEY_KP5 = 0x5D,
+    KEY_KP6 = 0x5E,
+    KEY_KP7 = 0x5F,
+    KEY_KP8 = 0x60,
+    KEY_KP9 = 0x61,
+    KEY_KPDOT = 0x63,
+    KEY_KPENTER = 0x58,
+    KEY_KPSLASH = 0x54,
+    KEY_KPASTERISK = 0x55,
+    KEY_KPMINUS = 0x56,
+    KEY_KPPLUS = 0x57,
+
+    KEY_LEFTCTRL = 0xE0,
+    KEY_LEFTSHIFT = 0xE1,
+    KEY_LEFTALT = 0xE2,
+    KEY_LEFTMETA = 0xE3,
+    KEY_RIGHTCTRL = 0xE4,
+    KEY_RIGHTSHIFT = 0xE5,
+    KEY_RIGHTALT = 0xE6,
+    KEY_RIGHTMETA = 0xE7,
+}
 
 impl HidKeyCode {
     pub fn code(&self) -> u8 {
-        self.0
+        *self as u8
     }
 
     pub fn is_modifier(&self) -> bool {
-        (0xE0..=0xE7).contains(&self.0)
+        (0xE0..=0xE7).contains(&self.code())
     }
 
     pub fn modifier_mask(&self) -> u8 {
         if self.is_modifier() {
-            return 1 << (self.0 - 0xE0);
+            return 1 << (self.code() - 0xE0);
         }
         0
     }
 
-    pub fn seq_from_char(c: char) -> Result<Vec<Self>, KOSError> {
-        let mut seq = Vec::with_capacity(4);
-        let mut c = c;
-        if c.is_ascii_uppercase() {
-            seq.push(HidKeyCode(0xE1));
-            c.make_ascii_lowercase();
-        }
-        let key_code = match c {
-            'a'..='z' => (c as u8) - b'a' + 4,
-            '1'..='9' => (c as u8) - b'1' + 0x1e,
-            '0' => 0x27,
-            ' ' => 0x2C,
-            _ => return Err(KOSError::UnsupportedCharacter(c)),
-        };
-        seq.push(HidKeyCode(key_code));
-        Ok(seq)
+    // pub fn seq_from_char(c: char) -> Result<Vec<Self>, KOSError> {
+    //     let mut seq = Vec::with_capacity(4);
+    //     let mut c = c;
+    //     if c.is_ascii_uppercase() {
+    //         seq.push(HidKeyCode(0xE1));
+    //         c.make_ascii_lowercase();
+    //     }
+    //     let key_code = match c {
+    //         'a'..='z' => (c as u8) - b'a' + 4,
+    //         '1'..='9' => (c as u8) - b'1' + 0x1e,
+    //         '0' => 0x27,
+    //         ' ' => 0x2C,
+    //         _ => return Err(KOSError::UnsupportedCharacter(c)),
+    //     };
+    //     seq.push(HidKeyCode(key_code));
+    //     Ok(seq)
+    // }
+}
+
+impl From<HidKeyCode> for u8 {
+    fn from(key: HidKeyCode) -> Self {
+        key.code()
     }
+}
+
+macro_rules! match_key {
+    ($kc:expr, $( $name:ident ),*) => {
+        match $kc {
+            $(
+                KeyCode::$name => HidKeyCode::$name,
+            )*
+            other => return Err(KOSError::UnsupportedKeyCode(other)),
+        }
+    };
 }
 
 impl TryFrom<&KeyCode> for HidKeyCode {
     type Error = KOSError;
 
     fn try_from(kc: &KeyCode) -> Result<Self, Self::Error> {
-        let code = match *kc {
-            KeyCode::KEY_A => 0x04,
-            KeyCode::KEY_B => 0x05,
-            KeyCode::KEY_C => 0x06,
-            KeyCode::KEY_D => 0x07,
-            KeyCode::KEY_E => 0x08,
-            KeyCode::KEY_F => 0x09,
-            KeyCode::KEY_G => 0x0A,
-            KeyCode::KEY_H => 0x0B,
-            KeyCode::KEY_I => 0x0C,
-            KeyCode::KEY_J => 0x0D,
-            KeyCode::KEY_K => 0x0E,
-            KeyCode::KEY_L => 0x0F,
-            KeyCode::KEY_M => 0x10,
-            KeyCode::KEY_N => 0x11,
-            KeyCode::KEY_O => 0x12,
-            KeyCode::KEY_P => 0x13,
-            KeyCode::KEY_Q => 0x14,
-            KeyCode::KEY_R => 0x15,
-            KeyCode::KEY_S => 0x16,
-            KeyCode::KEY_T => 0x17,
-            KeyCode::KEY_U => 0x18,
-            KeyCode::KEY_V => 0x19,
-            KeyCode::KEY_W => 0x1A,
-            KeyCode::KEY_X => 0x1B,
-            KeyCode::KEY_Y => 0x1C,
-            KeyCode::KEY_Z => 0x1D,
-
-            KeyCode::KEY_1 => 0x1E,
-            KeyCode::KEY_2 => 0x1F,
-            KeyCode::KEY_3 => 0x20,
-            KeyCode::KEY_4 => 0x21,
-            KeyCode::KEY_5 => 0x22,
-            KeyCode::KEY_6 => 0x23,
-            KeyCode::KEY_7 => 0x24,
-            KeyCode::KEY_8 => 0x25,
-            KeyCode::KEY_9 => 0x26,
-            KeyCode::KEY_0 => 0x27,
-
-            KeyCode::KEY_ENTER => 0x28,
-            KeyCode::KEY_ESC => 0x29,
-            KeyCode::KEY_BACKSPACE => 0x2A,
-            KeyCode::KEY_TAB => 0x2B,
-            KeyCode::KEY_SPACE => 0x2C,
-
-            KeyCode::KEY_MINUS => 0x2D,
-            KeyCode::KEY_EQUAL => 0x2E,
-            KeyCode::KEY_LEFTBRACE => 0x2F,
-            KeyCode::KEY_RIGHTBRACE => 0x30,
-            KeyCode::KEY_BACKSLASH => 0x31,
-            KeyCode::KEY_SEMICOLON => 0x33,
-            KeyCode::KEY_APOSTROPHE => 0x34,
-            KeyCode::KEY_GRAVE => 0x35,
-            KeyCode::KEY_COMMA => 0x36,
-            KeyCode::KEY_DOT => 0x37,
-            KeyCode::KEY_SLASH => 0x38,
-
-            KeyCode::KEY_CAPSLOCK => 0x39,
-
-            KeyCode::KEY_F1 => 0x3A,
-            KeyCode::KEY_F2 => 0x3B,
-            KeyCode::KEY_F3 => 0x3C,
-            KeyCode::KEY_F4 => 0x3D,
-            KeyCode::KEY_F5 => 0x3E,
-            KeyCode::KEY_F6 => 0x3F,
-            KeyCode::KEY_F7 => 0x40,
-            KeyCode::KEY_F8 => 0x41,
-            KeyCode::KEY_F9 => 0x42,
-            KeyCode::KEY_F10 => 0x43,
-            KeyCode::KEY_F11 => 0x44,
-            KeyCode::KEY_F12 => 0x45,
-
-            KeyCode::KEY_LEFTCTRL => 0xE0,
-            KeyCode::KEY_LEFTSHIFT => 0xE1,
-            KeyCode::KEY_LEFTALT => 0xE2,
-            KeyCode::KEY_LEFTMETA => 0xE3,
-            KeyCode::KEY_RIGHTCTRL => 0xE4,
-            KeyCode::KEY_RIGHTSHIFT => 0xE5,
-            KeyCode::KEY_RIGHTALT => 0xE6,
-            KeyCode::KEY_RIGHTMETA => 0xE7,
-
-            KeyCode::KEY_INSERT => 0x49,
-            KeyCode::KEY_DELETE => 0x4C,
-            KeyCode::KEY_HOME => 0x4A,
-            KeyCode::KEY_END => 0x4D,
-            KeyCode::KEY_PAGEUP => 0x4B,
-            KeyCode::KEY_PAGEDOWN => 0x4E,
-            KeyCode::KEY_UP => 0x52,
-            KeyCode::KEY_DOWN => 0x51,
-            KeyCode::KEY_LEFT => 0x50,
-            KeyCode::KEY_RIGHT => 0x4F,
-
-            KeyCode::KEY_NUMLOCK => 0x53,
-            KeyCode::KEY_SCROLLLOCK => 0x47,
-
-            KeyCode::KEY_KP0 => 0x62,
-            KeyCode::KEY_KP1 => 0x59,
-            KeyCode::KEY_KP2 => 0x5A,
-            KeyCode::KEY_KP3 => 0x5B,
-            KeyCode::KEY_KP4 => 0x5C,
-            KeyCode::KEY_KP5 => 0x5D,
-            KeyCode::KEY_KP6 => 0x5E,
-            KeyCode::KEY_KP7 => 0x5F,
-            KeyCode::KEY_KP8 => 0x60,
-            KeyCode::KEY_KP9 => 0x61,
-            KeyCode::KEY_KPDOT => 0x63,
-            KeyCode::KEY_KPENTER => 0x58,
-            KeyCode::KEY_KPSLASH => 0x54,
-            KeyCode::KEY_KPASTERISK => 0x55,
-            KeyCode::KEY_KPMINUS => 0x56,
-            KeyCode::KEY_KPPLUS => 0x57,
-
-            kc => return Err(KOSError::UnsupportedKeyCode(kc)),
-        };
-        Ok(Self(code))
+        Ok(match_key!(
+            *kc,
+            KEY_A,
+            KEY_B,
+            KEY_C,
+            KEY_D,
+            KEY_E,
+            KEY_F,
+            KEY_G,
+            KEY_H,
+            KEY_I,
+            KEY_J,
+            KEY_K,
+            KEY_L,
+            KEY_M,
+            KEY_N,
+            KEY_O,
+            KEY_P,
+            KEY_Q,
+            KEY_R,
+            KEY_S,
+            KEY_T,
+            KEY_U,
+            KEY_V,
+            KEY_W,
+            KEY_X,
+            KEY_Y,
+            KEY_Z,
+            KEY_1,
+            KEY_2,
+            KEY_3,
+            KEY_4,
+            KEY_5,
+            KEY_6,
+            KEY_7,
+            KEY_8,
+            KEY_9,
+            KEY_0,
+            KEY_ENTER,
+            KEY_ESC,
+            KEY_BACKSPACE,
+            KEY_TAB,
+            KEY_SPACE,
+            KEY_MINUS,
+            KEY_EQUAL,
+            KEY_LEFTBRACE,
+            KEY_RIGHTBRACE,
+            KEY_BACKSLASH,
+            KEY_SEMICOLON,
+            KEY_APOSTROPHE,
+            KEY_GRAVE,
+            KEY_COMMA,
+            KEY_DOT,
+            KEY_SLASH,
+            KEY_CAPSLOCK,
+            KEY_F1,
+            KEY_F2,
+            KEY_F3,
+            KEY_F4,
+            KEY_F5,
+            KEY_F6,
+            KEY_F7,
+            KEY_F8,
+            KEY_F9,
+            KEY_F10,
+            KEY_F11,
+            KEY_F12,
+            KEY_LEFTCTRL,
+            KEY_LEFTSHIFT,
+            KEY_LEFTALT,
+            KEY_LEFTMETA,
+            KEY_RIGHTCTRL,
+            KEY_RIGHTSHIFT,
+            KEY_RIGHTALT,
+            KEY_RIGHTMETA,
+            KEY_INSERT,
+            KEY_DELETE,
+            KEY_HOME,
+            KEY_END,
+            KEY_PAGEUP,
+            KEY_PAGEDOWN,
+            KEY_UP,
+            KEY_DOWN,
+            KEY_LEFT,
+            KEY_RIGHT,
+            KEY_NUMLOCK,
+            KEY_SCROLLLOCK,
+            KEY_KP0,
+            KEY_KP1,
+            KEY_KP2,
+            KEY_KP3,
+            KEY_KP4,
+            KEY_KP5,
+            KEY_KP6,
+            KEY_KP7,
+            KEY_KP8,
+            KEY_KP9,
+            KEY_KPDOT,
+            KEY_KPENTER,
+            KEY_KPSLASH,
+            KEY_KPASTERISK,
+            KEY_KPMINUS,
+            KEY_KPPLUS
+        ))
     }
 }

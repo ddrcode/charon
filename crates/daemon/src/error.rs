@@ -1,8 +1,7 @@
+use charon_lib::domain::Event;
 use evdev::KeyCode;
 use thiserror;
 use tokio::sync::mpsc::error::SendError;
-
-use crate::domain::Event;
 
 #[derive(Debug, Clone, thiserror::Error)]
 pub enum KOSError {

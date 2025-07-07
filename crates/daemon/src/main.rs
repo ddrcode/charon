@@ -1,45 +1,54 @@
 pub mod actor;
 pub mod broker;
+pub mod daemon;
 pub mod domain;
 pub mod error;
+pub mod utils;
 
-use actor::{
-    key_scanner::{self, spawn_key_scanner},
-    passthrough::{self, spawn_pass_through},
-};
 use anyhow;
-use broker::EventBroker;
-use domain::Event;
-use tokio::{self, signal, sync::mpsc};
+use tokio::{self, signal::unix};
+use tracing::info;
 use tracing_subscriber::FmtSubscriber;
+
+use crate::{
+    actor::{ipc_server::IPCServer, key_scanner::KeyScanner, passthrough::PassThrough},
+    daemon::Daemon,
+    domain::Actor,
+};
 
 #[tokio::main]
 async fn main() -> Result<(), anyhow::Error> {
     let subscriber = FmtSubscriber::builder()
         .with_max_level(tracing::Level::INFO)
+        .with_target(false)
+        .compact()
+        .pretty()
         .finish();
 
     tracing::subscriber::set_global_default(subscriber).expect("Setting default subscriber failed");
 
-    let (event_tx, broker_rx) = mpsc::channel::<Event>(128);
-    let mut broker = EventBroker::new(broker_rx);
+    let mut daemon = Daemon::new();
+    daemon
+        .add_actor("KeyScanner", KeyScanner::spawn, KeyScanner::filter)
+        .add_actor("PassThrough", PassThrough::spawn, PassThrough::filter)
+        .add_actor("IPCServer", IPCServer::spawn, IPCServer::filter);
 
-    let (scan_tx, scan_rx) = mpsc::channel::<Event>(128);
-    broker.add_subscriber(scan_tx, key_scanner::filter);
-    spawn_key_scanner(event_tx.clone(), scan_rx).await;
-
-    let (pt_tx, pt_rx) = mpsc::channel::<Event>(128);
-    broker.add_subscriber(pt_tx, passthrough::filter);
-    spawn_pass_through(event_tx.clone(), pt_rx);
+    let mut sigterm = unix::signal(unix::SignalKind::terminate())?;
 
     tokio::select! {
-        _ = broker.run() => {},
-        _ = signal::ctrl_c() => {
-            println!("Received Ctrl+C, shutting down gracefully...");
-            broker.exit().await;
+        _ = daemon.run() => {},
+        _ = tokio::signal::ctrl_c() => {
+            info!("Received Ctrl+C, shutting down gracefully...");
+            daemon.stop().await;
+        },
+        _ = sigterm.recv() => {
+            info!("Received SIGTERM, shutting down");
+            daemon.stop().await;
         }
     }
 
-    println!("Charon says goodbye. Hades is waiting...");
+    daemon.shutdown().await;
+
+    info!("Charon says goodbye. Hades is waiting...");
     Ok(())
 }

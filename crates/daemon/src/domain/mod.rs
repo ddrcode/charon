@@ -1,11 +1,9 @@
 mod actor;
-mod domain_event;
-mod event;
+mod actor_state;
 mod hid_keycode;
-mod mode;
+mod modifiers;
 
 pub use actor::Actor;
-pub use domain_event::DomainEvent;
-pub use event::Event;
+pub use actor_state::ActorState;
 pub use hid_keycode::HidKeyCode;
-pub use mode::Mode;
+pub use modifiers::Modifiers;

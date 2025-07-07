@@ -1,8 +1,7 @@
+use charon_lib::domain::{DomainEvent, Event};
 use futures::{StreamExt, stream::FuturesUnordered};
 use tokio::sync::mpsc::{Receiver, Sender};
 use tracing::warn;
-
-use crate::domain::{DomainEvent, Event};
 
 type Subscriber = (Sender<Event>, fn(&Event) -> bool);
 
@@ -34,7 +33,11 @@ impl EventBroker {
         while self.alive {
             match self.receiver.recv().await {
                 Some(event) => {
-                    self.emit(&event, false).await;
+                    let force = event.payload == DomainEvent::Exit;
+                    self.broadcast(&event, force).await;
+                    if force {
+                        self.alive = false;
+                    }
                 }
                 None => {
                     warn!("The global channel is no more.");
@@ -44,7 +47,7 @@ impl EventBroker {
         }
     }
 
-    async fn emit(&self, event: &Event, force: bool) {
+    pub async fn broadcast(&self, event: &Event, force: bool) {
         let mut futures = FuturesUnordered::new();
 
         for (sender, filter) in &self.subscribers {
@@ -60,11 +63,5 @@ impl EventBroker {
         }
 
         while let Some(_) = futures.next().await {}
-    }
-
-    pub async fn exit(&mut self) {
-        let event = Event::new("broker", DomainEvent::Exit);
-        self.emit(&event, true).await;
-        self.alive = false;
     }
 }

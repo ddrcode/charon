@@ -2,8 +2,9 @@ use std::borrow::Cow;
 
 use super::Mode;
 use evdev::KeyCode;
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[non_exhaustive]
 pub enum DomainEvent {
     KeyPress(KeyCode),

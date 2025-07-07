@@ -1,88 +1,84 @@
-use tokio::sync::mpsc::{Receiver, Sender, error::TryRecvError};
+use std::path::PathBuf;
 
-use crate::domain::{DomainEvent, Event};
-use evdev::{Device, EventSummary};
+use charon_lib::domain::{DomainEvent, Event, Mode};
+use tokio::{io::unix::AsyncFd, task::JoinHandle};
+
+use crate::{
+    domain::{Actor, ActorState},
+    utils::keyboard::find_keyboard_device,
+};
+use evdev::{Device, EventSummary, InputEvent};
 use tracing::{error, info, warn};
 
 pub struct KeyScanner {
-    tx: Sender<Event>,
-    rx: Receiver<Event>,
-    device: Device,
-    alive: bool,
+    state: ActorState,
+    device: AsyncFd<Device>,
 }
 
 impl KeyScanner {
-    pub fn new(tx: Sender<Event>, rx: Receiver<Event>) -> Self {
-        let device = Device::open("/dev/input/event6").unwrap();
+    pub fn new(state: ActorState, device_path: PathBuf) -> Self {
+        let device = Device::open(device_path).unwrap();
+        let async_dev = AsyncFd::new(device).unwrap();
+
         KeyScanner {
-            device,
-            tx,
-            rx,
-            alive: true,
+            state,
+            device: async_dev,
         }
     }
 
-    pub fn run(&mut self) {
-        info!("Starting Key Scanner");
-        while self.alive {
-            self.check_messages();
-            let key_events: Vec<_> = self.device.fetch_events().unwrap().collect();
-            for event in key_events {
-                let kos_event = match event.destructure() {
-                    EventSummary::Key(_, key, value) => match value {
-                        1 | 2 => DomainEvent::KeyPress(key),
-                        0 => DomainEvent::KeyRelease(key),
-                        other => {
-                            warn!("Unhandled key event value: {}", other);
-                            continue;
-                        }
-                    },
-                    EventSummary::Synchronization(..) | EventSummary::Misc(..) => continue,
-                    e => {
-                        warn!("Unhandled device event: {:?}", e);
+    async fn handle_device_events(&mut self, key_events: Vec<InputEvent>) {
+        for event in key_events {
+            let kos_event = match event.destructure() {
+                EventSummary::Key(_, key, value) => match value {
+                    1 | 2 => DomainEvent::KeyPress(key),
+                    0 => DomainEvent::KeyRelease(key),
+                    other => {
+                        warn!("Unhandled key event value: {}", other);
                         continue;
                     }
-                };
-                self.send(kos_event);
-            }
+                },
+                EventSummary::Synchronization(..) | EventSummary::Misc(..) => continue,
+                e => {
+                    warn!("Unhandled device event: {:?}", e);
+                    continue;
+                }
+            };
+            self.send(kos_event).await;
         }
     }
 
-    fn id() -> &'static str {
-        "key_scanner"
-    }
-
-    fn send(&mut self, payload: DomainEvent) {
-        let event = Event::new(Self::id(), payload);
-        self.send_raw(event);
-    }
-
-    fn send_raw(&mut self, event: Event) {
-        if let Err(_) = self.tx.blocking_send(event) {
-            warn!("Can't send messages - channel closed. Quitting.");
-            self.alive = false;
-        }
-    }
-
-    fn check_messages(&mut self) {
-        match self.rx.try_recv() {
-            Ok(event) => self.handle_event(&event),
-            Err(TryRecvError::Disconnected) => {
-                warn!("Can't read messages - channel closed. Quitting.");
-                self.alive = false;
-            }
-            Err(TryRecvError::Empty) => {}
-        }
-    }
-
-    fn handle_event(&mut self, event: &Event) {
+    async fn handle_event(&mut self, event: &Event) {
         match &event.payload {
             DomainEvent::Exit => {
-                info!("Exit event received. Quittig...");
-                self.alive = false;
+                self.stop().await;
             }
+            DomainEvent::ModeChange(mode) => self.switch_mode(mode),
             other => {
                 warn!("Unhandled event: {:?}", other);
+            }
+        }
+    }
+
+    fn switch_mode(&mut self, mode: &Mode) {
+        match mode {
+            Mode::PassThrough => self.grab(),
+            Mode::InApp => self.ungrab(),
+            _ => todo!(),
+        }
+    }
+
+    fn grab(&mut self) {
+        if !self.device.get_ref().is_grabbed() {
+            if let Err(e) = self.device.get_mut().grab() {
+                error!("Couldn't grab the device: {}", e);
+            }
+        }
+    }
+
+    fn ungrab(&mut self) {
+        if self.device.get_ref().is_grabbed() {
+            if let Err(e) = self.device.get_mut().ungrab() {
+                error!("Couldn't ungrab the device: {}", e);
             }
         }
     }
@@ -90,10 +86,52 @@ impl KeyScanner {
 
 impl Drop for KeyScanner {
     fn drop(&mut self) {
-        if self.device.is_grabbed() {
-            if let Err(e) = self.device.ungrab() {
-                error!("Couldn't ungrab device: {}", e);
+        self.ungrab();
+    }
+}
+
+#[async_trait::async_trait]
+impl Actor for KeyScanner {
+    fn spawn(state: ActorState) -> JoinHandle<()> {
+        let device_path = find_keyboard_device().expect("Couldn't find keyboard device");
+        let mut scanner = KeyScanner::new(state, device_path);
+        tokio::task::spawn(async move {
+            scanner.run().await;
+        })
+    }
+
+    fn state(&self) -> &ActorState {
+        &self.state
+    }
+
+    fn state_mut(&mut self) -> &mut ActorState {
+        &mut self.state
+    }
+
+    async fn init(&mut self) {
+        self.grab();
+    }
+
+    async fn tick(&mut self) {
+        tokio::select! {
+            Some(event) = self.state.receiver.recv() => {
+                self.handle_event(&event).await;
             }
+            ready = self.device.readable_mut() => {
+                let events = {
+                    let mut guard = ready.unwrap();
+                    let device = guard.get_mut().get_mut();
+                    device.fetch_events().unwrap().collect::<Vec<_>>()
+                };
+                self.handle_device_events(events).await;
+            }
+        }
+    }
+
+    fn filter(event: &Event) -> bool {
+        match event.payload {
+            DomainEvent::ModeChange(_) => true,
+            _ => false,
         }
     }
 }
