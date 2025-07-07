@@ -1,4 +1,4 @@
-use crate::domain::{DomainEvent, Event};
+use charon_lib::domain::{DomainEvent, Event};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::net::UnixStream;
 use tokio::net::unix::WriteHalf;

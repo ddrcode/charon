@@ -1,4 +1,4 @@
-use crate::domain::{DomainEvent, Event};
+use charon_lib::domain::{DomainEvent, Event};
 
 pub fn filter(event: &Event) -> bool {
     match event.payload {

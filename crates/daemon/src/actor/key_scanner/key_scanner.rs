@@ -1,30 +1,25 @@
 use std::path::PathBuf;
 
-use tokio::{
-    io::unix::AsyncFd,
-    sync::mpsc::{Receiver, Sender},
-};
+use charon_lib::domain::{DomainEvent, Event, Mode};
+use tokio::io::unix::AsyncFd;
 
-use crate::domain::{Actor, ActorState, DomainEvent, Event, Mode};
+use crate::domain::{Actor, ActorState};
 use evdev::{Device, EventSummary, InputEvent};
 use tracing::{error, info, warn};
 
 pub struct KeyScanner {
     state: ActorState,
     device: AsyncFd<Device>,
-    mode: Mode,
 }
 
 impl KeyScanner {
-    pub fn new(tx: Sender<Event>, rx: Receiver<Event>, device_path: PathBuf) -> Self {
+    pub fn new(state: ActorState, device_path: PathBuf) -> Self {
         let device = Device::open(device_path).unwrap();
         let async_dev = AsyncFd::new(device).unwrap();
-        let state = ActorState::new("KeyScanner", tx, rx);
 
         KeyScanner {
             state,
             device: async_dev,
-            mode: Mode::default(),
         }
     }
 
@@ -62,10 +57,10 @@ impl KeyScanner {
     }
 
     fn switch_mode(&mut self, mode: &Mode) {
-        self.mode = mode.clone();
         match mode {
             Mode::PassThrough => self.grab(),
             Mode::InApp => self.ungrab(),
+            _ => todo!(),
         }
     }
 

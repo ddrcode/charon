@@ -1,8 +1,7 @@
+use charon_lib::domain::{DomainEvent, Event};
 use futures::{StreamExt, stream::FuturesUnordered};
 use tokio::sync::mpsc::{Receiver, Sender};
 use tracing::warn;
-
-use crate::domain::{DomainEvent, Event};
 
 type Subscriber = (Sender<Event>, fn(&Event) -> bool);
 

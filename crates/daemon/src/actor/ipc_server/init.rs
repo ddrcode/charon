@@ -1,13 +1,10 @@
-use tokio::{
-    sync::mpsc::{Receiver, Sender},
-    task::JoinHandle,
-};
+use tokio::task::JoinHandle;
 
 use super::IPCServer;
-use crate::domain::{Actor, Event};
+use crate::domain::{Actor, ActorState};
 
-pub fn spawn_ipc_server(tx: Sender<Event>, rx: Receiver<Event>) -> JoinHandle<()> {
-    let mut ipc_server = IPCServer::new(tx, rx);
+pub fn spawn_ipc_server(state: ActorState) -> JoinHandle<()> {
+    let mut ipc_server = IPCServer::new(state);
     tokio::spawn(async move {
         ipc_server.run().await;
     })

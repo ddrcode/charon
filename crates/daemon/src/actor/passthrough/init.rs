@@ -1,13 +1,10 @@
-use tokio::{
-    sync::mpsc::{Receiver, Sender},
-    task::JoinHandle,
-};
+use tokio::task::JoinHandle;
 
 use super::PassThrough;
-use crate::domain::{Actor, Event};
+use crate::domain::{Actor, ActorState};
 
-pub fn spawn_pass_through(tx: Sender<Event>, tr: Receiver<Event>) -> JoinHandle<()> {
-    let mut passthrough = PassThrough::new(tx, tr);
+pub fn spawn_pass_through(state: ActorState) -> JoinHandle<()> {
+    let mut passthrough = PassThrough::new(state);
     tokio::spawn(async move {
         passthrough.run().await;
     })

@@ -1,9 +1,10 @@
 use std::fs::remove_file;
 use std::path::Path;
 
-use crate::domain::{Actor, ActorState, DomainEvent, Event};
+use crate::domain::{Actor, ActorState};
+use charon_lib::domain::{DomainEvent, Event};
 use tokio::net::UnixListener;
-use tokio::sync::mpsc::{self, Receiver, Sender};
+use tokio::sync::mpsc;
 use tracing::info;
 
 use super::{ClientSession, ClientSessionState};
@@ -15,13 +16,12 @@ pub struct IPCServer {
 }
 
 impl IPCServer {
-    pub fn new(tx: Sender<Event>, rx: Receiver<Event>) -> Self {
+    pub fn new(state: ActorState) -> Self {
         let path = "/tmp/charon.sock";
         if Path::new(path).exists() {
             remove_file(path).unwrap();
         }
         let listener = UnixListener::bind(path).unwrap();
-        let state = ActorState::new("IPCServer", tx, rx);
 
         Self {
             state,
@@ -49,7 +49,7 @@ impl Actor for IPCServer {
         tokio::select! {
             // Accept a new connection
             Ok((stream, _)) = self.listener.accept() => {
-                tracing::info!("Accepted new IPC client");
+                info!("Accepted new IPC client");
                 // if let Some(old) = self.session.take() {
                 //     tracing::warn!("Replacing existing session");
                 //     old.shutdown().await;

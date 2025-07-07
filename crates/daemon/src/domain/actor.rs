@@ -1,6 +1,7 @@
+use charon_lib::domain::{DomainEvent, Event};
 use tracing::{info, warn};
 
-use crate::domain::{ActorState, DomainEvent, Event};
+use crate::domain::ActorState;
 
 #[async_trait::async_trait]
 pub trait Actor {

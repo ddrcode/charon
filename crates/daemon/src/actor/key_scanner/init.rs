@@ -1,17 +1,14 @@
 use std::{fs, path::PathBuf};
 
-use tokio::{
-    sync::mpsc::{Receiver, Sender},
-    task::JoinHandle,
-};
+use tokio::task::JoinHandle;
 use tracing::info;
 
 use super::KeyScanner;
-use crate::domain::{Actor, Event};
+use crate::domain::{Actor, ActorState};
 
-pub fn spawn_key_scanner(tx: Sender<Event>, rx: Receiver<Event>) -> JoinHandle<()> {
+pub fn spawn_key_scanner(state: ActorState) -> JoinHandle<()> {
     let device_path = find_keyboard_device().unwrap();
-    let mut scanner = KeyScanner::new(tx, rx, device_path);
+    let mut scanner = KeyScanner::new(state, device_path);
     tokio::task::spawn(async move {
         scanner.run().await;
     })

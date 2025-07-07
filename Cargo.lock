@@ -98,6 +98,32 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "613afe47fcd5fac7ccf1db93babcb082c5994d996f20b8b159f2ad1658eb5724"
 
 [[package]]
+name = "charon-lib"
+version = "0.1.0"
+dependencies = [
+ "evdev",
+ "serde",
+ "uuid",
+]
+
+[[package]]
+name = "charond"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "charon-lib",
+ "evdev",
+ "futures",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
 name = "evdev"
 version = "0.13.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -252,25 +278,13 @@ dependencies = [
 ]
 
 [[package]]
-name = "keyboardos-daemon"
+name = "keyboardos-tui"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "async-trait",
- "evdev",
- "futures",
- "serde",
  "serde_json",
- "thiserror",
  "tokio",
- "tracing",
- "tracing-subscriber",
- "uuid",
 ]
-
-[[package]]
-name = "keyboardos-tui"
-version = "0.1.0"
 
 [[package]]
 name = "lazy_static"
@@ -587,9 +601,9 @@ dependencies = [
 
 [[package]]
 name = "tokio"
-version = "1.46.0"
+version = "1.46.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1140bb80481756a8cbe10541f37433b459c5aa1e727b4c020fbfebdc25bf3ec4"
+checksum = "0cc3a2344dafbe23a245241fe8b09735b521110d30fcefbbd5feb1797ca35d17"
 dependencies = [
  "backtrace",
  "bytes",
