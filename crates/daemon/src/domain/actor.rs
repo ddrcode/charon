@@ -1,20 +1,49 @@
-use tokio::sync::mpsc::Sender;
+use tracing::{info, warn};
 
-use crate::{
-    domain::{DomainEvent, Event},
-    error::KOSError,
-};
+use crate::domain::{ActorState, DomainEvent, Event};
 
 #[async_trait::async_trait]
 pub trait Actor {
-    fn id() -> &'static str;
-
-    fn sender(&self) -> &Sender<Event>;
-
-    async fn send(&self, payload: DomainEvent) -> Result<(), KOSError> {
-        let event = Event::new(Self::id(), payload);
-        Ok(self.sender().send(event).await?)
+    fn id(&self) -> &'static str {
+        self.state().id
     }
 
-    async fn run(&mut self);
+    fn state(&self) -> &ActorState;
+
+    fn state_mut(&mut self) -> &mut ActorState;
+
+    async fn send(&mut self, payload: DomainEvent) {
+        let event = Event::new(self.id(), payload);
+        if let Err(_) = self.state().sender.send(event).await {
+            warn!("Channel closed while sending event, quitting");
+            self.stop().await;
+        }
+    }
+
+    async fn recv(&mut self) -> Option<Event> {
+        let maybe_event = self.state_mut().receiver.recv().await;
+        if maybe_event.is_none() {
+            warn!("Channel closed while receiving event, quitting");
+        }
+        maybe_event
+    }
+
+    async fn run(&mut self) {
+        info!("Starting actor: {}", self.id());
+        self.init().await;
+        while self.state().alive {
+            self.tick().await;
+        }
+        self.shutdown().await;
+    }
+
+    async fn tick(&mut self);
+
+    async fn stop(&mut self) {
+        self.state_mut().alive = false;
+        info!("Actor: {} is stopping", self.id());
+    }
+
+    async fn init(&mut self) {}
+    async fn shutdown(&mut self) {}
 }

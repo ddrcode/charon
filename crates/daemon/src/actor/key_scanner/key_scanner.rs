@@ -1,48 +1,34 @@
 use std::path::PathBuf;
 
-use tokio::sync::mpsc::{Receiver, Sender, error::TryRecvError};
+use tokio::{
+    io::unix::AsyncFd,
+    sync::mpsc::{Receiver, Sender},
+};
 
-use crate::domain::{DomainEvent, Event, Mode};
-use evdev::{Device, EventSummary};
+use crate::domain::{Actor, ActorState, DomainEvent, Event, Mode};
+use evdev::{Device, EventSummary, InputEvent};
 use tracing::{error, info, warn};
 
 pub struct KeyScanner {
-    tx: Sender<Event>,
-    rx: Receiver<Event>,
-    device: Device,
-    alive: bool,
+    state: ActorState,
+    device: AsyncFd<Device>,
     mode: Mode,
 }
 
 impl KeyScanner {
     pub fn new(tx: Sender<Event>, rx: Receiver<Event>, device_path: PathBuf) -> Self {
         let device = Device::open(device_path).unwrap();
+        let async_dev = AsyncFd::new(device).unwrap();
+        let state = ActorState::new("KeyScanner", tx, rx);
+
         KeyScanner {
-            device,
-            tx,
-            rx,
-            alive: true,
+            state,
+            device: async_dev,
             mode: Mode::default(),
         }
     }
 
-    pub fn run(&mut self) {
-        info!("Starting Key Scanner");
-
-        self.grab();
-
-        while self.alive {
-            self.check_messages();
-            self.scan_device();
-        }
-    }
-
-    fn id() -> &'static str {
-        "key_scanner"
-    }
-
-    fn scan_device(&mut self) {
-        let key_events: Vec<_> = self.device.fetch_events().unwrap().collect();
+    async fn handle_device_events(&mut self, key_events: Vec<InputEvent>) {
         for event in key_events {
             let kos_event = match event.destructure() {
                 EventSummary::Key(_, key, value) => match value {
@@ -59,38 +45,14 @@ impl KeyScanner {
                     continue;
                 }
             };
-            self.send(kos_event);
+            self.send(kos_event).await;
         }
     }
 
-    fn send(&mut self, payload: DomainEvent) {
-        let event = Event::new(Self::id(), payload);
-        self.send_raw(event);
-    }
-
-    fn send_raw(&mut self, event: Event) {
-        if let Err(_) = self.tx.blocking_send(event) {
-            warn!("Can't send messages - channel closed. Quitting.");
-            self.alive = false;
-        }
-    }
-
-    fn check_messages(&mut self) {
-        match self.rx.try_recv() {
-            Ok(event) => self.handle_event(&event),
-            Err(TryRecvError::Disconnected) => {
-                warn!("Can't read messages - channel closed. Quitting.");
-                self.alive = false;
-            }
-            Err(TryRecvError::Empty) => {}
-        }
-    }
-
-    fn handle_event(&mut self, event: &Event) {
+    async fn handle_event(&mut self, event: &Event) {
         match &event.payload {
             DomainEvent::Exit => {
-                info!("Exit event received. Quittig...");
-                self.alive = false;
+                self.stop().await;
             }
             DomainEvent::ModeChange(mode) => self.switch_mode(mode),
             other => {
@@ -108,16 +70,16 @@ impl KeyScanner {
     }
 
     fn grab(&mut self) {
-        if !self.device.is_grabbed() {
-            if let Err(e) = self.device.grab() {
+        if !self.device.get_ref().is_grabbed() {
+            if let Err(e) = self.device.get_mut().grab() {
                 error!("Couldn't grab the device: {}", e);
             }
         }
     }
 
     fn ungrab(&mut self) {
-        if self.device.is_grabbed() {
-            if let Err(e) = self.device.ungrab() {
+        if self.device.get_ref().is_grabbed() {
+            if let Err(e) = self.device.get_mut().ungrab() {
                 error!("Couldn't ungrab the device: {}", e);
             }
         }
@@ -127,5 +89,36 @@ impl KeyScanner {
 impl Drop for KeyScanner {
     fn drop(&mut self) {
         self.ungrab();
+    }
+}
+
+#[async_trait::async_trait]
+impl Actor for KeyScanner {
+    fn state(&self) -> &ActorState {
+        &self.state
+    }
+
+    fn state_mut(&mut self) -> &mut ActorState {
+        &mut self.state
+    }
+
+    async fn init(&mut self) {
+        self.grab();
+    }
+
+    async fn tick(&mut self) {
+        tokio::select! {
+            Some(event) = self.state.receiver.recv() => {
+                self.handle_event(&event).await;
+            }
+            ready = self.device.readable_mut() => {
+                let events = {
+                    let mut guard = ready.unwrap();
+                    let device = guard.get_mut().get_mut();
+                    device.fetch_events().unwrap().collect::<Vec<_>>()
+                };
+                self.handle_device_events(events).await;
+            }
+        }
     }
 }

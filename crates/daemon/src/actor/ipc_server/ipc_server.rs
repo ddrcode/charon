@@ -1,7 +1,7 @@
 use std::fs::remove_file;
 use std::path::Path;
 
-use crate::domain::{Actor, DomainEvent, Event};
+use crate::domain::{Actor, ActorState, DomainEvent, Event};
 use tokio::net::UnixListener;
 use tokio::sync::mpsc::{self, Receiver, Sender};
 use tracing::info;
@@ -9,11 +9,9 @@ use tracing::info;
 use super::{ClientSession, ClientSessionState};
 
 pub struct IPCServer {
+    state: ActorState,
     listener: UnixListener,
-    broker_tx: Sender<Event>,
-    broker_rx: Receiver<Event>,
     session: Option<ClientSessionState>,
-    alive: bool,
 }
 
 impl IPCServer {
@@ -23,12 +21,12 @@ impl IPCServer {
             remove_file(path).unwrap();
         }
         let listener = UnixListener::bind(path).unwrap();
+        let state = ActorState::new("IPCServer", tx, rx);
+
         Self {
-            broker_tx: tx,
-            broker_rx: rx,
+            state,
             session: None,
             listener,
-            alive: true,
         }
     }
 
@@ -39,7 +37,7 @@ impl IPCServer {
             }
         }
         match &event.payload {
-            DomainEvent::Exit => self.alive = false,
+            DomainEvent::Exit => self.stop().await,
             _ => {}
         }
     }
@@ -47,38 +45,35 @@ impl IPCServer {
 
 #[async_trait::async_trait]
 impl Actor for IPCServer {
-    async fn run(&mut self) {
-        info!("Starting ipc-server");
-        while self.alive {
-            tokio::select! {
-                // Accept a new connection
-                Ok((stream, _)) = self.listener.accept() => {
-                    tracing::info!("Accepted new IPC client");
-                    // if let Some(old) = self.session.take() {
-                    //     tracing::warn!("Replacing existing session");
-                    //     old.shutdown().await;
-                    // }
+    async fn tick(&mut self) {
+        tokio::select! {
+            // Accept a new connection
+            Ok((stream, _)) = self.listener.accept() => {
+                tracing::info!("Accepted new IPC client");
+                // if let Some(old) = self.session.take() {
+                //     tracing::warn!("Replacing existing session");
+                //     old.shutdown().await;
+                // }
 
-                    let (session_tx, session_rx) = mpsc::channel::<Event>(128);
-                    let mut session = ClientSession::new(stream, self.broker_tx.clone(), session_rx);
-                    let handle = tokio::spawn(async move { session.run().await; });
-                    self.session = Some(ClientSessionState::new(handle, session_tx));
+                let (session_tx, session_rx) = mpsc::channel::<Event>(128);
+                let mut session = ClientSession::new(stream, self.state.sender.clone(), session_rx);
+                let handle = tokio::spawn(async move { session.run().await; });
+                self.session = Some(ClientSessionState::new(handle, session_tx));
 
-                }
+            }
 
-                // Read broker events and push to session
-                Some(event) = self.broker_rx.recv() => {
-                    self.handle_event(event).await;
-                }
+            // Read broker events and push to session
+            Some(event) = self.state.receiver.recv() => {
+                self.handle_event(event).await;
             }
         }
     }
 
-    fn id() -> &'static str {
-        "ipc-server"
+    fn state(&self) -> &ActorState {
+        &self.state
     }
 
-    fn sender(&self) -> &Sender<Event> {
-        &self.broker_tx
+    fn state_mut(&mut self) -> &mut ActorState {
+        &mut self.state
     }
 }

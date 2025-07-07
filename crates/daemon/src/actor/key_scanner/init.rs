@@ -7,13 +7,13 @@ use tokio::{
 use tracing::info;
 
 use super::KeyScanner;
-use crate::domain::Event;
+use crate::domain::{Actor, Event};
 
 pub fn spawn_key_scanner(tx: Sender<Event>, rx: Receiver<Event>) -> JoinHandle<()> {
     let device_path = find_keyboard_device().unwrap();
     let mut scanner = KeyScanner::new(tx, rx, device_path);
-    tokio::task::spawn_blocking(move || {
-        scanner.run();
+    tokio::task::spawn(async move {
+        scanner.run().await;
     })
 }
 

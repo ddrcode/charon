@@ -6,47 +6,44 @@ use std::{
 use tokio::sync::mpsc::{Receiver, Sender};
 use tracing::{debug, error, info, warn};
 
-use crate::domain::{Actor, DomainEvent, Event, HidKeyCode, Mode, Modifiers};
+use crate::domain::{Actor, ActorState, DomainEvent, Event, HidKeyCode, Mode, Modifiers};
 
 pub use super::PassThroughState;
 
 pub struct PassThrough {
-    state: PassThroughState,
-    tx: Sender<Event>,
-    rx: Receiver<Event>,
+    state: ActorState,
+    report: PassThroughState,
     hidg: File,
-    alive: bool,
     mode: Mode,
 }
 
 impl PassThrough {
     pub fn new(tx: Sender<Event>, rx: Receiver<Event>) -> Self {
-        let state = PassThroughState::new();
+        let state = ActorState::new("PassThrough", tx, rx);
+        let report = PassThroughState::new();
         let hidg = OpenOptions::new()
             .write(true)
             .open("/dev/hidg0")
             .expect("Failed to open HID gadget device");
 
         Self {
-            tx,
-            rx,
             state,
+            report,
             hidg,
-            alive: true,
             mode: Mode::PassThrough,
         }
     }
 
     async fn handle_key_press(&mut self, key: &KeyCode) {
         let key = HidKeyCode::try_from(key).unwrap();
-        self.state.update_on_press(key);
+        self.report.update_on_press(key);
         if self
-            .state
+            .report
             .is(HidKeyCode::KEY_CAPSLOCK, Modifiers::default())
         {
             self.toggle_mode().await;
-        } else if self.state.is(HidKeyCode::KEY_Q, Modifiers::LEFT_CTRL) {
-            self.send(DomainEvent::Exit).await.unwrap();
+        } else if self.report.is(HidKeyCode::KEY_Q, Modifiers::LEFT_CTRL) {
+            self.send(DomainEvent::Exit).await;
         } else {
             self.send_report();
         }
@@ -54,7 +51,7 @@ impl PassThrough {
 
     fn handle_key_release(&mut self, key: &KeyCode) {
         let key = HidKeyCode::try_from(key).unwrap();
-        self.state.update_on_release(key);
+        self.report.update_on_release(key);
         self.send_report();
     }
 
@@ -66,14 +63,12 @@ impl PassThrough {
             Mode::PassThrough
         };
         debug!("Switching mode to {:?}", self.mode);
-        self.send(DomainEvent::ModeChange(self.mode.clone()))
-            .await
-            .unwrap();
+        self.send(DomainEvent::ModeChange(self.mode.clone())).await;
     }
 
     fn send_report(&mut self) {
         if self.mode == Mode::PassThrough {
-            let report = self.state.to_report();
+            let report = self.report.to_report();
             if let Err(e) = self.hidg.write_all(&report) {
                 error!("Failed to write HID report: {}", e);
             }
@@ -89,8 +84,7 @@ impl PassThrough {
                 self.handle_key_release(key);
             }
             DomainEvent::Exit => {
-                info!("Exit event received. Quitting...");
-                self.alive = false;
+                self.stop().await;
             }
             e => {
                 warn!("Unhandled event: {:?}", e);
@@ -99,7 +93,7 @@ impl PassThrough {
     }
 
     pub fn reset(&mut self) {
-        self.state.reset();
+        self.report.reset();
         self.send_report();
     }
 }
@@ -112,20 +106,17 @@ impl Drop for PassThrough {
 
 #[async_trait::async_trait]
 impl Actor for PassThrough {
-    async fn run(&mut self) {
-        info!("Starting pass-through service");
-        while self.alive {
-            if let Some(event) = self.rx.recv().await {
-                self.handle_event(&event).await;
-            }
+    async fn tick(&mut self) {
+        if let Some(event) = self.recv().await {
+            self.handle_event(&event).await;
         }
     }
 
-    fn id() -> &'static str {
-        "pass-through"
+    fn state(&self) -> &ActorState {
+        &self.state
     }
 
-    fn sender(&self) -> &Sender<Event> {
-        &self.tx
+    fn state_mut(&mut self) -> &mut ActorState {
+        &mut self.state
     }
 }
