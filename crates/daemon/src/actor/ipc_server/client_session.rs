@@ -53,7 +53,11 @@ impl ClientSession {
 
     async fn handle_event(event: &Event, writer: &mut WriteHalf<'_>) -> bool {
         let payload = serde_json::to_string(event).unwrap();
+
         writer.write_all(payload.as_bytes()).await.unwrap();
+        writer.write_all(b"\n").await.unwrap();
+        // writer.flush().await.unwrap();
+
         match &event.payload {
             DomainEvent::Exit => return false,
             _ => {}

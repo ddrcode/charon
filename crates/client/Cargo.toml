@@ -1,5 +1,5 @@
 [package]
-name = "keyboardos-tui"
+name = "charon-tui"
 version = "0.1.0"
 edition = "2024"
 
@@ -8,3 +8,4 @@ anyhow.workspace = true
 serde_json.workspace = true
 tokio.workspace = true
 charon-lib.workspace = true
+tempfile = "3.20.0"
