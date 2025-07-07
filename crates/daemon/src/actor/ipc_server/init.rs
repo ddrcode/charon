@@ -4,7 +4,7 @@ use tokio::{
 };
 
 use super::IPCServer;
-use crate::domain::Event;
+use crate::domain::{Actor, Event};
 
 pub fn spawn_ipc_server(tx: Sender<Event>, rx: Receiver<Event>) -> JoinHandle<()> {
     let mut ipc_server = IPCServer::new(tx, rx);

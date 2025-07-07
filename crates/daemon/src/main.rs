@@ -15,6 +15,9 @@ use crate::daemon::Daemon;
 async fn main() -> Result<(), anyhow::Error> {
     let subscriber = FmtSubscriber::builder()
         .with_max_level(tracing::Level::INFO)
+        .with_target(false)
+        .compact()
+        .pretty()
         .finish();
 
     tracing::subscriber::set_global_default(subscriber).expect("Setting default subscriber failed");

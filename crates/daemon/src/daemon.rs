@@ -1,10 +1,11 @@
 use tokio::{
-    sync::mpsc::{self, Sender},
+    sync::mpsc::{self, Receiver, Sender},
     task::JoinHandle,
 };
 
 use crate::{
     actor::{
+        ipc_server::{self, spawn_ipc_server},
         key_scanner::{self, spawn_key_scanner},
         passthrough::{self, spawn_pass_through},
     },
@@ -29,15 +30,9 @@ impl Daemon {
     }
 
     pub async fn start(&mut self) {
-        let (scan_tx, scan_rx) = mpsc::channel::<Event>(128);
-        self.broker.add_subscriber(scan_tx, key_scanner::filter);
-        let task = spawn_key_scanner(self.event_tx.clone(), scan_rx).await;
-        self.tasks.push(task);
-
-        let (pt_tx, pt_rx) = mpsc::channel::<Event>(128);
-        self.broker.add_subscriber(pt_tx, passthrough::filter);
-        let task = spawn_pass_through(self.event_tx.clone(), pt_rx);
-        self.tasks.push(task);
+        self.add_actor(spawn_key_scanner, key_scanner::filter)
+            .add_actor(spawn_pass_through, passthrough::filter)
+            .add_actor(spawn_ipc_server, ipc_server::filter);
 
         self.broker.run().await;
     }
@@ -51,5 +46,17 @@ impl Daemon {
         for handle in self.tasks.drain(..) {
             handle.await.unwrap();
         }
+    }
+
+    fn add_actor(
+        &mut self,
+        spawn_fn: fn(Sender<Event>, Receiver<Event>) -> JoinHandle<()>,
+        filter_fn: fn(&Event) -> bool,
+    ) -> &mut Self {
+        let (pt_tx, pt_rx) = mpsc::channel::<Event>(128);
+        self.broker.add_subscriber(pt_tx, filter_fn);
+        let task = spawn_fn(self.event_tx.clone(), pt_rx);
+        self.tasks.push(task);
+        self
     }
 }
