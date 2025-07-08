@@ -4,6 +4,7 @@ use tokio::task::JoinHandle;
 use tracing::{debug, error, info, warn};
 
 use crate::{
+    actor::passthrough::Typist,
     devices::HIDKeyboard,
     domain::{Actor, ActorState, HidKeyCode, KeyboardState, Modifiers},
 };
@@ -71,6 +72,9 @@ impl PassThrough {
             DomainEvent::KeyRelease(key) => {
                 self.handle_key_release(key).await;
             }
+            DomainEvent::SendFile(path) => {
+                self.handle_file_send(path).await;
+            }
             DomainEvent::Exit => {
                 self.stop().await;
             }
@@ -78,6 +82,11 @@ impl PassThrough {
                 warn!("Unhandled event: {:?}", e);
             }
         }
+    }
+
+    async fn handle_file_send(&mut self, path: &String) {
+        let mut typist = Typist::default();
+        typist.send_file(path, &mut self.hidg).await.unwrap();
     }
 
     pub fn reset(&mut self) {
