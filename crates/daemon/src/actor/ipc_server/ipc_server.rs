@@ -85,13 +85,10 @@ impl Actor for IPCServer {
     }
 
     fn filter(event: &Event) -> bool {
-        if event.sender == "client" {
-            return false;
-        }
-        match event.payload {
-            DomainEvent::KeyPress(_) => false,
-            DomainEvent::KeyRelease(_) => false,
-            _ => true,
-        }
+        event.sender != "client"
+            && !matches!(
+                event.payload,
+                DomainEvent::KeyPress(_) | DomainEvent::KeyRelease(_)
+            )
     }
 }

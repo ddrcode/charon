@@ -5,6 +5,14 @@ The ghost between your keyboard and your machine.
 
 Yes. So far it hasn’t crashed — despite the prototype being held together with `.unwrap()` and good intentions. That’s how solid the architecture is (and how solid Rust is). If the ghost drops your keystrokes into the Styx, we’ll fish them out and patch it.
 
+
+## Planned features
+
+- Keyboard-specific settings and statistics
+- Multi-keyboard: use one keyboard for typing and the other one for macros
+- Multiple layouts
+- Sending Unicode characters (OS-specific)
+
 ## Credits
 
 [rikka-chunibyo/HIDPi](https://github.com/rikka-chunibyo/HIDPi)

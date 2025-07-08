@@ -1,34 +1,25 @@
 use charon_lib::domain::{DomainEvent, Event, Mode};
 use evdev::KeyCode;
-use std::{
-    fs::{File, OpenOptions},
-    io::Write,
-};
 use tokio::task::JoinHandle;
 use tracing::{debug, error, info, warn};
 
-use crate::domain::{Actor, ActorState, HidKeyCode, Modifiers};
-
-pub use super::PassThroughState;
+use crate::{
+    devices::HIDKeyboard,
+    domain::{Actor, ActorState, HidKeyCode, KeyboardState, Modifiers},
+};
 
 pub struct PassThrough {
     state: ActorState,
-    report: PassThroughState,
-    hidg: File,
+    report: KeyboardState,
+    hidg: HIDKeyboard,
 }
 
 impl PassThrough {
     pub fn new(state: ActorState) -> Self {
-        let report = PassThroughState::new();
-        let hidg = OpenOptions::new()
-            .write(true)
-            .open("/dev/hidg0")
-            .expect("Failed to open HID gadget device");
-
         Self {
             state,
-            report,
-            hidg,
+            report: KeyboardState::new(),
+            hidg: HIDKeyboard::new("/dev/hidg0"),
         }
     }
 
@@ -65,16 +56,10 @@ impl PassThrough {
         self.send(DomainEvent::ModeChange(mode)).await;
     }
 
-    fn send_report_unchecked(&mut self) {
-        let report = self.report.to_report();
-        if let Err(e) = self.hidg.write_all(&report) {
-            error!("Failed to write HID report: {}", e);
-        }
-    }
-
     async fn send_report(&mut self) {
         if self.state.mode().await == Mode::PassThrough {
-            self.send_report_unchecked();
+            let report = self.report.to_report();
+            self.hidg.send_report(&report);
         }
     }
 
@@ -97,7 +82,7 @@ impl PassThrough {
 
     pub fn reset(&mut self) {
         self.report.reset();
-        self.send_report_unchecked();
+        self.hidg.reset();
     }
 }
 

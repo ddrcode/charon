@@ -1,3 +1,5 @@
+pub mod editor;
+
 use charon_lib::domain::{DomainEvent, Event, Mode};
 use serde_json::Result as JsonResult;
 use tokio::{

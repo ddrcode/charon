@@ -1,6 +1,7 @@
 pub mod actor;
 pub mod broker;
 pub mod daemon;
+pub mod devices;
 pub mod domain;
 pub mod error;
 pub mod utils;
@@ -19,7 +20,7 @@ use crate::{
 #[tokio::main]
 async fn main() -> Result<(), anyhow::Error> {
     let subscriber = FmtSubscriber::builder()
-        .with_max_level(tracing::Level::INFO)
+        .with_max_level(tracing::Level::DEBUG)
         .with_target(false)
         .compact()
         .pretty()

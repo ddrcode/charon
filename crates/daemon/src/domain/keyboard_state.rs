@@ -1,13 +1,13 @@
-use crate::domain::{HidKeyCode, Modifiers};
+use super::{HidKeyCode, Modifiers};
 
-pub struct PassThroughState {
+pub struct KeyboardState {
     modifiers: Modifiers,
     keys: Vec<HidKeyCode>,
 }
 
-impl PassThroughState {
+impl KeyboardState {
     pub fn new() -> Self {
-        PassThroughState {
+        Self {
             modifiers: Modifiers::default(),
             keys: Vec::with_capacity(6),
         }

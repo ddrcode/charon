@@ -129,9 +129,6 @@ impl Actor for KeyScanner {
     }
 
     fn filter(event: &Event) -> bool {
-        match event.payload {
-            DomainEvent::ModeChange(_) => true,
-            _ => false,
-        }
+        matches!(event.payload, DomainEvent::ModeChange(_))
     }
 }

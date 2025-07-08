@@ -1,6 +1,6 @@
 use charon_lib::domain::{DomainEvent, Event};
 use tokio::task::JoinHandle;
-use tracing::{info, warn};
+use tracing::{debug, info, warn};
 
 use crate::domain::ActorState;
 
@@ -17,15 +17,25 @@ pub trait Actor {
     async fn send(&mut self, payload: DomainEvent) {
         let event = Event::new(self.id(), payload);
         if let Err(_) = self.state().sender.send(event).await {
-            warn!("Channel closed while sending event, quitting");
+            warn!(
+                "Channel closed for {} while sending event, quitting",
+                self.id()
+            );
             self.stop().await;
         }
     }
 
     async fn recv(&mut self) -> Option<Event> {
+        if self.state().alive == false {
+            return None;
+        }
         let maybe_event = self.state_mut().receiver.recv().await;
         if maybe_event.is_none() {
-            warn!("Channel closed while receiving event, quitting");
+            warn!(
+                "Channel closed for {} while receiving event, quitting",
+                self.id()
+            );
+            self.stop().await;
         }
         maybe_event
     }
@@ -33,16 +43,20 @@ pub trait Actor {
     async fn run(&mut self) {
         info!("Starting actor: {}", self.id());
         self.init().await;
+
         while self.state().alive {
             self.tick().await;
         }
+
         self.shutdown().await;
     }
 
     async fn tick(&mut self);
 
     async fn stop(&mut self) {
-        self.state_mut().alive = false;
+        let state = self.state_mut();
+        state.alive = false;
+        state.receiver.close();
         info!("Actor: {} is stopping", self.id());
     }
 

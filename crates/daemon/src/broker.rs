@@ -1,9 +1,13 @@
 use charon_lib::domain::{DomainEvent, Event};
 use futures::{StreamExt, stream::FuturesUnordered};
 use tokio::sync::mpsc::{Receiver, Sender};
-use tracing::warn;
+use tracing::{info, warn};
 
-type Subscriber = (Sender<Event>, fn(&Event) -> bool);
+struct Subscriber {
+    pub sender: Sender<Event>,
+    pub filter: fn(&Event) -> bool,
+    pub name: &'static str,
+}
 
 pub struct EventBroker {
     alive: bool,
@@ -24,8 +28,13 @@ impl EventBroker {
         &mut self,
         sender: Sender<Event>,
         filter: fn(&Event) -> bool,
+        name: &'static str,
     ) -> &mut Self {
-        self.subscribers.push((sender, filter));
+        self.subscribers.push(Subscriber {
+            sender,
+            filter,
+            name,
+        });
         self
     }
 
@@ -36,7 +45,7 @@ impl EventBroker {
                     let force = event.payload == DomainEvent::Exit;
                     self.broadcast(&event, force).await;
                     if force {
-                        self.alive = false;
+                        self.stop().await;
                     }
                 }
                 None => {
@@ -45,15 +54,19 @@ impl EventBroker {
                 }
             }
         }
+        info!("EventBroker is stopping.");
     }
 
     pub async fn broadcast(&self, event: &Event, force: bool) {
         let mut futures = FuturesUnordered::new();
 
-        for (sender, filter) in &self.subscribers {
-            if force || filter(event) {
+        for s in &self.subscribers {
+            if !force && s.name == event.sender {
+                continue;
+            }
+            if force || (s.filter)(event) {
                 let evt = event.clone();
-                let sender = sender.clone();
+                let sender = s.sender.clone();
                 futures.push(async move {
                     if let Err(e) = sender.send(evt).await {
                         warn!("Failed to send to subscriber: {}", e);
@@ -63,5 +76,10 @@ impl EventBroker {
         }
 
         while let Some(_) = futures.next().await {}
+    }
+
+    pub async fn stop(&mut self) {
+        self.alive = false;
+        self.receiver.close();
     }
 }

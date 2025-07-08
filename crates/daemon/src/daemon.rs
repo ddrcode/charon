@@ -33,6 +33,7 @@ impl Daemon {
     pub async fn run(&mut self) {
         info!("Charon is ready...");
         self.broker.run().await;
+        self.stop().await;
     }
 
     pub async fn stop(&mut self) {
@@ -53,7 +54,7 @@ impl Daemon {
         filter_fn: fn(&Event) -> bool,
     ) -> &mut Self {
         let (pt_tx, pt_rx) = mpsc::channel::<Event>(128);
-        self.broker.add_subscriber(pt_tx, filter_fn);
+        self.broker.add_subscriber(pt_tx, filter_fn, name);
         let state = ActorState::new(name, self.mode.clone(), self.event_tx.clone(), pt_rx);
         let task = spawn_fn(state);
         self.tasks.push(task);
