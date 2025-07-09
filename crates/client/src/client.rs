@@ -42,7 +42,7 @@ impl CharonClient {
             self.redraw()?;
             tokio::select! {
                 // Key input
-                _ = tokio::task::spawn_blocking(|| event::poll(std::time::Duration::from_millis(50))) => {
+                _ = tokio::task::spawn_blocking(|| event::poll(std::time::Duration::from_millis(10))) => {
                     if let CEvent::Key(key) = event::read()? {
                         self.handle_ui_input(key);
                     }
@@ -115,6 +115,8 @@ impl CharonClient {
         let content = read_to_string(path)?;
         resume_tui(&mut self.terminal)?;
         self.terminal.clear()?;
+        self.state
+            .switch_screen(Screen::Popup("Sending text...".into()));
         self.redraw()?;
 
         // let event = Event::new("client", DomainEvent::SendText(content));
