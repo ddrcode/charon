@@ -1,14 +1,26 @@
+pub mod app;
+pub mod client;
 pub mod editor;
+pub mod screen;
 
-use charon_lib::domain::{DomainEvent, Event, Mode};
+use charon_lib::event::{DomainEvent, Event, Mode};
 use serde_json::Result as JsonResult;
 use tokio::{
     io::{AsyncBufReadExt, AsyncWriteExt, BufReader},
     net::{UnixStream, unix::WriteHalf},
 };
 
+use crate::client::CharonClient;
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    let state = app::AppState::new();
+    let mut charon = CharonClient::new(state);
+    charon.run().await?;
+    Ok(())
+}
+
+async fn main2() -> anyhow::Result<()> {
     let mut stream = UnixStream::connect("/tmp/charon.sock").await?;
     println!("Connected to Charon ferry socket.");
 
