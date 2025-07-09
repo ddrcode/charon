@@ -47,11 +47,7 @@ impl PassThrough {
 
     async fn toggle_mode(&mut self) {
         self.reset();
-        let mode = if self.state.mode().await == Mode::PassThrough {
-            Mode::InApp
-        } else {
-            Mode::PassThrough
-        };
+        let mode = self.state.mode().await.toggle();
         debug!("Switching mode to {:?}", mode);
         self.state.set_mode(mode).await;
         self.send(DomainEvent::ModeChange(mode)).await;

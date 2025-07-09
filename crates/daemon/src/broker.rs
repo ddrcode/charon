@@ -1,12 +1,12 @@
-use charon_lib::domain::{DomainEvent, Event};
+use charon_lib::domain::{DomainEvent, Event, Topic};
 use futures::{StreamExt, stream::FuturesUnordered};
 use tokio::sync::mpsc::{Receiver, Sender};
 use tracing::{info, warn};
 
 struct Subscriber {
     pub sender: Sender<Event>,
-    pub filter: fn(&Event) -> bool,
     pub name: &'static str,
+    pub topics: &'static [Topic],
 }
 
 pub struct EventBroker {
@@ -27,13 +27,13 @@ impl EventBroker {
     pub fn add_subscriber(
         &mut self,
         sender: Sender<Event>,
-        filter: fn(&Event) -> bool,
         name: &'static str,
+        topics: &'static [Topic],
     ) -> &mut Self {
         self.subscribers.push(Subscriber {
             sender,
-            filter,
             name,
+            topics,
         });
         self
     }
@@ -59,12 +59,13 @@ impl EventBroker {
 
     pub async fn broadcast(&self, event: &Event, force: bool) {
         let mut futures = FuturesUnordered::new();
+        let topic = event.payload.topic();
 
         for s in &self.subscribers {
             if !force && s.name == event.sender {
                 continue;
             }
-            if force || (s.filter)(event) {
+            if force || s.topics.contains(&topic) {
                 let evt = event.clone();
                 let sender = s.sender.clone();
                 futures.push(async move {

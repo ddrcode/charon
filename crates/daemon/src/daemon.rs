@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use charon_lib::domain::{DomainEvent, Event, Mode};
+use charon_lib::domain::{DomainEvent, Event, Mode, Topic};
 use tokio::{
     sync::{
         RwLock,
@@ -51,10 +51,10 @@ impl Daemon {
         &mut self,
         name: &'static str,
         spawn_fn: fn(ActorState) -> JoinHandle<()>,
-        filter_fn: fn(&Event) -> bool,
+        topics: &'static [Topic],
     ) -> &mut Self {
         let (pt_tx, pt_rx) = mpsc::channel::<Event>(128);
-        self.broker.add_subscriber(pt_tx, filter_fn, name);
+        self.broker.add_subscriber(pt_tx, name, topics);
         let state = ActorState::new(name, self.mode.clone(), self.event_tx.clone(), pt_rx);
         let task = spawn_fn(state);
         self.tasks.push(task);

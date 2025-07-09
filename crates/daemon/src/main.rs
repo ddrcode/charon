@@ -4,9 +4,11 @@ pub mod daemon;
 pub mod devices;
 pub mod domain;
 pub mod error;
+pub mod processors;
 pub mod utils;
 
 use anyhow;
+use charon_lib::domain::Topic as T;
 use tokio::{self, signal::unix};
 use tracing::info;
 use tracing_subscriber::FmtSubscriber;
@@ -30,9 +32,9 @@ async fn main() -> Result<(), anyhow::Error> {
 
     let mut daemon = Daemon::new();
     daemon
-        .add_actor("KeyScanner", KeyScanner::spawn, KeyScanner::filter)
-        .add_actor("PassThrough", PassThrough::spawn, PassThrough::filter)
-        .add_actor("IPCServer", IPCServer::spawn, IPCServer::filter);
+        .add_actor("KeyScanner", KeyScanner::spawn, &[T::System])
+        .add_actor("PassThrough", PassThrough::spawn, &[T::System, T::KeyInput])
+        .add_actor("IPCServer", IPCServer::spawn, &[T::System, T::Stats]);
 
     let mut sigterm = unix::signal(unix::SignalKind::terminate())?;
 
