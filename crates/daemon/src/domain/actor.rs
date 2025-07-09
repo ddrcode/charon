@@ -64,8 +64,4 @@ pub trait Actor {
     async fn shutdown(&mut self) {}
 
     fn spawn(state: ActorState) -> JoinHandle<()>;
-
-    fn filter(_event: &Event) -> bool {
-        true
-    }
 }

@@ -3,16 +3,11 @@ use evdev::KeyCode;
 use tokio::task::JoinHandle;
 use tracing::{debug, error, info, warn};
 
-use crate::{
-    actor::passthrough::Typist,
-    devices::HIDKeyboard,
-    domain::{Actor, ActorState, HidKeyCode, KeyboardState, Modifiers},
-};
+use crate::domain::{Actor, ActorState, HidKeyCode, KeyboardState, Modifiers};
 
 pub struct PassThrough {
     state: ActorState,
     report: KeyboardState,
-    hidg: HIDKeyboard,
 }
 
 impl PassThrough {
@@ -20,7 +15,6 @@ impl PassThrough {
         Self {
             state,
             report: KeyboardState::new(),
-            hidg: HIDKeyboard::new("/dev/hidg0"),
         }
     }
 
@@ -56,7 +50,7 @@ impl PassThrough {
     async fn send_report(&mut self) {
         if self.state.mode().await == Mode::PassThrough {
             let report = self.report.to_report();
-            self.hidg.send_report(&report);
+            self.send(DomainEvent::HidReport(report)).await;
         }
     }
 
@@ -68,9 +62,6 @@ impl PassThrough {
             DomainEvent::KeyRelease(key) => {
                 self.handle_key_release(key).await;
             }
-            DomainEvent::SendFile(path) => {
-                self.handle_file_send(path).await;
-            }
             DomainEvent::Exit => {
                 self.stop().await;
             }
@@ -80,14 +71,8 @@ impl PassThrough {
         }
     }
 
-    async fn handle_file_send(&mut self, path: &String) {
-        let mut typist = Typist::default();
-        typist.send_file(path, &mut self.hidg).await.unwrap();
-    }
-
     pub fn reset(&mut self) {
         self.report.reset();
-        self.hidg.reset();
     }
 }
 

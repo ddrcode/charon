@@ -14,7 +14,10 @@ use tracing::info;
 use tracing_subscriber::FmtSubscriber;
 
 use crate::{
-    actor::{ipc_server::IPCServer, key_scanner::KeyScanner, passthrough::PassThrough},
+    actor::{
+        ipc_server::IPCServer, key_scanner::KeyScanner, key_writer::KeyWriter,
+        passthrough::PassThrough, typing_stats::TypingStats, typist::Typist,
+    },
     daemon::Daemon,
     domain::Actor,
 };
@@ -34,7 +37,14 @@ async fn main() -> Result<(), anyhow::Error> {
     daemon
         .add_actor("KeyScanner", KeyScanner::spawn, &[T::System])
         .add_actor("PassThrough", PassThrough::spawn, &[T::System, T::KeyInput])
-        .add_actor("IPCServer", IPCServer::spawn, &[T::System, T::Stats]);
+        .add_actor("Typist", Typist::spawn, &[T::System, T::TextInput])
+        .add_actor("KeyWriter", KeyWriter::spawn, &[T::System, T::KeyOutput])
+        .add_actor("TypingStats", TypingStats::spawn, &[T::System, T::KeyInput])
+        .add_actor(
+            "IPCServer",
+            IPCServer::spawn,
+            &[T::System, T::Stats, T::Monitoring],
+        );
 
     let mut sigterm = unix::signal(unix::SignalKind::terminate())?;
 

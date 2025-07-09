@@ -1,4 +1,4 @@
-use crate::domain::Topic;
+use crate::{domain::Topic, stats::CurrentStats};
 
 use super::Mode;
 use evdev::KeyCode;
@@ -12,6 +12,8 @@ pub enum DomainEvent {
     HidReport([u8; 8]),
     SendText(String),
     SendFile(String),
+    TextSent,
+    CurrentStats(CurrentStats),
     ModeChange(Mode),
     Exit,
 }

@@ -83,12 +83,4 @@ impl Actor for IPCServer {
     fn state_mut(&mut self) -> &mut ActorState {
         &mut self.state
     }
-
-    fn filter(event: &Event) -> bool {
-        event.sender != "client"
-            && !matches!(
-                event.payload,
-                DomainEvent::KeyPress(_) | DomainEvent::KeyRelease(_)
-            )
-    }
 }

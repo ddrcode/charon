@@ -29,3 +29,9 @@ impl HIDKeyboard {
         self.send_report(&[0u8; 8]);
     }
 }
+
+impl Drop for HIDKeyboard {
+    fn drop(&mut self) {
+        self.reset();
+    }
+}

@@ -7,6 +7,7 @@ pub enum Topic {
     KeyInput,
     KeyOutput,
     Stats,
+    Monitoring,
 }
 
 impl From<&DomainEvent> for Topic {
@@ -18,6 +19,8 @@ impl From<&DomainEvent> for Topic {
             DomainEvent::HidReport(_) => KeyOutput,
             DomainEvent::SendText(_) => TextInput,
             DomainEvent::SendFile(_) => TextInput,
+            DomainEvent::TextSent => Monitoring,
+            DomainEvent::CurrentStats(_) => Stats,
             DomainEvent::ModeChange(_) => System,
             DomainEvent::Exit => System,
         }
