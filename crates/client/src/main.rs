@@ -46,7 +46,7 @@ async fn handle_event(event: &Event, writer: &mut WriteHalf<'_>) -> anyhow::Resu
     match event.payload {
         DomainEvent::ModeChange(Mode::InApp) => {
             let path = run_editor()?;
-            let e = Event::new("client", DomainEvent::SendFile(path));
+            let e = Event::new("client", DomainEvent::SendText(path));
             let eser = serde_json::to_string(&e)?;
             writer.write_all(eser.as_bytes()).await?;
             writer.write_all(b"\n").await?;
@@ -60,7 +60,7 @@ async fn handle_event(event: &Event, writer: &mut WriteHalf<'_>) -> anyhow::Resu
 }
 
 fn run_editor() -> anyhow::Result<String> {
-    // use std::fs::read_to_string;
+    use std::fs::read_to_string;
     use std::process::Command;
     use tempfile::NamedTempFile;
 
@@ -69,10 +69,11 @@ fn run_editor() -> anyhow::Result<String> {
 
     Command::new("nvim").arg(&path).status()?;
 
-    // let content = read_to_string(path)?;
-    //
-    // let event = Event::new("client", DomainEvent::SendBuffer(content));
+    let content = read_to_string(path)?;
+
+    // let event = Event::new("client", DomainEvent::SendText(content));
     // broker_tx.send(event).await?;
 
-    Ok(path.to_string_lossy().into())
+    Ok(content)
+    // Ok(path.to_string_lossy().into())
 }

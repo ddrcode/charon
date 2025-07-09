@@ -1,4 +1,4 @@
-use charon_lib::domain::{DomainEvent, Event, Mode};
+use charon_lib::event::{DomainEvent, Event, Mode};
 use tokio::{fs::read_to_string, task::JoinHandle};
 use tracing::warn;
 

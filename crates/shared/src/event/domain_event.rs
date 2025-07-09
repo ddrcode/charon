@@ -1,8 +1,8 @@
-use crate::{domain::Topic, stats::CurrentStats};
-
-use super::Mode;
 use evdev::KeyCode;
 use serde::{Deserialize, Serialize};
+
+use super::{Mode, Topic};
+use crate::stats::CurrentStats;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[non_exhaustive]

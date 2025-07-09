@@ -1,4 +1,4 @@
-use charon_lib::domain::{DomainEvent, Event, Topic};
+use charon_lib::event::{DomainEvent, Event, Topic};
 use futures::{StreamExt, stream::FuturesUnordered};
 use tokio::sync::mpsc::{Receiver, Sender};
 use tracing::{info, warn};

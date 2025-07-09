@@ -4,11 +4,10 @@ pub mod daemon;
 pub mod devices;
 pub mod domain;
 pub mod error;
-pub mod processors;
 pub mod utils;
 
 use anyhow;
-use charon_lib::domain::Topic as T;
+use charon_lib::event::Topic as T;
 use tokio::{self, signal::unix};
 use tracing::info;
 use tracing_subscriber::FmtSubscriber;

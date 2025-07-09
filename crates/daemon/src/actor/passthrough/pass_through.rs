@@ -1,4 +1,4 @@
-use charon_lib::domain::{DomainEvent, Event, Mode};
+use charon_lib::event::{DomainEvent, Event, Mode};
 use evdev::KeyCode;
 use tokio::task::JoinHandle;
 use tracing::{debug, error, info, warn};
@@ -19,12 +19,14 @@ impl PassThrough {
     }
 
     async fn handle_key_press(&mut self, key: &KeyCode) {
-        let key = HidKeyCode::try_from(key).unwrap();
+        let key = match HidKeyCode::try_from(key) {
+            Ok(val) => val,
+            Err(e) => {
+                return error!("{e}");
+            }
+        };
         self.report.update_on_press(key);
-        if self
-            .report
-            .is(HidKeyCode::KEY_CAPSLOCK, Modifiers::default())
-        {
+        if self.report.is(HidKeyCode::KEY_F7, Modifiers::default()) {
             self.toggle_mode().await;
         } else if self.report.is(HidKeyCode::KEY_Q, Modifiers::LEFT_CTRL) {
             self.send(DomainEvent::Exit).await;
@@ -34,7 +36,12 @@ impl PassThrough {
     }
 
     async fn handle_key_release(&mut self, key: &KeyCode) {
-        let key = HidKeyCode::try_from(key).unwrap();
+        let key = match HidKeyCode::try_from(key) {
+            Ok(val) => val,
+            Err(e) => {
+                return error!("{e}");
+            }
+        };
         self.report.update_on_release(key);
         self.send_report().await;
     }

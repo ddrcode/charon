@@ -1,4 +1,4 @@
-use charon_lib::domain::{DomainEvent, Event};
+use charon_lib::event::{DomainEvent, Event};
 use tokio::task::JoinHandle;
 use tracing::{debug, info, warn};
 

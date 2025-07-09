@@ -1,4 +1,4 @@
-use crate::domain::DomainEvent;
+use super::DomainEvent;
 
 #[derive(Debug, PartialEq)]
 pub enum Topic {

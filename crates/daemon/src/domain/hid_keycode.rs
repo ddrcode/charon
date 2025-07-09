@@ -138,20 +138,68 @@ impl HidKeyCode {
     }
 
     pub fn seq_from_char(c: char) -> Result<Vec<Self>, KOSError> {
+        use HidKeyCode::*;
         let mut seq = Vec::with_capacity(4);
         let mut c = c;
-        if c.is_ascii_uppercase() {
-            seq.push(HidKeyCode::KEY_LEFTSHIFT);
+        let mut needs_shift = c.is_ascii_uppercase();
+
+        if needs_shift {
             c.make_ascii_lowercase();
+        } else {
+            let new_c = match c {
+                '!' => '1',
+                '@' => '2',
+                '#' => '3',
+                '$' => '4',
+                '%' => '5',
+                '^' => '6',
+                '&' => '7',
+                '*' => '8',
+                '(' => '9',
+                ')' => '0',
+                '_' => '-',
+                '+' => '=',
+                '{' => '[',
+                '}' => ']',
+                '|' => '\\',
+                ':' => ';',
+                '"' => '\'',
+                '<' => ',',
+                '>' => '.',
+                '?' => '/',
+                '~' => '`',
+                _ => c,
+            };
+            needs_shift = new_c != c;
+            c = new_c;
         }
+
+        if needs_shift {
+            seq.push(KEY_LEFTSHIFT);
+        }
+
         let key_code = match c {
-            'a'..='z' => (c as u8) - b'a' + 4,
-            '1'..='9' => (c as u8) - b'1' + 0x1e,
-            '0' => 0x27,
-            ' ' => 0x2C,
+            'a'..='z' => HidKeyCode::try_from((c as u8) - b'a' + KEY_A.code())?,
+            '1'..='9' => HidKeyCode::try_from((c as u8) - b'1' + KEY_1.code())?,
+            '0' => KEY_0,
+            ' ' => KEY_SPACE,
+            '\n' => KEY_ENTER,
+            '\t' => KEY_TAB,
+            '`' => KEY_GRAVE,
+            '-' => KEY_MINUS,
+            '=' => KEY_EQUAL,
+            '[' => KEY_LEFTBRACE,
+            ']' => KEY_RIGHTBRACE,
+            '\\' => KEY_BACKSLASH,
+            ';' => KEY_SEMICOLON,
+            '\'' => KEY_APOSTROPHE,
+            ',' => KEY_COMMA,
+            '.' => KEY_DOT,
+            '/' => KEY_SLASH,
             _ => return Err(KOSError::UnsupportedCharacter(c)),
         };
-        seq.push(HidKeyCode::try_from(key_code)?);
+
+        seq.push(key_code);
         Ok(seq)
     }
 }

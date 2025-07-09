@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use charon_lib::domain::{DomainEvent, Event, Mode};
+use charon_lib::event::{DomainEvent, Event, Mode};
 use tokio::{io::unix::AsyncFd, task::JoinHandle};
 
 use crate::{

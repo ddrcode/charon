@@ -1,4 +1,4 @@
-use charon_lib::domain::Event;
+use charon_lib::event::Event;
 use evdev::KeyCode;
 use thiserror;
 use tokio::sync::mpsc::error::SendError;

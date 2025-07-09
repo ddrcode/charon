@@ -2,7 +2,7 @@ use std::fs::remove_file;
 use std::path::Path;
 
 use crate::domain::{Actor, ActorState};
-use charon_lib::domain::{DomainEvent, Event};
+use charon_lib::event::{DomainEvent, Event};
 use tokio::sync::mpsc;
 use tokio::{net::UnixListener, task::JoinHandle};
 use tracing::info;
