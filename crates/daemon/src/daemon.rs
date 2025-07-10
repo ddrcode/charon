@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use charon_lib::domain::{DomainEvent, Event, Mode};
+use charon_lib::event::{DomainEvent, Event, Mode, Topic};
 use tokio::{
     sync::{
         RwLock,
@@ -26,13 +26,14 @@ impl Daemon {
             tasks: Vec::new(),
             broker: EventBroker::new(broker_rx),
             event_tx,
-            mode: Arc::new(RwLock::new(Mode::PassThrough)),
+            mode: Arc::new(RwLock::new(Mode::InApp)),
         }
     }
 
     pub async fn run(&mut self) {
         info!("Charon is ready...");
         self.broker.run().await;
+        self.stop().await;
     }
 
     pub async fn stop(&mut self) {
@@ -50,10 +51,10 @@ impl Daemon {
         &mut self,
         name: &'static str,
         spawn_fn: fn(ActorState) -> JoinHandle<()>,
-        filter_fn: fn(&Event) -> bool,
+        topics: &'static [Topic],
     ) -> &mut Self {
         let (pt_tx, pt_rx) = mpsc::channel::<Event>(128);
-        self.broker.add_subscriber(pt_tx, filter_fn);
+        self.broker.add_subscriber(pt_tx, name, topics);
         let state = ActorState::new(name, self.mode.clone(), self.event_tx.clone(), pt_rx);
         let task = spawn_fn(state);
         self.tasks.push(task);

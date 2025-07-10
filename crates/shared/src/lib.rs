@@ -1,1 +1,2 @@
-pub mod domain;
+pub mod event;
+pub mod stats;

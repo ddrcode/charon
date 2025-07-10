@@ -1,4 +1,4 @@
-use charon_lib::domain::Event;
+use charon_lib::event::Event;
 use tokio::{sync::mpsc::Sender, task::JoinHandle};
 
 pub struct ClientSessionState {

@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use charon_lib::domain::{DomainEvent, Event, Mode};
+use charon_lib::event::{DomainEvent, Event, Mode};
 use tokio::{io::unix::AsyncFd, task::JoinHandle};
 
 use crate::{
@@ -109,7 +109,7 @@ impl Actor for KeyScanner {
     }
 
     async fn init(&mut self) {
-        self.grab();
+        self.switch_mode(&self.state.mode().await);
     }
 
     async fn tick(&mut self) {
@@ -125,13 +125,6 @@ impl Actor for KeyScanner {
                 };
                 self.handle_device_events(events).await;
             }
-        }
-    }
-
-    fn filter(event: &Event) -> bool {
-        match event.payload {
-            DomainEvent::ModeChange(_) => true,
-            _ => false,
         }
     }
 }

@@ -2,7 +2,7 @@ use std::fs::remove_file;
 use std::path::Path;
 
 use crate::domain::{Actor, ActorState};
-use charon_lib::domain::{DomainEvent, Event};
+use charon_lib::event::{DomainEvent, Event};
 use tokio::sync::mpsc;
 use tokio::{net::UnixListener, task::JoinHandle};
 use tracing::info;
@@ -62,9 +62,13 @@ impl Actor for IPCServer {
                 //     old.shutdown().await;
                 // }
 
+                let mode = self.state.mode().await;
                 let (session_tx, session_rx) = mpsc::channel::<Event>(128);
                 let mut session = ClientSession::new(stream, self.state.sender.clone(), session_rx);
-                let handle = tokio::spawn(async move { session.run().await; });
+                let handle = tokio::spawn(async move {
+                    session.init(mode).await;
+                    session.run().await;
+                });
                 self.session = Some(ClientSessionState::new(handle, session_tx));
 
             }
@@ -82,16 +86,5 @@ impl Actor for IPCServer {
 
     fn state_mut(&mut self) -> &mut ActorState {
         &mut self.state
-    }
-
-    fn filter(event: &Event) -> bool {
-        if event.sender == "client" {
-            return false;
-        }
-        match event.payload {
-            DomainEvent::KeyPress(_) => false,
-            DomainEvent::KeyRelease(_) => false,
-            _ => true,
-        }
     }
 }

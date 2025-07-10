@@ -1,9 +1,9 @@
-use charon_lib::domain::Event;
+use charon_lib::event::Event;
 use evdev::KeyCode;
 use thiserror;
 use tokio::sync::mpsc::error::SendError;
 
-#[derive(Debug, Clone, thiserror::Error)]
+#[derive(Debug, thiserror::Error)]
 pub enum KOSError {
     #[error("Couldn't handle the keycode: {0:?}")]
     UnsupportedKeyCode(KeyCode),
@@ -16,4 +16,7 @@ pub enum KOSError {
 
     #[error("Event channel error: {0}")]
     EventChannelError(#[from] SendError<Event>),
+
+    #[error("IO error: {0}")]
+    IOError(#[from] std::io::Error),
 }

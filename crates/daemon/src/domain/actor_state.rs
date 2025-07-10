@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use charon_lib::domain::{Event, Mode};
+use charon_lib::event::{Event, Mode};
 use tokio::sync::{
     RwLock,
     mpsc::{Receiver, Sender},
