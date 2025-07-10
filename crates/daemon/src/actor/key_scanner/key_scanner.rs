@@ -109,7 +109,7 @@ impl Actor for KeyScanner {
     }
 
     async fn init(&mut self) {
-        self.grab();
+        self.switch_mode(&self.state.mode().await);
     }
 
     async fn tick(&mut self) {

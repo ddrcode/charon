@@ -15,7 +15,7 @@ use crate::client::CharonClient;
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let state = app::AppState::new();
-    let mut charon = CharonClient::new(state);
+    let mut charon = CharonClient::new(state).await;
     charon.run().await?;
     Ok(())
 }

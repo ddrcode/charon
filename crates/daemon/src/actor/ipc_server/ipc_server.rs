@@ -62,9 +62,13 @@ impl Actor for IPCServer {
                 //     old.shutdown().await;
                 // }
 
+                let mode = self.state.mode().await;
                 let (session_tx, session_rx) = mpsc::channel::<Event>(128);
                 let mut session = ClientSession::new(stream, self.state.sender.clone(), session_rx);
-                let handle = tokio::spawn(async move { session.run().await; });
+                let handle = tokio::spawn(async move {
+                    session.init(mode).await;
+                    session.run().await;
+                });
                 self.session = Some(ClientSessionState::new(handle, session_tx));
 
             }

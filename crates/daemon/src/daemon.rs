@@ -26,7 +26,7 @@ impl Daemon {
             tasks: Vec::new(),
             broker: EventBroker::new(broker_rx),
             event_tx,
-            mode: Arc::new(RwLock::new(Mode::PassThrough)),
+            mode: Arc::new(RwLock::new(Mode::InApp)),
         }
     }
 

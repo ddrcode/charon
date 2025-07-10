@@ -1,4 +1,4 @@
-use charon_lib::event::{DomainEvent, Event};
+use charon_lib::event::{DomainEvent, Event, Mode};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::net::UnixStream;
 use tokio::net::unix::WriteHalf;
@@ -19,6 +19,12 @@ impl ClientSession {
             broker_tx,
             session_rx,
         }
+    }
+
+    pub async fn init(&mut self, mode: Mode) {
+        self.send(Event::new("IPCServer", DomainEvent::ModeChange(mode)))
+            .await
+            .unwrap();
     }
 
     pub async fn run(&mut self) {
