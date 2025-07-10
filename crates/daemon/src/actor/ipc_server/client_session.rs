@@ -75,6 +75,7 @@ impl ClientSession {
         let stream = &mut self.stream;
         let payload = serde_json::to_string(&event)?;
         stream.write_all(payload.as_bytes()).await?;
+        stream.write_all(b"\n").await?;
         Ok(())
     }
 }

@@ -11,7 +11,7 @@ pub enum DomainEvent {
     KeyRelease(KeyCode),
     HidReport([u8; 8]),
     SendText(String),
-    SendFile(String),
+    SendFile(String, bool),
     TextSent,
     CurrentStats(CurrentStats),
     ModeChange(Mode),

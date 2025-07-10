@@ -42,7 +42,7 @@ async fn main() -> Result<(), anyhow::Error> {
         .add_actor(
             "IPCServer",
             IPCServer::spawn,
-            &[T::System, T::Stats, T::Monitoring],
+            &[T::System, T::KeyInput, T::Stats, T::Monitoring],
         );
 
     let mut sigterm = unix::signal(unix::SignalKind::terminate())?;

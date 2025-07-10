@@ -4,9 +4,9 @@ use ratatui::{
     widgets::{Block, Borders, Clear, Paragraph},
 };
 
-pub fn draw_popup(f: &mut Frame, msg: &str) {
+pub fn draw_popup(f: &mut Frame, title: &str, msg: &str) {
     let area = centered_rect(60, 20, f.size());
-    let block = Block::default().title("Popup").borders(Borders::ALL);
+    let block = Block::default().title(title).borders(Borders::ALL);
     let para = Paragraph::new(msg)
         .block(block)
         .alignment(Alignment::Center);

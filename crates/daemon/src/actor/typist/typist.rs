@@ -1,8 +1,14 @@
 use charon_lib::event::{DomainEvent, Event, Mode};
-use tokio::{fs::read_to_string, task::JoinHandle};
+use tokio::{
+    fs::{read_to_string, remove_file},
+    task::JoinHandle,
+};
 use tracing::warn;
 
-use crate::domain::{Actor, ActorState, HidKeyCode, KeyboardState};
+use crate::{
+    domain::{Actor, ActorState, HidKeyCode, KeyboardState},
+    error::KOSError,
+};
 
 pub struct Typist {
     state: ActorState,
@@ -22,7 +28,9 @@ impl Typist {
     async fn handle_event(&mut self, event: &Event) {
         match &event.payload {
             DomainEvent::SendText(txt) => self.send_string(txt).await,
-            DomainEvent::SendFile(path) => self.send_file(path).await.expect("File not found"),
+            DomainEvent::SendFile(path, remove) => {
+                self.send_file(path, *remove).await.expect("File not found")
+            }
             DomainEvent::ModeChange(Mode::PassThrough) => {
                 // cancel text sending
             }
@@ -58,15 +66,18 @@ impl Typist {
             self.send_char(c).await;
             if self.state.mode().await == Mode::PassThrough {
                 warn!("Sending text interrupted by mode change");
-                break;
+                return;
             }
         }
         self.send(DomainEvent::TextSent).await;
     }
 
-    pub async fn send_file(&mut self, path: &String) -> Result<(), std::io::Error> {
+    pub async fn send_file(&mut self, path: &String, remove: bool) -> Result<(), KOSError> {
         let text = read_to_string(path).await?;
         self.send_string(&text).await;
+        if remove {
+            remove_file(path).await?;
+        }
         Ok(())
     }
 }

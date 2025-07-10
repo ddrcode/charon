@@ -4,7 +4,7 @@ use charon_lib::event::Mode;
 pub enum Screen {
     PassThrough,
     Menu,
-    Popup(String),
+    Popup(String, String),
 }
 
 pub struct App {

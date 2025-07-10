@@ -134,6 +134,7 @@ dependencies = [
  "anyhow",
  "charon-lib",
  "crossterm 0.29.0",
+ "evdev",
  "ratatui",
  "serde_json",
  "tempfile",

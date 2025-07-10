@@ -23,7 +23,7 @@ pub fn draw_menu(f: &mut Frame, state: &AppState) {
 
     let mut boxes = vec![];
 
-    for (i, row) in rows.iter().step_by(2).enumerate() {
+    for row in rows.iter().step_by(2) {
         let cols = Layout::default()
             .direction(Direction::Horizontal)
             .constraints(vec![

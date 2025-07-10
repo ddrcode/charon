@@ -18,7 +18,7 @@ impl From<&DomainEvent> for Topic {
             DomainEvent::KeyRelease(_) => KeyInput,
             DomainEvent::HidReport(_) => KeyOutput,
             DomainEvent::SendText(_) => TextInput,
-            DomainEvent::SendFile(_) => TextInput,
+            DomainEvent::SendFile(_, _) => TextInput,
             DomainEvent::TextSent => Monitoring,
             DomainEvent::CurrentStats(_) => Stats,
             DomainEvent::ModeChange(_) => System,
