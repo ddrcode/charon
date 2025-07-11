@@ -111,6 +111,10 @@ pub enum HidKeyCode {
     KEY_KPMINUS = 0x56,
     KEY_KPPLUS = 0x57,
 
+    KEY_MUTE = 0x7F,
+    KEY_VOLUMEUP = 0x80,
+    KEY_VOLUMEDOWN = 0x81,
+
     KEY_LEFTCTRL = 0xE0,
     KEY_LEFTSHIFT = 0xE1,
     KEY_LEFTALT = 0xE2,
@@ -318,6 +322,10 @@ impl TryFrom<u8> for HidKeyCode {
             0x56 => KEY_KPMINUS,
             0x57 => KEY_KPPLUS,
 
+            0x7F => KEY_MUTE,
+            0x80 => KEY_VOLUMEUP,
+            0x81 => KEY_VOLUMEDOWN,
+
             0xE0 => KEY_LEFTCTRL,
             0xE1 => KEY_LEFTSHIFT,
             0xE2 => KEY_LEFTALT,
@@ -450,7 +458,10 @@ impl TryFrom<&KeyCode> for HidKeyCode {
             KEY_KPSLASH,
             KEY_KPASTERISK,
             KEY_KPMINUS,
-            KEY_KPPLUS
+            KEY_KPPLUS,
+            KEY_MUTE,
+            KEY_VOLUMEUP,
+            KEY_VOLUMEDOWN
         ))
     }
 }
