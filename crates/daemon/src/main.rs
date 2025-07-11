@@ -1,10 +1,12 @@
 pub mod actor;
 pub mod broker;
+pub mod config;
 pub mod daemon;
 pub mod devices;
 pub mod domain;
 pub mod error;
-pub mod utils;
+
+use std::fs::read_to_string;
 
 use anyhow;
 use charon_lib::event::Topic as T;
@@ -17,6 +19,7 @@ use crate::{
         ipc_server::IPCServer, key_scanner::KeyScanner, key_writer::KeyWriter,
         passthrough::PassThrough, typing_stats::TypingStats, typist::Typist,
     },
+    config::CharonConfig,
     daemon::Daemon,
     domain::Actor,
 };
@@ -34,6 +37,7 @@ async fn main() -> Result<(), anyhow::Error> {
 
     let mut daemon = Daemon::new();
     daemon
+        .with_config(get_config().unwrap_or(CharonConfig::default()))
         .add_actor("KeyScanner", KeyScanner::spawn, &[T::System])
         .add_actor("PassThrough", PassThrough::spawn, &[T::System, T::KeyInput])
         .add_actor("Typist", Typist::spawn, &[T::System, T::TextInput])
@@ -63,4 +67,24 @@ async fn main() -> Result<(), anyhow::Error> {
 
     info!("Charon says goodbye. Hades is waiting...");
     Ok(())
+}
+
+fn get_config() -> Result<CharonConfig, anyhow::Error> {
+    // use ::config::{File, FileFormat};
+    // let settings = Config::builder()
+    //     .add_source(File::from_str(
+    //         &format!("{}/charon/charon", std::env::var("XDG_CONFIG_HOME")?),
+    //         FileFormat::Toml,
+    //     ))
+    //     .build()?;
+    // let config = settings.try_deserialize::<CharonConfig>()?;
+
+    let c = read_to_string(&format!(
+        "{}/charon/charon.toml",
+        std::env::var("XDG_CONFIG_HOME")?
+    ))?;
+    let config: CharonConfig = toml::from_str(&c)?;
+
+    info!("Using config file");
+    Ok(config)
 }

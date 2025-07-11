@@ -10,13 +10,14 @@ use tokio::{
 };
 use tracing::info;
 
-use crate::{broker::EventBroker, domain::ActorState};
+use crate::{broker::EventBroker, config::CharonConfig, domain::ActorState};
 
 pub struct Daemon {
     tasks: Vec<JoinHandle<()>>,
     broker: EventBroker,
     event_tx: Sender<Event>,
     mode: Arc<RwLock<Mode>>,
+    config: CharonConfig,
 }
 
 impl Daemon {
@@ -27,6 +28,7 @@ impl Daemon {
             broker: EventBroker::new(broker_rx),
             event_tx,
             mode: Arc::new(RwLock::new(Mode::InApp)),
+            config: CharonConfig::default(),
         }
     }
 
@@ -55,9 +57,20 @@ impl Daemon {
     ) -> &mut Self {
         let (pt_tx, pt_rx) = mpsc::channel::<Event>(128);
         self.broker.add_subscriber(pt_tx, name, topics);
-        let state = ActorState::new(name, self.mode.clone(), self.event_tx.clone(), pt_rx);
+        let state = ActorState::new(
+            name,
+            self.mode.clone(),
+            self.event_tx.clone(),
+            pt_rx,
+            self.config.clone(),
+        );
         let task = spawn_fn(state);
         self.tasks.push(task);
+        self
+    }
+
+    pub fn with_config(&mut self, config: CharonConfig) -> &mut Self {
+        self.config = config;
         self
     }
 }
