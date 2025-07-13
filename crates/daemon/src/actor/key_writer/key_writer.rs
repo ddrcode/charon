@@ -1,4 +1,4 @@
-use std::borrow::Cow;
+use std::{borrow::Cow, path::PathBuf};
 
 use charon_lib::event::{DomainEvent, Event};
 use tokio::task::JoinHandle;
@@ -15,7 +15,7 @@ pub struct KeyWriter {
 }
 
 impl KeyWriter {
-    pub fn new(state: ActorState, device_path: &str) -> Self {
+    pub fn new(state: ActorState, device_path: &PathBuf) -> Self {
         Self {
             state,
             device: HIDKeyboard::new(device_path),
@@ -43,7 +43,8 @@ impl KeyWriter {
 #[async_trait::async_trait]
 impl Actor for KeyWriter {
     fn spawn(state: ActorState) -> JoinHandle<()> {
-        let mut writer = KeyWriter::new(state, "/dev/hidg0");
+        let dev = state.config().hid_keyboard.clone();
+        let mut writer = KeyWriter::new(state, &dev);
         tokio::spawn(async move { writer.run().await })
     }
 
