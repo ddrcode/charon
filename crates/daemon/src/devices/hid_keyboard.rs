@@ -1,6 +1,7 @@
 use std::{
     fs::{File, OpenOptions},
     io::Write,
+    path::PathBuf,
 };
 
 use tracing::error;
@@ -10,7 +11,7 @@ pub struct HIDKeyboard {
 }
 
 impl HIDKeyboard {
-    pub fn new(path: &str) -> Self {
+    pub fn new(path: &PathBuf) -> Self {
         let hidg = OpenOptions::new()
             .write(true)
             .open(path)

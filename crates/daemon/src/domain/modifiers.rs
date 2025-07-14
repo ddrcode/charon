@@ -1,10 +1,12 @@
 use crate::domain::HidKeyCode;
+use std::fmt;
 
 #[derive(Debug, PartialEq, Clone, Default)]
 #[repr(transparent)]
 pub struct Modifiers(u8);
 
 impl Modifiers {
+    pub const NONE: Self = Self(0);
     pub const LEFT_CTRL: Self = Self(1);
     pub const LEFT_SHIFT: Self = Self(2);
     pub const LEFT_ALT: Self = Self(4);
@@ -50,5 +52,26 @@ impl From<u8> for Modifiers {
 impl From<HidKeyCode> for Modifiers {
     fn from(code: HidKeyCode) -> Self {
         Self(code.modifier_mask())
+    }
+}
+
+impl fmt::Display for Modifiers {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let mut mods: Vec<String> = Vec::new();
+        for i in 0..4 {
+            if self.0 & !((1 + 16) << i) != 0 {
+                mods.push(
+                    (match i {
+                        0 => "Ctrl",
+                        1 => "Shift",
+                        2 => "Alt",
+                        3 => "Meta",
+                        _ => unreachable!("There are only 4 types of modifiers"),
+                    })
+                    .to_string(),
+                );
+            }
+        }
+        write!(f, "{}", mods.join("+"))
     }
 }

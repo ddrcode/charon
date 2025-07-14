@@ -14,6 +14,12 @@ pub enum KOSError {
     #[error("Unhandled device event: {0}")]
     UnhandledDeviceEvent(String),
 
+    #[error("Invalid key shortcut: {0}")]
+    InvalidKeyShortcut(String),
+
+    #[error("Unsupported key name: {0}")]
+    UnsupportedKeyName(String),
+
     #[error("Event channel error: {0}")]
     EventChannelError(#[from] SendError<Event>),
 

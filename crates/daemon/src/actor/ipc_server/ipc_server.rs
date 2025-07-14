@@ -1,5 +1,5 @@
-use std::fs::remove_file;
-use std::path::Path;
+use std::fs;
+use std::path::{Path, PathBuf};
 
 use crate::domain::{Actor, ActorState};
 use charon_lib::event::{DomainEvent, Event};
@@ -16,12 +16,11 @@ pub struct IPCServer {
 }
 
 impl IPCServer {
-    pub fn new(state: ActorState) -> Self {
-        let path = "/tmp/charon.sock";
+    pub fn new(state: ActorState, path: &PathBuf) -> Self {
         if Path::new(path).exists() {
-            remove_file(path).unwrap();
+            fs::remove_file(path).expect("Couldn't remove socket file");
         }
-        let listener = UnixListener::bind(path).unwrap();
+        let listener = UnixListener::bind(path).expect("Couldn't create a socket file");
 
         Self {
             state,
@@ -46,7 +45,8 @@ impl IPCServer {
 #[async_trait::async_trait]
 impl Actor for IPCServer {
     fn spawn(state: ActorState) -> JoinHandle<()> {
-        let mut ipc_server = IPCServer::new(state);
+        let path = state.config().server_socket.clone();
+        let mut ipc_server = IPCServer::new(state, &path);
         tokio::spawn(async move {
             ipc_server.run().await;
         })
@@ -62,8 +62,9 @@ impl Actor for IPCServer {
                 //     old.shutdown().await;
                 // }
 
+                let channel_size = self.state.config().channel_size;
                 let mode = self.state.mode().await;
-                let (session_tx, session_rx) = mpsc::channel::<Event>(128);
+                let (session_tx, session_rx) = mpsc::channel::<Event>(channel_size);
                 let mut session = ClientSession::new(stream, self.state.sender.clone(), session_rx);
                 let handle = tokio::spawn(async move {
                     session.init(mode).await;

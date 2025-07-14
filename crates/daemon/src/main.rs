@@ -1,15 +1,16 @@
 pub mod actor;
 pub mod broker;
+pub mod config;
 pub mod daemon;
 pub mod devices;
 pub mod domain;
 pub mod error;
-pub mod utils;
 
 use anyhow;
 use charon_lib::event::Topic as T;
+use std::{fs::read_to_string, path::PathBuf};
 use tokio::{self, signal::unix};
-use tracing::info;
+use tracing::{debug, info, warn};
 use tracing_subscriber::FmtSubscriber;
 
 use crate::{
@@ -17,6 +18,7 @@ use crate::{
         ipc_server::IPCServer, key_scanner::KeyScanner, key_writer::KeyWriter,
         passthrough::PassThrough, typing_stats::TypingStats, typist::Typist,
     },
+    config::CharonConfig,
     daemon::Daemon,
     domain::Actor,
 };
@@ -34,6 +36,7 @@ async fn main() -> Result<(), anyhow::Error> {
 
     let mut daemon = Daemon::new();
     daemon
+        .with_config(get_config().expect("Failed loading config file"))
         .add_actor("KeyScanner", KeyScanner::spawn, &[T::System])
         .add_actor("PassThrough", PassThrough::spawn, &[T::System, T::KeyInput])
         .add_actor("Typist", Typist::spawn, &[T::System, T::TextInput])
@@ -50,11 +53,11 @@ async fn main() -> Result<(), anyhow::Error> {
     tokio::select! {
         _ = daemon.run() => {},
         _ = tokio::signal::ctrl_c() => {
-            info!("Received Ctrl+C, shutting down gracefully...");
+            info!("Received Ctrl+C, shutting down...");
             daemon.stop().await;
         },
         _ = sigterm.recv() => {
-            info!("Received SIGTERM, shutting down");
+            info!("Received SIGTERM, shutting down...");
             daemon.stop().await;
         }
     }
@@ -63,4 +66,24 @@ async fn main() -> Result<(), anyhow::Error> {
 
     info!("Charon says goodbye. Hades is waiting...");
     Ok(())
+}
+
+fn get_config() -> Result<CharonConfig, anyhow::Error> {
+    let mut path = PathBuf::new();
+    path.push(std::env::var("XDG_CONFIG_HOME")?);
+    path.push("charon/charon.toml");
+
+    if !path.exists() {
+        warn!(
+            "Couldn't find config file at {:?}. Starting with default configuration",
+            path
+        );
+        return Ok(CharonConfig::default());
+    }
+
+    debug!("Found config file: {:?}", path);
+    let config_str = read_to_string(path)?;
+    let config: CharonConfig = toml::from_str(&config_str)?;
+
+    Ok(config)
 }

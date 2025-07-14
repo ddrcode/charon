@@ -6,12 +6,15 @@ use tokio::sync::{
     mpsc::{Receiver, Sender},
 };
 
+use crate::config::CharonConfig;
+
 pub struct ActorState {
     pub(crate) id: &'static str,
     pub(crate) alive: bool,
     pub(crate) sender: Sender<Event>,
     pub(crate) receiver: Receiver<Event>,
     mode: Arc<RwLock<Mode>>,
+    config: CharonConfig,
 }
 
 impl ActorState {
@@ -20,6 +23,7 @@ impl ActorState {
         mode: Arc<RwLock<Mode>>,
         sender: Sender<Event>,
         receiver: Receiver<Event>,
+        config: CharonConfig,
     ) -> Self {
         Self {
             id,
@@ -27,6 +31,7 @@ impl ActorState {
             alive: true,
             sender,
             receiver,
+            config,
         }
     }
 
@@ -36,5 +41,9 @@ impl ActorState {
 
     pub async fn set_mode(&mut self, mode: Mode) {
         *self.mode.write().await = mode;
+    }
+
+    pub fn config(&self) -> &CharonConfig {
+        &self.config
     }
 }
