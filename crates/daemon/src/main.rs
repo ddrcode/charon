@@ -18,7 +18,7 @@ use crate::{
         ipc_server::IPCServer, key_scanner::KeyScanner, key_writer::KeyWriter,
         passthrough::PassThrough, typing_stats::TypingStats, typist::Typist,
     },
-    config::CharonConfig,
+    config::{CharonConfig, InputConfig},
     daemon::Daemon,
     domain::Actor,
 };
@@ -46,7 +46,11 @@ async fn main() -> Result<(), anyhow::Error> {
             "IPCServer",
             IPCServer::spawn,
             &[T::System, T::KeyInput, T::Stats, T::Monitoring],
-        );
+        )
+        .update_config(|config| {
+            config.keyboard = InputConfig::Name("usb-Keychron_Keychron_Q10-event-if02".into())
+        })
+        .add_actor("KnobScanner", KeyScanner::spawn, &[T::System]);
 
     let mut sigterm = unix::signal(unix::SignalKind::terminate())?;
 

@@ -27,7 +27,7 @@ impl Daemon {
             tasks: Vec::new(),
             broker: EventBroker::new(broker_rx),
             event_tx,
-            mode: Arc::new(RwLock::new(Mode::InApp)),
+            mode: Arc::new(RwLock::new(Mode::PassThrough)),
             config: CharonConfig::default(),
         }
     }
@@ -66,6 +66,11 @@ impl Daemon {
         );
         let task = spawn_fn(state);
         self.tasks.push(task);
+        self
+    }
+
+    pub fn update_config(&mut self, transform_cfg: fn(&mut CharonConfig)) -> &mut Self {
+        (transform_cfg)(&mut self.config);
         self
     }
 
