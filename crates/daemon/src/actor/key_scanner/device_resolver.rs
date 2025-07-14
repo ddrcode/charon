@@ -4,7 +4,7 @@ use std::{
     path::PathBuf,
 };
 
-use tracing::info;
+use tracing::{debug, info};
 
 use crate::config::InputConfig;
 
@@ -35,6 +35,7 @@ fn normalize(path: &PathBuf) -> Option<PathBuf> {
 }
 
 fn from_name(name: &Cow<'static, str>) -> Option<PathBuf> {
+    debug!("Searching for keyboard {}", name);
     let path: PathBuf = [BY_ID, name].iter().collect();
     normalize(&path)
 }
@@ -46,7 +47,6 @@ pub fn find_keyboard_device() -> Option<PathBuf> {
         let name = entry.file_name();
         if name.to_string_lossy().ends_with("-event-kbd") {
             let full_path = canonicalize(entry.path()).ok()?;
-            info!("Keyboard found: {:?}", full_path);
             return Some(full_path);
         }
     }

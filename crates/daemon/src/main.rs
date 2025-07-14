@@ -70,21 +70,29 @@ async fn main() -> Result<(), anyhow::Error> {
 }
 
 fn get_config() -> Result<CharonConfig, anyhow::Error> {
-    // use ::config::{File, FileFormat};
-    // let settings = Config::builder()
-    //     .add_source(File::from_str(
-    //         &format!("{}/charon/charon", std::env::var("XDG_CONFIG_HOME")?),
-    //         FileFormat::Toml,
-    //     ))
-    //     .build()?;
-    // let config = settings.try_deserialize::<CharonConfig>()?;
+    fn try_get_config() -> Result<CharonConfig, anyhow::Error> {
+        // use ::config::{File, FileFormat};
+        // let settings = Config::builder()
+        //     .add_source(File::from_str(
+        //         &format!("{}/charon/charon", std::env::var("XDG_CONFIG_HOME")?),
+        //         FileFormat::Toml,
+        //     ))
+        //     .build()?;
+        // let config = settings.try_deserialize::<CharonConfig>()?;
 
-    let c = read_to_string(&format!(
-        "{}/charon/charon.toml",
-        std::env::var("XDG_CONFIG_HOME")?
-    ))?;
-    let config: CharonConfig = toml::from_str(&c)?;
+        let c = read_to_string(&format!(
+            "{}/charon/charon.toml",
+            std::env::var("XDG_CONFIG_HOME")?
+        ))?;
+        let config: CharonConfig = toml::from_str(&c)?;
 
-    info!("Using config file");
-    Ok(config)
+        info!("Using config file");
+        Ok(config)
+    }
+
+    let config_result = try_get_config();
+    if let Err(ref err) = config_result {
+        tracing::error!("Error processing config file: {}", err);
+    }
+    config_result
 }
