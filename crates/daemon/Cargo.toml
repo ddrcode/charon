@@ -15,5 +15,4 @@ tokio.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
 charon-lib = { path="../shared" }
-config = "0.15.13"
 toml = "0.9.1"

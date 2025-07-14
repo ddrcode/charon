@@ -663,7 +663,7 @@ impl FromStr for HidKeyCode {
             "RIGHT" => KEY_RIGHT,
             "NUMLOCK" => KEY_NUMLOCK,
             "SCROLLLOCK" => KEY_SCROLLLOCK,
-            _ => return Err(KOSError::UnsupportedCharacter('a')),
+            other => return Err(KOSError::UnsupportedKeyName(other.into())),
         };
         Ok(key)
     }

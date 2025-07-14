@@ -6,12 +6,11 @@ pub mod devices;
 pub mod domain;
 pub mod error;
 
-use std::fs::read_to_string;
-
 use anyhow;
 use charon_lib::event::Topic as T;
+use std::{fs::read_to_string, path::PathBuf};
 use tokio::{self, signal::unix};
-use tracing::info;
+use tracing::{debug, info, warn};
 use tracing_subscriber::FmtSubscriber;
 
 use crate::{
@@ -37,7 +36,7 @@ async fn main() -> Result<(), anyhow::Error> {
 
     let mut daemon = Daemon::new();
     daemon
-        .with_config(get_config().unwrap_or(CharonConfig::default()))
+        .with_config(get_config().expect("Failed loading config file"))
         .add_actor("KeyScanner", KeyScanner::spawn, &[T::System])
         .add_actor("PassThrough", PassThrough::spawn, &[T::System, T::KeyInput])
         .add_actor("Typist", Typist::spawn, &[T::System, T::TextInput])
@@ -54,11 +53,11 @@ async fn main() -> Result<(), anyhow::Error> {
     tokio::select! {
         _ = daemon.run() => {},
         _ = tokio::signal::ctrl_c() => {
-            info!("Received Ctrl+C, shutting down gracefully...");
+            info!("Received Ctrl+C, shutting down...");
             daemon.stop().await;
         },
         _ = sigterm.recv() => {
-            info!("Received SIGTERM, shutting down");
+            info!("Received SIGTERM, shutting down...");
             daemon.stop().await;
         }
     }
@@ -70,29 +69,21 @@ async fn main() -> Result<(), anyhow::Error> {
 }
 
 fn get_config() -> Result<CharonConfig, anyhow::Error> {
-    fn try_get_config() -> Result<CharonConfig, anyhow::Error> {
-        // use ::config::{File, FileFormat};
-        // let settings = Config::builder()
-        //     .add_source(File::from_str(
-        //         &format!("{}/charon/charon", std::env::var("XDG_CONFIG_HOME")?),
-        //         FileFormat::Toml,
-        //     ))
-        //     .build()?;
-        // let config = settings.try_deserialize::<CharonConfig>()?;
+    let mut path = PathBuf::new();
+    path.push(std::env::var("XDG_CONFIG_HOME")?);
+    path.push("charon/charon.toml");
 
-        let c = read_to_string(&format!(
-            "{}/charon/charon.toml",
-            std::env::var("XDG_CONFIG_HOME")?
-        ))?;
-        let config: CharonConfig = toml::from_str(&c)?;
-
-        info!("Using config file");
-        Ok(config)
+    if !path.exists() {
+        warn!(
+            "Couldn't find config file at {:?}. Starting with default configuration",
+            path
+        );
+        return Ok(CharonConfig::default());
     }
 
-    let config_result = try_get_config();
-    if let Err(ref err) = config_result {
-        tracing::error!("Error processing config file: {}", err);
-    }
-    config_result
+    debug!("Found config file: {:?}", path);
+    let config_str = read_to_string(path)?;
+    let config: CharonConfig = toml::from_str(&config_str)?;
+
+    Ok(config)
 }
