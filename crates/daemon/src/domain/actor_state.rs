@@ -1,4 +1,4 @@
-use std::{sync::Arc, time::Instant};
+use std::{borrow::Cow, sync::Arc, time::Instant};
 
 use charon_lib::event::{Event, Mode};
 use tokio::sync::{
@@ -9,7 +9,7 @@ use tokio::sync::{
 use crate::config::CharonConfig;
 
 pub struct ActorState {
-    pub(crate) id: &'static str,
+    pub(crate) id: Cow<'static, str>,
     pub(crate) alive: bool,
     pub(crate) sender: Sender<Event>,
     pub(crate) receiver: Receiver<Event>,
@@ -20,7 +20,7 @@ pub struct ActorState {
 
 impl ActorState {
     pub fn new(
-        id: &'static str,
+        id: Cow<'static, str>,
         mode: Arc<RwLock<Mode>>,
         sender: Sender<Event>,
         receiver: Receiver<Event>,

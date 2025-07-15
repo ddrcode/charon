@@ -1,6 +1,5 @@
 use evdev::KeyCode;
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
 
 use super::{Mode, Topic};
 use crate::stats::CurrentStats;

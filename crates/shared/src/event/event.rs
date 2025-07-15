@@ -14,7 +14,7 @@ pub struct Event {
 }
 
 impl Event {
-    pub fn new(sender: &'static str, payload: DomainEvent) -> Self {
+    pub fn new(sender: Cow<'static, str>, payload: DomainEvent) -> Self {
         Self {
             id: Uuid::new_v4(),
             timestamp: Self::into_millis(&SystemTime::now()),
@@ -24,7 +24,11 @@ impl Event {
         }
     }
 
-    pub fn with_time(sender: &'static str, payload: DomainEvent, timestamp: SystemTime) -> Self {
+    pub fn with_time(
+        sender: Cow<'static, str>,
+        payload: DomainEvent,
+        timestamp: SystemTime,
+    ) -> Self {
         Self {
             id: Uuid::new_v4(),
             timestamp: Self::into_millis(&timestamp),
@@ -34,7 +38,11 @@ impl Event {
         }
     }
 
-    pub fn with_source_id(sender: &'static str, payload: DomainEvent, source_id: Uuid) -> Self {
+    pub fn with_source_id(
+        sender: Cow<'static, str>,
+        payload: DomainEvent,
+        source_id: Uuid,
+    ) -> Self {
         Self {
             id: Uuid::new_v4(),
             timestamp: Self::into_millis(&SystemTime::now()),

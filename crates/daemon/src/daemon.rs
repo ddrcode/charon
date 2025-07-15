@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{borrow::Cow, sync::Arc};
 
 use charon_lib::event::{DomainEvent, Event, Mode, Topic};
 use tokio::{
@@ -8,9 +8,13 @@ use tokio::{
     },
     task::JoinHandle,
 };
-use tracing::info;
+use tracing::{debug, info};
 
-use crate::{broker::EventBroker, config::CharonConfig, domain::ActorState};
+use crate::{
+    broker::EventBroker,
+    config::{CharonConfig, InputConfig},
+    domain::ActorState,
+};
 
 pub struct Daemon {
     tasks: Vec<JoinHandle<()>>,
@@ -39,7 +43,7 @@ impl Daemon {
     }
 
     pub async fn stop(&mut self) {
-        let event = Event::new("broker", DomainEvent::Exit);
+        let event = Event::new("broker".into(), DomainEvent::Exit);
         self.broker.broadcast(&event, true).await;
     }
 
@@ -49,24 +53,34 @@ impl Daemon {
         }
     }
 
+    pub fn add_actor_with_config(
+        &mut self,
+        name: Cow<'static, str>,
+        spawn_fn: fn(ActorState) -> JoinHandle<()>,
+        topics: &'static [Topic],
+        config: CharonConfig,
+    ) -> &mut Self {
+        let (pt_tx, pt_rx) = mpsc::channel::<Event>(128);
+        self.broker.add_subscriber(pt_tx, name.clone(), topics);
+        let state = ActorState::new(
+            name,
+            self.mode.clone(),
+            self.event_tx.clone(),
+            pt_rx,
+            config,
+        );
+        let task = spawn_fn(state);
+        self.tasks.push(task);
+        self
+    }
+
     pub fn add_actor(
         &mut self,
         name: &'static str,
         spawn_fn: fn(ActorState) -> JoinHandle<()>,
         topics: &'static [Topic],
     ) -> &mut Self {
-        let (pt_tx, pt_rx) = mpsc::channel::<Event>(128);
-        self.broker.add_subscriber(pt_tx, name, topics);
-        let state = ActorState::new(
-            name,
-            self.mode.clone(),
-            self.event_tx.clone(),
-            pt_rx,
-            self.config.clone(),
-        );
-        let task = spawn_fn(state);
-        self.tasks.push(task);
-        self
+        self.add_actor_with_config(name.into(), spawn_fn, topics, self.config.clone())
     }
 
     pub fn add_actor_conditionally(
@@ -78,6 +92,52 @@ impl Daemon {
     ) -> &mut Self {
         if should_add {
             self.add_actor(name, spawn_fn, topics);
+        }
+        self
+    }
+
+    // pub fn add_scanners(
+    //     &mut self,
+    //     spawn_fn: fn(ActorState) -> JoinHandle<()>,
+    //     topics: &'static [Topic],
+    // ) -> &mut Self {
+    //     match &self.config.keyboard {
+    //         InputConfig::Use(alias) => {
+    //             if let Some(keyboards) = &self.config.keyboards {
+    //                 let scanners: Vec<_> = keyboards
+    //                     .groups
+    //                     .get(&alias.to_string())
+    //                     .unwrap()
+    //                     .devices
+    //                     .iter()
+    //                     .map(|dev| {
+    //                         let mut config = self.config.clone();
+    //                         config.keyboards = None;
+    //                         config.keyboard = InputConfig::Name(dev.name.clone().into());
+    //                         let actor_name = format!("KeyScanner-{}", dev.alias);
+    //                         (actor_name, config)
+    //                     })
+    //                     .collect();
+    //                 for (name, config) in scanners {
+    //                     debug!("Registering scanner: {name}");
+    //                     self.add_actor_with_config(name.into(), spawn_fn, topics, config);
+    //                 }
+    //             }
+    //         }
+    //         _ => {
+    //             self.add_actor("KeyScanner", spawn_fn, topics);
+    //         }
+    //     }
+    //     self
+    // }
+    pub fn add_scanners(
+        &mut self,
+        spawn_fn: fn(ActorState) -> JoinHandle<()>,
+        topics: &'static [Topic],
+    ) -> &mut Self {
+        for (name, config) in self.config.get_config_per_keyboard() {
+            debug!("Registering scanner: {name}");
+            self.add_actor_with_config(name.into(), spawn_fn, topics, config);
         }
         self
     }

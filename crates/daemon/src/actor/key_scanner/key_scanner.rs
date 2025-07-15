@@ -10,7 +10,7 @@ use crate::{
     util::time::get_delta_since_start,
 };
 use evdev::{Device, EventSummary, InputEvent};
-use tracing::{error, info, warn};
+use tracing::{error, warn};
 
 pub struct KeyScanner {
     state: ActorState,

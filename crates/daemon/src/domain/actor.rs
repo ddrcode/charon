@@ -1,13 +1,15 @@
+use std::borrow::Cow;
+
 use charon_lib::event::{DomainEvent, Event};
 use tokio::task::JoinHandle;
-use tracing::{debug, info, warn};
+use tracing::{info, warn};
 
 use crate::domain::ActorState;
 
 #[async_trait::async_trait]
 pub trait Actor {
-    fn id(&self) -> &'static str {
-        self.state().id
+    fn id(&self) -> Cow<'static, str> {
+        self.state().id.clone()
     }
 
     fn state(&self) -> &ActorState;

@@ -1,7 +1,7 @@
 use super::DeviceEntry;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct KeyboardGroup {
     pub devices: Vec<DeviceEntry>,
 }

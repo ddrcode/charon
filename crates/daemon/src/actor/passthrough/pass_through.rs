@@ -65,7 +65,6 @@ impl PassThrough {
             let report = self.report.to_report();
             let payload = DomainEvent::HidReport(report);
             let event = Event::with_source_id(self.id(), payload, source_id.clone());
-            let id = event.id.clone();
             self.send_raw(event).await;
         }
     }

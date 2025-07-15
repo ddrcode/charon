@@ -19,7 +19,7 @@ use crate::{
         ipc_server::IPCServer, key_scanner::KeyScanner, key_writer::KeyWriter,
         passthrough::PassThrough, telemetry::Telemetry, typing_stats::TypingStats, typist::Typist,
     },
-    config::{CharonConfig, InputConfig},
+    config::CharonConfig,
     daemon::Daemon,
     domain::Actor,
 };
@@ -39,7 +39,7 @@ async fn main() -> Result<(), anyhow::Error> {
     let mut daemon = Daemon::new();
     daemon
         .with_config(config.clone())
-        .add_actor("KeyScanner", KeyScanner::spawn, &[T::System])
+        .add_scanners(KeyScanner::spawn, &[T::System])
         .add_actor("PassThrough", PassThrough::spawn, &[T::System, T::KeyInput])
         .add_actor("Typist", Typist::spawn, &[T::System, T::TextInput])
         .add_actor("KeyWriter", KeyWriter::spawn, &[T::System, T::KeyOutput])
@@ -54,11 +54,7 @@ async fn main() -> Result<(), anyhow::Error> {
             "Telemetry",
             Telemetry::spawn,
             &[T::System, T::Telemetry, T::KeyInput],
-        )
-        .update_config(|config| {
-            config.keyboard = InputConfig::Name("usb-Keychron_Keychron_Q10-event-if02".into())
-        })
-        .add_actor("KnobScanner", KeyScanner::spawn, &[T::System]);
+        );
 
     let mut sigterm = unix::signal(unix::SignalKind::terminate())?;
 
