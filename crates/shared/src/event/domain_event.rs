@@ -11,14 +11,17 @@ pub enum DomainEvent {
     KeyPress(KeyCode),
     KeyRelease(KeyCode),
     HidReport([u8; 8]),
-    ReportSent(Uuid),
-    ReportConsumed(Uuid),
     SendText(String),
     SendFile(String, bool),
     TextSent,
     CurrentStats(CurrentStats),
     ModeChange(Mode),
     Exit,
+
+    // telemetry events
+    KeySent(u128),
+    ReportSent(u128),
+    ReportConsumed(u128),
 }
 
 impl DomainEvent {

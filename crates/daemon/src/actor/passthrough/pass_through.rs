@@ -4,7 +4,10 @@ use tokio::task::JoinHandle;
 use tracing::{debug, error, warn};
 use uuid::Uuid;
 
-use crate::domain::{Actor, ActorState, HidKeyCode, KeyboardState, Modifiers};
+use crate::{
+    domain::{Actor, ActorState, HidKeyCode, KeyboardState, Modifiers},
+    util::time::get_delta_since_start,
+};
 
 pub struct PassThrough {
     state: ActorState,
@@ -29,20 +32,10 @@ impl PassThrough {
         self.report.update_on_press(key);
         if self.report.is(HidKeyCode::KEY_F7, Modifiers::default()) {
             self.toggle_mode().await;
-            self.send_raw(Event::with_source_id(
-                self.id(),
-                DomainEvent::ReportConsumed(source_id.clone()),
-                source_id.clone(),
-            ))
-            .await;
+            self.send_telemetry(source_id).await;
         } else if self.report.is(HidKeyCode::KEY_Q, Modifiers::LEFT_CTRL) {
             self.send(DomainEvent::Exit).await;
-            self.send_raw(Event::with_source_id(
-                self.id(),
-                DomainEvent::ReportConsumed(source_id.clone()),
-                source_id.clone(),
-            ))
-            .await;
+            self.send_telemetry(source_id).await;
         } else {
             self.send_report(source_id).await;
         }
@@ -74,12 +67,6 @@ impl PassThrough {
             let event = Event::with_source_id(self.id(), payload, source_id.clone());
             let id = event.id.clone();
             self.send_raw(event).await;
-            self.send_raw(Event::with_source_id(
-                self.id(),
-                DomainEvent::ReportSent(id),
-                source_id.clone(),
-            ))
-            .await;
         }
     }
 
@@ -102,6 +89,17 @@ impl PassThrough {
 
     pub fn reset(&mut self) {
         self.report.reset();
+    }
+
+    async fn send_telemetry(&mut self, source_id: &Uuid) {
+        if self.state.config().enable_telemetry {
+            self.send_raw(Event::with_source_id(
+                self.id(),
+                DomainEvent::ReportConsumed(get_delta_since_start(self.state.start_time())),
+                source_id.clone(),
+            ))
+            .await;
+        }
     }
 }
 

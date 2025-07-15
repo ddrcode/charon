@@ -5,6 +5,7 @@ pub mod daemon;
 pub mod devices;
 pub mod domain;
 pub mod error;
+pub mod util;
 
 use anyhow;
 use charon_lib::event::Topic as T;
@@ -34,23 +35,25 @@ async fn main() -> Result<(), anyhow::Error> {
 
     tracing::subscriber::set_global_default(subscriber).expect("Setting default subscriber failed");
 
+    let config = get_config().expect("Failed loading config file");
     let mut daemon = Daemon::new();
     daemon
-        .with_config(get_config().expect("Failed loading config file"))
+        .with_config(config.clone())
         .add_actor("KeyScanner", KeyScanner::spawn, &[T::System])
         .add_actor("PassThrough", PassThrough::spawn, &[T::System, T::KeyInput])
         .add_actor("Typist", Typist::spawn, &[T::System, T::TextInput])
         .add_actor("KeyWriter", KeyWriter::spawn, &[T::System, T::KeyOutput])
         .add_actor("TypingStats", TypingStats::spawn, &[T::System, T::KeyInput])
         .add_actor(
-            "Telemetry",
-            Telemetry::spawn,
-            &[T::System, T::Monitoring, T::KeyInput],
-        )
-        .add_actor(
             "IPCServer",
             IPCServer::spawn,
             &[T::System, T::KeyInput, T::Stats, T::Monitoring],
+        )
+        .add_actor_conditionally(
+            config.enable_telemetry,
+            "Telemetry",
+            Telemetry::spawn,
+            &[T::System, T::Telemetry, T::KeyInput],
         )
         .update_config(|config| {
             config.keyboard = InputConfig::Name("usb-Keychron_Keychron_Q10-event-if02".into())

@@ -2,10 +2,12 @@ use std::{borrow::Cow, path::PathBuf};
 
 use charon_lib::event::{DomainEvent, Event};
 use tokio::task::JoinHandle;
+use uuid::Uuid;
 
 use crate::{
     devices::HIDKeyboard,
     domain::{Actor, ActorState},
+    util::time::get_delta_since_start,
 };
 
 pub struct KeyWriter {
@@ -25,7 +27,10 @@ impl KeyWriter {
 
     async fn handle_event(&mut self, event: &Event) {
         match &event.payload {
-            DomainEvent::HidReport(report) => self.send_report(report, &event.sender),
+            DomainEvent::HidReport(report) => {
+                self.send_report(report, &event.sender);
+                self.send_telemetry(event).await;
+            }
             DomainEvent::Exit => self.stop().await,
             _ => {}
         }
@@ -37,6 +42,17 @@ impl KeyWriter {
             self.prev_sender = sender.clone()
         }
         self.device.send_report(report);
+    }
+
+    async fn send_telemetry(&mut self, event: &Event) {
+        if self.state.config().enable_telemetry {
+            self.send_raw(Event::with_source_id(
+                self.id(),
+                DomainEvent::ReportSent(get_delta_since_start(self.state.start_time())),
+                event.source_event_id.unwrap().clone(),
+            ))
+            .await;
+        }
     }
 }
 

@@ -8,23 +8,27 @@ pub enum Topic {
     KeyOutput,
     Stats,
     Monitoring,
+    Telemetry,
 }
 
 impl From<&DomainEvent> for Topic {
     fn from(value: &DomainEvent) -> Self {
+        use DomainEvent::*;
         use Topic::*;
         match value {
-            DomainEvent::KeyPress(_) => KeyInput,
-            DomainEvent::KeyRelease(_) => KeyInput,
-            DomainEvent::HidReport(_) => KeyOutput,
-            DomainEvent::ReportSent(_) => Monitoring,
-            DomainEvent::ReportConsumed(_) => Monitoring,
-            DomainEvent::SendText(_) => TextInput,
-            DomainEvent::SendFile(_, _) => TextInput,
-            DomainEvent::TextSent => Monitoring,
-            DomainEvent::CurrentStats(_) => Stats,
-            DomainEvent::ModeChange(_) => System,
-            DomainEvent::Exit => System,
+            KeyPress(_) => KeyInput,
+            KeyRelease(_) => KeyInput,
+            HidReport(_) => KeyOutput,
+            SendText(_) => TextInput,
+            SendFile(_, _) => TextInput,
+            TextSent => Monitoring,
+            CurrentStats(_) => Stats,
+            ModeChange(_) => System,
+            Exit => System,
+
+            ReportSent(_) => Telemetry,
+            ReportConsumed(_) => Telemetry,
+            KeySent(_) => Telemetry,
         }
     }
 }

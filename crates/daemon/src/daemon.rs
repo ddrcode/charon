@@ -69,6 +69,19 @@ impl Daemon {
         self
     }
 
+    pub fn add_actor_conditionally(
+        &mut self,
+        should_add: bool,
+        name: &'static str,
+        spawn_fn: fn(ActorState) -> JoinHandle<()>,
+        topics: &'static [Topic],
+    ) -> &mut Self {
+        if should_add {
+            self.add_actor(name, spawn_fn, topics);
+        }
+        self
+    }
+
     pub fn update_config(&mut self, transform_cfg: fn(&mut CharonConfig)) -> &mut Self {
         (transform_cfg)(&mut self.config);
         self

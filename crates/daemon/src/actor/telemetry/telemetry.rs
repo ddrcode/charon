@@ -8,7 +8,7 @@ use crate::domain::{Actor, ActorState};
 
 pub struct Telemetry {
     state: ActorState,
-    events: HashMap<Uuid, u64>,
+    events: HashMap<Uuid, u128>,
 }
 
 impl Telemetry {
@@ -21,15 +21,17 @@ impl Telemetry {
 
     async fn handle_event(&mut self, event: &Event) {
         match &event.payload {
-            DomainEvent::KeyPress(_) | DomainEvent::KeyRelease(_) => {
-                self.events.insert(event.id, event.timestamp);
+            DomainEvent::KeySent(time) => {
+                self.events.insert(event.source_event_id.unwrap(), *time);
             }
             DomainEvent::ReportConsumed(_) => {
                 self.events.remove(&event.source_event_id.unwrap());
             }
-            DomainEvent::ReportSent(_) => {
+            DomainEvent::ReportSent(time) => {
                 let timestamp = self.events.remove(&event.source_event_id.unwrap()).unwrap();
-                println!("Key to report time: {}", event.timestamp - timestamp);
+                if let Some(diff) = time.checked_sub(timestamp) {
+                    println!("Key to report time: {}", diff);
+                }
             }
             DomainEvent::Exit => self.stop().await,
             _ => {}

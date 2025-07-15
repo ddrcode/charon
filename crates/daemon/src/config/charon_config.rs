@@ -28,6 +28,9 @@ pub struct CharonConfig {
     #[serde(with = "shortcut")]
     #[serde(default = "defaults::default_toggle_mode_shortcut")]
     pub toggle_mode_shortcut: KeyShortcut,
+
+    #[serde(default)]
+    pub enable_telemetry: bool,
 }
 
 impl Default for CharonConfig {
@@ -40,6 +43,7 @@ impl Default for CharonConfig {
             channel_size: defaults::default_channel_size(),
             quit_shortcut: defaults::default_quit_shortcut(),
             toggle_mode_shortcut: defaults::default_toggle_mode_shortcut(),
+            enable_telemetry: false,
         }
     }
 }
