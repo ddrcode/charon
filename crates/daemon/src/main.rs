@@ -16,7 +16,7 @@ use tracing_subscriber::FmtSubscriber;
 use crate::{
     actor::{
         ipc_server::IPCServer, key_scanner::KeyScanner, key_writer::KeyWriter,
-        passthrough::PassThrough, typing_stats::TypingStats, typist::Typist,
+        passthrough::PassThrough, telemetry::Telemetry, typing_stats::TypingStats, typist::Typist,
     },
     config::{CharonConfig, InputConfig},
     daemon::Daemon,
@@ -42,6 +42,11 @@ async fn main() -> Result<(), anyhow::Error> {
         .add_actor("Typist", Typist::spawn, &[T::System, T::TextInput])
         .add_actor("KeyWriter", KeyWriter::spawn, &[T::System, T::KeyOutput])
         .add_actor("TypingStats", TypingStats::spawn, &[T::System, T::KeyInput])
+        .add_actor(
+            "Telemetry",
+            Telemetry::spawn,
+            &[T::System, T::Monitoring, T::KeyInput],
+        )
         .add_actor(
             "IPCServer",
             IPCServer::spawn,

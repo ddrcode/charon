@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::{path::PathBuf, time::Instant};
 
 use charon_lib::event::{DomainEvent, Event, Mode};
 use tokio::{io::unix::AsyncFd, task::JoinHandle};
@@ -42,8 +42,12 @@ impl KeyScanner {
                 }
             };
 
-            let charon_event = Event::with_time(self.id(), payload, ts);
+            let now = Instant::now();
+            let d: u64 = now.into();
+            let charon_event = Event::with_time(self.id(), payload, now.into());
             self.send_raw(charon_event).await;
+
+            self.send(payload).await;
         }
     }
 

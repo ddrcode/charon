@@ -1,5 +1,6 @@
 use evdev::KeyCode;
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 use super::{Mode, Topic};
 use crate::stats::CurrentStats;
@@ -10,6 +11,8 @@ pub enum DomainEvent {
     KeyPress(KeyCode),
     KeyRelease(KeyCode),
     HidReport([u8; 8]),
+    ReportSent(Uuid),
+    ReportConsumed(Uuid),
     SendText(String),
     SendFile(String, bool),
     TextSent,
