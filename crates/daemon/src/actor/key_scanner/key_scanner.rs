@@ -2,11 +2,15 @@ use std::path::PathBuf;
 
 use charon_lib::event::{DomainEvent, Event, Mode};
 use tokio::{io::unix::AsyncFd, task::JoinHandle};
+use uuid::Uuid;
 
 use super::find_input_device;
-use crate::domain::{Actor, ActorState};
+use crate::{
+    domain::{Actor, ActorState},
+    util::time::get_delta_since_start,
+};
 use evdev::{Device, EventSummary, InputEvent};
-use tracing::{error, info, warn};
+use tracing::{error, warn};
 
 pub struct KeyScanner {
     state: ActorState,
@@ -26,10 +30,10 @@ impl KeyScanner {
 
     async fn handle_device_events(&mut self, key_events: Vec<InputEvent>) {
         for event in key_events {
-            let kos_event = match event.destructure() {
-                EventSummary::Key(_, key, value) => match value {
-                    1 | 2 => DomainEvent::KeyPress(key),
-                    0 => DomainEvent::KeyRelease(key),
+            let (payload, ts) = match event.destructure() {
+                EventSummary::Key(ev, key, value) => match value {
+                    1 | 2 => (DomainEvent::KeyPress(key), ev.timestamp()),
+                    0 => (DomainEvent::KeyRelease(key), ev.timestamp()),
                     other => {
                         warn!("Unhandled key event value: {}", other);
                         continue;
@@ -41,7 +45,10 @@ impl KeyScanner {
                     continue;
                 }
             };
-            self.send(kos_event).await;
+
+            let charon_event = Event::with_time(self.id(), payload, ts);
+            self.send_telemetry(&charon_event.id).await;
+            self.send_raw(charon_event).await;
         }
     }
 
@@ -78,6 +85,17 @@ impl KeyScanner {
             if let Err(e) = self.device.get_mut().ungrab() {
                 error!("Couldn't ungrab the device: {}", e);
             }
+        }
+    }
+
+    async fn send_telemetry(&mut self, source_id: &Uuid) {
+        if self.state.config().enable_telemetry {
+            self.send_raw(Event::with_source_id(
+                self.id(),
+                DomainEvent::KeySent(get_delta_since_start(self.state.start_time())),
+                source_id.clone(),
+            ))
+            .await;
         }
     }
 }

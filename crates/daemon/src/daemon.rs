@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{borrow::Cow, sync::Arc};
 
 use charon_lib::event::{DomainEvent, Event, Mode, Topic};
 use tokio::{
@@ -8,7 +8,7 @@ use tokio::{
     },
     task::JoinHandle,
 };
-use tracing::info;
+use tracing::{debug, info};
 
 use crate::{broker::EventBroker, config::CharonConfig, domain::ActorState};
 
@@ -27,7 +27,7 @@ impl Daemon {
             tasks: Vec::new(),
             broker: EventBroker::new(broker_rx),
             event_tx,
-            mode: Arc::new(RwLock::new(Mode::InApp)),
+            mode: Arc::new(RwLock::new(Mode::PassThrough)),
             config: CharonConfig::default(),
         }
     }
@@ -39,7 +39,7 @@ impl Daemon {
     }
 
     pub async fn stop(&mut self) {
-        let event = Event::new("broker", DomainEvent::Exit);
+        let event = Event::new("broker".into(), DomainEvent::Exit);
         self.broker.broadcast(&event, true).await;
     }
 
@@ -49,23 +49,63 @@ impl Daemon {
         }
     }
 
+    pub fn add_actor_with_config(
+        &mut self,
+        name: Cow<'static, str>,
+        spawn_fn: fn(ActorState) -> JoinHandle<()>,
+        topics: &'static [Topic],
+        config: CharonConfig,
+    ) -> &mut Self {
+        let (pt_tx, pt_rx) = mpsc::channel::<Event>(128);
+        self.broker.add_subscriber(pt_tx, name.clone(), topics);
+        let state = ActorState::new(
+            name,
+            self.mode.clone(),
+            self.event_tx.clone(),
+            pt_rx,
+            config,
+        );
+        let task = spawn_fn(state);
+        self.tasks.push(task);
+        self
+    }
+
     pub fn add_actor(
         &mut self,
         name: &'static str,
         spawn_fn: fn(ActorState) -> JoinHandle<()>,
         topics: &'static [Topic],
     ) -> &mut Self {
-        let (pt_tx, pt_rx) = mpsc::channel::<Event>(128);
-        self.broker.add_subscriber(pt_tx, name, topics);
-        let state = ActorState::new(
-            name,
-            self.mode.clone(),
-            self.event_tx.clone(),
-            pt_rx,
-            self.config.clone(),
-        );
-        let task = spawn_fn(state);
-        self.tasks.push(task);
+        self.add_actor_with_config(name.into(), spawn_fn, topics, self.config.clone())
+    }
+
+    pub fn add_actor_conditionally(
+        &mut self,
+        should_add: bool,
+        name: &'static str,
+        spawn_fn: fn(ActorState) -> JoinHandle<()>,
+        topics: &'static [Topic],
+    ) -> &mut Self {
+        if should_add {
+            self.add_actor(name, spawn_fn, topics);
+        }
+        self
+    }
+
+    pub fn add_scanners(
+        &mut self,
+        spawn_fn: fn(ActorState) -> JoinHandle<()>,
+        topics: &'static [Topic],
+    ) -> &mut Self {
+        for (name, config) in self.config.get_config_per_keyboard() {
+            debug!("Registering scanner: {name}");
+            self.add_actor_with_config(name.into(), spawn_fn, topics, config);
+        }
+        self
+    }
+
+    pub fn update_config(&mut self, transform_cfg: fn(&mut CharonConfig)) -> &mut Self {
+        (transform_cfg)(&mut self.config);
         self
     }
 

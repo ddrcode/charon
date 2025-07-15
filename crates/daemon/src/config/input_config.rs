@@ -9,4 +9,5 @@ pub enum InputConfig {
     Path(PathBuf),
     Name(Cow<'static, str>),
     OneOf(Vec<Cow<'static, str>>),
+    Use(Cow<'static, str>),
 }

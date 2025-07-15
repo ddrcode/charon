@@ -111,6 +111,7 @@ pub enum HidKeyCode {
     KEY_KPASTERISK = 0x55,
     KEY_KPMINUS = 0x56,
     KEY_KPPLUS = 0x57,
+    KEY_KPEQUAL = 0x67,
 
     KEY_MUTE = 0x7F,
     KEY_VOLUMEUP = 0x80,
@@ -322,6 +323,7 @@ impl TryFrom<u8> for HidKeyCode {
             0x55 => KEY_KPASTERISK,
             0x56 => KEY_KPMINUS,
             0x57 => KEY_KPPLUS,
+            0x67 => KEY_KPEQUAL,
 
             0x7F => KEY_MUTE,
             0x80 => KEY_VOLUMEUP,
@@ -460,6 +462,7 @@ impl TryFrom<&KeyCode> for HidKeyCode {
             KEY_KPASTERISK,
             KEY_KPMINUS,
             KEY_KPPLUS,
+            KEY_KPEQUAL,
             KEY_MUTE,
             KEY_VOLUMEUP,
             KEY_VOLUMEDOWN
@@ -564,6 +567,7 @@ impl fmt::Display for HidKeyCode {
             KEY_KPASTERISK => "<KEYPAD *>",
             KEY_KPMINUS => "<KEYPAD ->",
             KEY_KPPLUS => "<KEYPAD +>",
+            KEY_KPEQUAL => "<KEYPAD =>",
             KEY_MUTE => "<MUTE>",
             KEY_VOLUMEUP => "<VOLUME UP>",
             KEY_VOLUMEDOWN => "<VOLUME DOWN>",

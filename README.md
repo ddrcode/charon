@@ -13,6 +13,10 @@ Yes. So far it hasn’t crashed — despite the prototype being held together wi
 - Multiple layouts
 - Sending Unicode characters (OS-specific)
 
+## Testing your devices
+
+Use `evtest <input_file>`
+
 ## Credits
 
 [rikka-chunibyo/HIDPi](https://github.com/rikka-chunibyo/HIDPi)

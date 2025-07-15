@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use charon_lib::event::{DomainEvent, Event, Topic};
 use futures::{StreamExt, stream::FuturesUnordered};
 use tokio::sync::mpsc::{Receiver, Sender};
@@ -5,7 +7,7 @@ use tracing::{info, warn};
 
 struct Subscriber {
     pub sender: Sender<Event>,
-    pub name: &'static str,
+    pub name: Cow<'static, str>,
     pub topics: &'static [Topic],
 }
 
@@ -27,7 +29,7 @@ impl EventBroker {
     pub fn add_subscriber(
         &mut self,
         sender: Sender<Event>,
-        name: &'static str,
+        name: Cow<'static, str>,
         topics: &'static [Topic],
     ) -> &mut Self {
         self.subscribers.push(Subscriber {

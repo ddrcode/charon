@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
 use super::{InputConfig, defaults};
-use crate::domain::KeyShortcut;
+use crate::{config::keyboard::KeyboardConfig, domain::KeyShortcut};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CharonConfig {
@@ -28,6 +28,42 @@ pub struct CharonConfig {
     #[serde(with = "shortcut")]
     #[serde(default = "defaults::default_toggle_mode_shortcut")]
     pub toggle_mode_shortcut: KeyShortcut,
+
+    #[serde(default)]
+    pub enable_telemetry: bool,
+
+    #[serde(default)]
+    pub keyboards: Option<KeyboardConfig>,
+}
+
+impl CharonConfig {
+    pub fn get_config_per_keyboard(&self) -> Vec<(String, CharonConfig)> {
+        match &self.keyboard {
+            InputConfig::Use(alias) => self
+                .keyboards
+                .as_ref()
+                .and_then(|k| k.groups.get(&alias.to_string()))
+                .map(|group| {
+                    group
+                        .devices
+                        .iter()
+                        .map(|dev| {
+                            let mut config = self.clone();
+                            config.keyboards = None;
+                            config.keyboard = InputConfig::Name(dev.name.clone().into());
+                            let actor_name = format!("KeyScanner-{}", dev.alias);
+                            (actor_name, config)
+                        })
+                        .collect()
+                })
+                .unwrap_or_default(),
+            _ => {
+                let config = self.clone();
+                let name = String::from("KeyScanner");
+                vec![(name, config)]
+            }
+        }
+    }
 }
 
 impl Default for CharonConfig {
@@ -40,6 +76,8 @@ impl Default for CharonConfig {
             channel_size: defaults::default_channel_size(),
             quit_shortcut: defaults::default_quit_shortcut(),
             toggle_mode_shortcut: defaults::default_toggle_mode_shortcut(),
+            enable_telemetry: false,
+            keyboards: None,
         }
     }
 }

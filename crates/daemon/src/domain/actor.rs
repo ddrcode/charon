@@ -1,13 +1,15 @@
+use std::borrow::Cow;
+
 use charon_lib::event::{DomainEvent, Event};
 use tokio::task::JoinHandle;
-use tracing::{debug, info, warn};
+use tracing::{info, warn};
 
 use crate::domain::ActorState;
 
 #[async_trait::async_trait]
 pub trait Actor {
-    fn id(&self) -> &'static str {
-        self.state().id
+    fn id(&self) -> Cow<'static, str> {
+        self.state().id.clone()
     }
 
     fn state(&self) -> &ActorState;
@@ -16,6 +18,10 @@ pub trait Actor {
 
     async fn send(&mut self, payload: DomainEvent) {
         let event = Event::new(self.id(), payload);
+        self.send_raw(event).await;
+    }
+
+    async fn send_raw(&mut self, event: Event) {
         if let Err(_) = self.state().sender.send(event).await {
             warn!(
                 "Channel closed for {} while sending event, quitting",

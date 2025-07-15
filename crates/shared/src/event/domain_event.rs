@@ -16,6 +16,11 @@ pub enum DomainEvent {
     CurrentStats(CurrentStats),
     ModeChange(Mode),
     Exit,
+
+    // telemetry events
+    KeySent(u128),
+    ReportSent(u128),
+    ReportConsumed(u128),
 }
 
 impl DomainEvent {

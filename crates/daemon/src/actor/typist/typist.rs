@@ -4,6 +4,7 @@ use tokio::{
     task::JoinHandle,
 };
 use tracing::warn;
+use uuid::Uuid;
 
 use crate::{
     domain::{Actor, ActorState, HidKeyCode, KeyboardState},
@@ -27,13 +28,11 @@ impl Typist {
 
     async fn handle_event(&mut self, event: &Event) {
         match &event.payload {
-            DomainEvent::SendText(txt) => self.send_string(txt).await,
-            DomainEvent::SendFile(path, remove) => {
-                self.send_file(path, *remove).await.expect("File not found")
-            }
-            DomainEvent::ModeChange(Mode::PassThrough) => {
-                // cancel text sending
-            }
+            DomainEvent::SendText(txt) => self.send_string(txt, &event.id).await,
+            DomainEvent::SendFile(path, remove) => self
+                .send_file(path, *remove, &event.id)
+                .await
+                .expect("File not found"),
             DomainEvent::Exit => self.stop().await,
             _ => {}
         }
@@ -61,7 +60,7 @@ impl Typist {
         }
     }
 
-    pub async fn send_string(&mut self, s: &String) {
+    pub async fn send_string(&mut self, s: &String, source_id: &Uuid) {
         for c in s.chars() {
             self.send_char(c).await;
             if self.state.mode().await == Mode::PassThrough {
@@ -69,12 +68,19 @@ impl Typist {
                 return;
             }
         }
-        self.send(DomainEvent::TextSent).await;
+
+        let event = Event::with_source_id(self.id(), DomainEvent::TextSent, source_id.clone());
+        self.send_raw(event).await;
     }
 
-    pub async fn send_file(&mut self, path: &String, remove: bool) -> Result<(), KOSError> {
+    pub async fn send_file(
+        &mut self,
+        path: &String,
+        remove: bool,
+        source_id: &Uuid,
+    ) -> Result<(), KOSError> {
         let text = read_to_string(path).await?;
-        self.send_string(&text).await;
+        self.send_string(&text, source_id).await;
         if remove {
             remove_file(path).await?;
         }

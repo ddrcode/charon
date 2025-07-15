@@ -22,9 +22,12 @@ impl ClientSession {
     }
 
     pub async fn init(&mut self, mode: Mode) {
-        self.send(Event::new("IPCServer", DomainEvent::ModeChange(mode)))
-            .await
-            .unwrap();
+        self.send(Event::new(
+            "IPCServer".into(),
+            DomainEvent::ModeChange(mode),
+        ))
+        .await
+        .unwrap();
     }
 
     pub async fn run(&mut self) {

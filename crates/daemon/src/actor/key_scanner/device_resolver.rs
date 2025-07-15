@@ -16,6 +16,7 @@ pub(crate) fn find_input_device(conf: &InputConfig) -> Option<PathBuf> {
         InputConfig::Path(path) => normalize(path),
         InputConfig::Name(name) => from_name(name),
         InputConfig::OneOf(names) => names.iter().find_map(from_name),
+        InputConfig::Use(_) => None,
     };
 
     if let Some(device) = &maybe_device {
