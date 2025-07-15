@@ -26,10 +26,10 @@ impl KeyScanner {
 
     async fn handle_device_events(&mut self, key_events: Vec<InputEvent>) {
         for event in key_events {
-            let kos_event = match event.destructure() {
-                EventSummary::Key(_, key, value) => match value {
-                    1 | 2 => DomainEvent::KeyPress(key),
-                    0 => DomainEvent::KeyRelease(key),
+            let (payload, ts) = match event.destructure() {
+                EventSummary::Key(ev, key, value) => match value {
+                    1 | 2 => (DomainEvent::KeyPress(key), ev.timestamp()),
+                    0 => (DomainEvent::KeyRelease(key), ev.timestamp()),
                     other => {
                         warn!("Unhandled key event value: {}", other);
                         continue;
@@ -41,7 +41,9 @@ impl KeyScanner {
                     continue;
                 }
             };
-            self.send(kos_event).await;
+
+            let charon_event = Event::with_time(self.id(), payload, ts);
+            self.send_raw(charon_event).await;
         }
     }
 

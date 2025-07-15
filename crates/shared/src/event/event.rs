@@ -10,6 +10,7 @@ pub struct Event {
     pub timestamp: u64,
     pub sender: Cow<'static, str>,
     pub payload: DomainEvent,
+    pub source_event_id: Option<Uuid>,
 }
 
 impl Event {
@@ -19,6 +20,7 @@ impl Event {
             timestamp: Self::into_millis(&SystemTime::now()),
             sender: sender.into(),
             payload,
+            source_event_id: None,
         }
     }
 
@@ -28,6 +30,17 @@ impl Event {
             timestamp: Self::into_millis(&timestamp),
             sender: sender.into(),
             payload,
+            source_event_id: None,
+        }
+    }
+
+    pub fn with_source_id(sender: &'static str, payload: DomainEvent, source_id: Uuid) -> Self {
+        Self {
+            id: Uuid::new_v4(),
+            timestamp: Self::into_millis(&SystemTime::now()),
+            sender: sender.into(),
+            payload,
+            source_event_id: Some(source_id),
         }
     }
 

@@ -6,4 +6,4 @@ edition = "2024"
 [dependencies]
 evdev.workspace = true
 serde.workspace = true
-uuid = { version = "1.17.0", features = ["v4", "serde"] }
+uuid.workspace = true

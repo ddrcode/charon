@@ -16,6 +16,10 @@ pub trait Actor {
 
     async fn send(&mut self, payload: DomainEvent) {
         let event = Event::new(self.id(), payload);
+        self.send_raw(event).await;
+    }
+
+    async fn send_raw(&mut self, event: Event) {
         if let Err(_) = self.state().sender.send(event).await {
             warn!(
                 "Channel closed for {} while sending event, quitting",
