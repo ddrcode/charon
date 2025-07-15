@@ -10,11 +10,7 @@ use tokio::{
 };
 use tracing::{debug, info};
 
-use crate::{
-    broker::EventBroker,
-    config::{CharonConfig, InputConfig},
-    domain::ActorState,
-};
+use crate::{broker::EventBroker, config::CharonConfig, domain::ActorState};
 
 pub struct Daemon {
     tasks: Vec<JoinHandle<()>>,
@@ -96,40 +92,6 @@ impl Daemon {
         self
     }
 
-    // pub fn add_scanners(
-    //     &mut self,
-    //     spawn_fn: fn(ActorState) -> JoinHandle<()>,
-    //     topics: &'static [Topic],
-    // ) -> &mut Self {
-    //     match &self.config.keyboard {
-    //         InputConfig::Use(alias) => {
-    //             if let Some(keyboards) = &self.config.keyboards {
-    //                 let scanners: Vec<_> = keyboards
-    //                     .groups
-    //                     .get(&alias.to_string())
-    //                     .unwrap()
-    //                     .devices
-    //                     .iter()
-    //                     .map(|dev| {
-    //                         let mut config = self.config.clone();
-    //                         config.keyboards = None;
-    //                         config.keyboard = InputConfig::Name(dev.name.clone().into());
-    //                         let actor_name = format!("KeyScanner-{}", dev.alias);
-    //                         (actor_name, config)
-    //                     })
-    //                     .collect();
-    //                 for (name, config) in scanners {
-    //                     debug!("Registering scanner: {name}");
-    //                     self.add_actor_with_config(name.into(), spawn_fn, topics, config);
-    //                 }
-    //             }
-    //         }
-    //         _ => {
-    //             self.add_actor("KeyScanner", spawn_fn, topics);
-    //         }
-    //     }
-    //     self
-    // }
     pub fn add_scanners(
         &mut self,
         spawn_fn: fn(ActorState) -> JoinHandle<()>,

@@ -8,7 +8,7 @@ use ratatui::{
 use crate::app::AppState;
 
 pub fn draw_menu(f: &mut Frame, state: &AppState) {
-    let area = f.size();
+    let area = f.area();
 
     // 👉 Example: 2 rows × 2 columns grid
     let rows = Layout::default()

@@ -28,5 +28,5 @@ pub fn draw_pass_through(f: &mut Frame) {
     let text = Paragraph::new(SPLASH)
         .block(block)
         .alignment(Alignment::Center);
-    f.render_widget(text, f.size());
+    f.render_widget(text, f.area());
 }

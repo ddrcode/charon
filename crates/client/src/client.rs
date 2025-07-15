@@ -171,7 +171,7 @@ impl CharonClient {
     }
 
     async fn send(&mut self, payload: DomainEvent) -> anyhow::Result<()> {
-        let event = Event::new("client", payload);
+        let event = Event::new("client".into(), payload);
         let json = serde_json::to_string(&event)?;
         self.writer.write_all(json.as_bytes()).await?;
         self.writer.write_all(b"\n").await?;

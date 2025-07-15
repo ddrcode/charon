@@ -21,6 +21,4 @@ impl EditorSession {
 
         Ok(())
     }
-
-    fn send_file() {}
 }
