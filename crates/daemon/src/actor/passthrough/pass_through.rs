@@ -63,10 +63,10 @@ impl PassThrough {
 
     async fn handle_event(&mut self, event: &Event) {
         match &event.payload {
-            DomainEvent::KeyPress(key) => {
+            DomainEvent::KeyPress(key, _) => {
                 self.handle_key_press(key).await;
             }
-            DomainEvent::KeyRelease(key) => {
+            DomainEvent::KeyRelease(key, _) => {
                 self.handle_key_release(key).await;
             }
             DomainEvent::Exit => {

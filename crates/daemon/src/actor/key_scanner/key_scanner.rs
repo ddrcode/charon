@@ -6,21 +6,23 @@ use tokio::{io::unix::AsyncFd, task::JoinHandle};
 use super::find_input_device;
 use crate::domain::{Actor, ActorState};
 use evdev::{Device, EventSummary, InputEvent};
-use tracing::{error, info, warn};
+use tracing::{error, warn};
 
 pub struct KeyScanner {
     state: ActorState,
     device: AsyncFd<Device>,
+    keyboard: String,
 }
 
 impl KeyScanner {
-    pub fn new(state: ActorState, device_path: PathBuf) -> Self {
+    pub fn new(state: ActorState, device_path: PathBuf, keyboard: String) -> Self {
         let device = Device::open(device_path).unwrap();
         let async_dev = AsyncFd::new(device).unwrap();
 
         KeyScanner {
             state,
             device: async_dev,
+            keyboard,
         }
     }
 
@@ -28,8 +30,8 @@ impl KeyScanner {
         for event in key_events {
             let kos_event = match event.destructure() {
                 EventSummary::Key(_, key, value) => match value {
-                    1 | 2 => DomainEvent::KeyPress(key),
-                    0 => DomainEvent::KeyRelease(key),
+                    1 | 2 => DomainEvent::KeyPress(key, self.keyboard.clone()),
+                    0 => DomainEvent::KeyRelease(key, self.keyboard.clone()),
                     other => {
                         warn!("Unhandled key event value: {}", other);
                         continue;
@@ -93,7 +95,8 @@ impl Actor for KeyScanner {
     fn spawn(state: ActorState) -> JoinHandle<()> {
         let input = &state.config().keyboard;
         let device_path = find_input_device(input).expect("Couldn't find keyboard device");
-        let mut scanner = KeyScanner::new(state, device_path);
+        let keyboard = String::from("unnamed");
+        let mut scanner = KeyScanner::new(state, device_path, keyboard);
         tokio::task::spawn(async move {
             scanner.run().await;
         })

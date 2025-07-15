@@ -110,7 +110,7 @@ impl CharonClient {
             DomainEvent::ModeChange(Mode::PassThrough) => {
                 self.state.switch_screen(Screen::PassThrough)
             }
-            DomainEvent::KeyRelease(key) => self.handle_key_input(key).await,
+            DomainEvent::KeyRelease(key, _) => self.handle_key_input(key).await,
             DomainEvent::TextSent => self.state.switch_screen(Screen::Menu),
             _ => {}
         }

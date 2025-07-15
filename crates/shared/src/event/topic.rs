@@ -14,8 +14,8 @@ impl From<&DomainEvent> for Topic {
     fn from(value: &DomainEvent) -> Self {
         use Topic::*;
         match value {
-            DomainEvent::KeyPress(_) => KeyInput,
-            DomainEvent::KeyRelease(_) => KeyInput,
+            DomainEvent::KeyPress(..) => KeyInput,
+            DomainEvent::KeyRelease(..) => KeyInput,
             DomainEvent::HidReport(_) => KeyOutput,
             DomainEvent::SendText(_) => TextInput,
             DomainEvent::SendFile(_, _) => TextInput,
