@@ -29,19 +29,23 @@ impl PowerManager {
 
     async fn handle_sleep(&mut self) {
         if let Some(path) = &self.state.config().sleep_script {
-            self.run_script(path.to_path_buf(), true).await;
+            if self.run_script(path.to_path_buf(), true).await {
+                self.send(DomainEvent::Sleep).await;
+            }
         }
     }
 
     async fn handle_awake(&mut self) {
         if let Some(path) = &self.state.config().awake_script {
-            self.run_script(path.to_path_buf(), false).await;
+            if self.run_script(path.to_path_buf(), false).await {
+                self.send(DomainEvent::WakeUp).await;
+            }
         }
     }
 
-    async fn run_script(&mut self, path: PathBuf, should_sleep: bool) {
+    async fn run_script(&mut self, path: PathBuf, should_sleep: bool) -> bool {
         if self.asleep == should_sleep {
-            return;
+            return false;
         }
         match Command::new(path).status().await {
             Ok(status) => {
@@ -51,15 +55,18 @@ impl PowerManager {
                         "Charon is {}",
                         if should_sleep { "asleep" } else { "awake" }
                     );
+                    true
                 } else {
                     warn!(
                         "{} script failed",
                         if should_sleep { "Sleep" } else { "Awake" }
                     );
+                    false
                 }
             }
             Err(err) => {
                 error!("Error while executing power script: {err}");
+                false
             }
         }
     }

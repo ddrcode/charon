@@ -14,8 +14,12 @@ pub enum DomainEvent {
     SendFile(String, bool),
     TextSent,
     CurrentStats(CurrentStats),
+
+    // system events
     ModeChange(Mode),
     Exit,
+    Sleep,
+    WakeUp,
 
     // telemetry events
     KeySent(u128),
