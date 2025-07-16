@@ -7,8 +7,6 @@ use ratatui::{
 use crate::{domain::PassThroughView, repository::WisdomDb};
 
 const SPLASH: &'static str = "
-
-
  _______  __   __  _______  ______    _______  __    _
 |       ||  | |  ||   _   ||    _ |  |       ||  |  | |
 |       ||  |_|  ||  |_|  ||   | ||  |   _   ||   |_| |
@@ -61,7 +59,6 @@ const CERBERUS: &'static str = r"
 ";
 
 const GOAT: &'static str = r"
-
              ,,~~--___---,
             /            .~,
       /  _,~             )
@@ -73,10 +70,9 @@ const GOAT: &'static str = r"
 ";
 
 const BOAT: &'static str = r"
-
-             (\
-               \_O
-           _____\/)_____
+            (\
+              \_O
+          _____\/)_____
 ~~~~~~~~~~~`----\----'~~~~~~~~~~~~~~
 ~~~~~ ~~~~ ~~~~  \ ~~~~~~ ~~~   ~~~~~~
 
@@ -87,6 +83,8 @@ pub fn draw_pass_through(f: &mut Frame, view: PassThroughView, db: &WisdomDb) {
         .borders(Borders::ALL)
         .title(get_title(&view));
     let text = get_text(&view, db);
+    let vspace = ((f.area().height as usize - text.lines().count()) / 2) - 2;
+    let text = format!("{}{}", "\n".repeat(vspace), text);
     let text = Paragraph::new(text)
         .block(block)
         .alignment(Alignment::Center);
@@ -114,7 +112,7 @@ fn get_text(view: &PassThroughView, db: &WisdomDb) -> String {
         Speed => (CERBERUS, db.get_random_wisdom("speed")),
         Charonsay => (BOAT, db.get_random_wisdom("charonsay")),
     };
-    format!("{}\n{}", unify_line_length(splash), msg)
+    format!("{}\n\n{}", unify_line_length(splash), msg)
 }
 
 fn unify_line_length(txt: &str) -> String {
