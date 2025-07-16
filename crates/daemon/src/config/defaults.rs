@@ -25,3 +25,7 @@ pub fn default_quit_shortcut() -> KeyShortcut {
 pub fn default_toggle_mode_shortcut() -> KeyShortcut {
     KeyShortcut::new(HidKeyCode::KEY_F7, Modifiers::NONE)
 }
+
+pub fn default_time_to_sleep() -> u64 {
+    900
+}

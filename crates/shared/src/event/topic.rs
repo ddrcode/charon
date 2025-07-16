@@ -23,8 +23,11 @@ impl From<&DomainEvent> for Topic {
             SendFile(_, _) => TextInput,
             TextSent => Monitoring,
             CurrentStats(_) => Stats,
+
             ModeChange(_) => System,
             Exit => System,
+            Sleep => System,
+            WakeUp => System,
 
             ReportSent(_) => Telemetry,
             ReportConsumed(_) => Telemetry,

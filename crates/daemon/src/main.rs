@@ -17,7 +17,8 @@ use tracing_subscriber::FmtSubscriber;
 use crate::{
     actor::{
         ipc_server::IPCServer, key_scanner::KeyScanner, key_writer::KeyWriter,
-        passthrough::PassThrough, telemetry::Telemetry, typing_stats::TypingStats, typist::Typist,
+        passthrough::PassThrough, power_manager::PowerManager, telemetry::Telemetry,
+        typing_stats::TypingStats, typist::Typist,
     },
     config::CharonConfig,
     daemon::Daemon,
@@ -26,14 +27,7 @@ use crate::{
 
 #[tokio::main]
 async fn main() -> Result<(), anyhow::Error> {
-    let subscriber = FmtSubscriber::builder()
-        .with_max_level(tracing::Level::DEBUG)
-        .with_target(false)
-        .compact()
-        .pretty()
-        .finish();
-
-    tracing::subscriber::set_global_default(subscriber).expect("Setting default subscriber failed");
+    init_logging();
 
     let config = get_config().expect("Failed loading config file");
     let mut daemon = Daemon::new();
@@ -44,6 +38,12 @@ async fn main() -> Result<(), anyhow::Error> {
         .add_actor("Typist", Typist::spawn, &[T::System, T::TextInput])
         .add_actor("KeyWriter", KeyWriter::spawn, &[T::System, T::KeyOutput])
         .add_actor("TypingStats", TypingStats::spawn, &[T::System, T::KeyInput])
+        .add_actor_conditionally(
+            config.sleep_script.is_some() && config.awake_script.is_some(),
+            "PowerManager",
+            PowerManager::spawn,
+            &[T::System, T::KeyInput],
+        )
         .add_actor(
             "IPCServer",
             IPCServer::spawn,
@@ -94,4 +94,15 @@ fn get_config() -> Result<CharonConfig, anyhow::Error> {
     let config: CharonConfig = toml::from_str(&config_str)?;
 
     Ok(config)
+}
+
+fn init_logging() {
+    let subscriber = FmtSubscriber::builder()
+        .with_max_level(tracing::Level::DEBUG)
+        .with_target(false)
+        .compact()
+        .pretty()
+        .finish();
+
+    tracing::subscriber::set_global_default(subscriber).expect("Setting default subscriber failed");
 }

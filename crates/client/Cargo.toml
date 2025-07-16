@@ -13,3 +13,6 @@ ratatui = "0.29.0"
 crossterm = "0.29.0"
 evdev.workspace = true
 uuid.workspace = true
+futures = "0.3.31"
+serde.workspace = true
+rand = "0.9.1"

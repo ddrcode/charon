@@ -1,0 +1,44 @@
+{
+  "categories": [
+    {
+      "name": "speed",
+      "quotes": [
+        "Are you being chased?",
+        "Have you been using Keybr lately?",
+        "You are not Dave. Who are you?",
+        "That’s not typing, that’s teleportation!",
+        "Slow down, mortal. Charon can’t keep up.",
+        "Styx never looked so good."
+      ]
+    },
+    {
+      "name": "idle",
+      "quotes": [
+        "The river is calm, the keys are not.",
+        "Charon is rowing, but the boat has no passenger.",
+        "Typing? Not here. Maybe in Greece.",
+        "You are on mute.",
+        "You are clearly not typing. Are you thinking, at least?",
+        "No keys were harmed during this break.",
+        "Maybe Charon should try paddle-boarding instead…",
+        "One does not simply cross the Styx without pressing Enter.",
+        "Charon loves your keyboard more than you do.",
+        "404: Fingers not found.",
+        "I have mixed feelings about your idleness"
+      ]
+    },
+    {
+      "name": "charonsay",
+      "quotes": [
+        "Ctrl+S your soul.",
+        "The key to happiness? More keys.",
+        "You think this is a keyboard. It’s a ferry ticket.",
+        "Charon is a fan of modal editing.",
+        "When in doubt, press Esc.",
+        "Shift happens.",
+        "Charon’s favorite key? Return.",
+        "Book to read: \"How to exit Vim\" by Charon de Dvorak."
+      ]
+    }
+  ]
+}
