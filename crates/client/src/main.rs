@@ -1,8 +1,11 @@
 pub mod app;
 pub mod client;
+pub mod domain;
 pub mod editor;
+pub mod repository;
 pub mod screen;
 pub mod tui;
+pub mod util;
 
 use tokio::net::UnixStream;
 

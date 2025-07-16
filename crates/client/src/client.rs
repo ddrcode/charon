@@ -4,7 +4,10 @@ use crossterm::{
     terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
 };
 use ratatui::{Terminal, backend::CrosstermBackend};
-use std::io::{self, Stdout};
+use std::{
+    io::{self, Stdout},
+    time::Duration,
+};
 use tokio::{
     io::{AsyncBufReadExt, AsyncWriteExt, BufReader, BufWriter},
     net::{
@@ -16,8 +19,10 @@ use tokio::{
 
 use crate::{
     app::{AppState, Screen},
+    domain::PassThroughView,
     screen::{draw_menu, draw_pass_through, draw_popup},
     tui::{resume_tui, suspend_tui},
+    util::DynamicInterval,
 };
 
 pub struct CharonClient {
@@ -25,6 +30,7 @@ pub struct CharonClient {
     terminal: Terminal<CrosstermBackend<Stdout>>,
     reader: BufReader<OwnedReadHalf>,
     writer: BufWriter<OwnedWriteHalf>,
+    next_refresh_timer: DynamicInterval,
 }
 
 impl CharonClient {
@@ -44,50 +50,45 @@ impl CharonClient {
             terminal,
             reader,
             writer,
+            next_refresh_timer: DynamicInterval::new(Duration::from_secs(60)),
         }
     }
 
     pub async fn run(&mut self) -> io::Result<()> {
         let mut line = String::new();
+        let idle_interval = Duration::from_secs(30);
 
         self.redraw()?;
 
-        // let (keyboard_tx, mut keyboard_rx) = tokio::sync::mpsc::channel(32);
-        // let keyboard_loop_alive = Arc::new(AtomicBool::new(true));
-        // {
-        //     let keyboard_loop_alive = keyboard_loop_alive.clone();
-        //     tokio::task::spawn_blocking(move || {
-        //         while keyboard_loop_alive.load(Ordering::Relaxed) {
-        //             if event::poll(std::time::Duration::from_millis(5)).unwrap() {
-        //                 if let Ok(CEvent::Key(key)) = event::read() {
-        //                     if let Err(_) = keyboard_tx.blocking_send(key) {
-        //                         break;
-        //                     }
-        //                 }
-        //             }
-        //         }
-        //     });
-        // }
-
         while !self.state.should_quit {
             tokio::select! {
-                // Some(key) = keyboard_rx.recv() => {
-                //     self.handle_ui_input(key).await;
-                //     self.redraw()?;
-                // }
                 Ok(bytes) = self.reader.read_line(&mut line) => {
                     if bytes == 0 {
                         self.state.quit(); // socket closed
                     } else {
                         let event: Event = serde_json::from_str(&line.trim()).unwrap();
                         self.handle_event(&event).await;
-                        self.redraw()?;
                     }
                     line.clear();
                 }
+                _ = tokio::time::sleep(idle_interval) => {
+                    match self.state.screen {
+                        Screen::PassThrough(_) => {
+                            self.switch_screen(Screen::PassThrough(PassThroughView::Idle))?;
+                        }
+                        _ => {}
+                    }
+                }
+
+                _ = self.next_refresh_timer.sleep_until() => {
+                    if let Screen::PassThrough(PassThroughView::Splash) = self.state.screen {
+                        self.state.switch_screen(Screen::PassThrough(PassThroughView::Charonsay));
+                    }
+                    self.redraw()?;
+                    self.next_refresh_timer.reset();
+                }
             }
         }
-        // keyboard_loop_alive.store(false, Ordering::Relaxed);
 
         disable_raw_mode()?;
         execute!(self.terminal.backend_mut(), LeaveAlternateScreen)?;
@@ -96,7 +97,7 @@ impl CharonClient {
 
     fn redraw(&mut self) -> io::Result<()> {
         self.terminal.draw(|f| match self.state.screen {
-            Screen::PassThrough => draw_pass_through(f),
+            Screen::PassThrough(view) => draw_pass_through(f, view, &self.state.wisdoms),
             Screen::Menu => draw_menu(f, &self.state),
             Screen::Popup(ref title, ref msg) => draw_popup(f, title, msg),
         })?;
@@ -106,29 +107,20 @@ impl CharonClient {
     async fn handle_event(&mut self, event: &Event) {
         match &event.payload {
             DomainEvent::Exit => self.state.quit(),
-            DomainEvent::ModeChange(Mode::InApp) => self.state.switch_screen(Screen::Menu),
+            DomainEvent::ModeChange(Mode::InApp) => {
+                self.switch_screen(Screen::Menu).unwrap();
+                self.next_refresh_timer.stop();
+            }
             DomainEvent::ModeChange(Mode::PassThrough) => {
-                self.state.switch_screen(Screen::PassThrough)
+                self.switch_screen(Screen::PassThrough(PassThroughView::Splash))
+                    .unwrap();
+                self.next_refresh_timer.reset();
             }
             DomainEvent::KeyRelease(key) => self.handle_key_input(key).await,
-            DomainEvent::TextSent => self.state.switch_screen(Screen::Menu),
+            DomainEvent::TextSent => self.switch_screen(Screen::Menu).unwrap(),
             _ => {}
         }
     }
-
-    // async fn handle_ui_input(&mut self, key: KeyEvent) {
-    //     match self.state.screen {
-    //         Screen::Menu => {
-    //             if key.code == KeyCode::Char('q') {
-    //                 self.state.quit();
-    //             }
-    //             if key.code == KeyCode::Char('e') {
-    //                 let text = self.run_editor().await.unwrap();
-    //             }
-    //         }
-    //         _ => {}
-    //     }
-    // }
 
     async fn handle_key_input(&mut self, key: &evdev::KeyCode) {
         use evdev::KeyCode;
@@ -140,6 +132,11 @@ impl CharonClient {
                 if *key == KeyCode::KEY_E {
                     self.run_editor().await.unwrap();
                 }
+            }
+            Screen::PassThrough(PassThroughView::Idle) => {
+                self.switch_screen(Screen::PassThrough(PassThroughView::Splash))
+                    .unwrap();
+                self.next_refresh_timer.reset();
             }
             _ => {}
         }
@@ -159,10 +156,10 @@ impl CharonClient {
 
         self.terminal.clear()?;
         self.redraw()?;
-        self.state.switch_screen(Screen::Popup(
+        self.switch_screen(Screen::Popup(
             "Please wait".into(),
             "Sending text...\nPress <[magic key]> to interrupt".into(),
-        ));
+        ))?;
 
         let path = path.to_string_lossy().to_string();
         self.send(DomainEvent::SendFile(path, true)).await?;
@@ -176,6 +173,14 @@ impl CharonClient {
         self.writer.write_all(json.as_bytes()).await?;
         self.writer.write_all(b"\n").await?;
         self.writer.flush().await?;
+        Ok(())
+    }
+
+    fn switch_screen(&mut self, screen: Screen) -> io::Result<()> {
+        if screen != self.state.screen {
+            self.state.switch_screen(screen);
+            self.redraw()?;
+        }
         Ok(())
     }
 }

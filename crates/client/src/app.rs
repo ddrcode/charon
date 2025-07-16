@@ -1,8 +1,10 @@
 use charon_lib::event::Mode;
 
+use crate::{domain::PassThroughView, repository::WisdomDb};
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum Screen {
-    PassThrough,
+    PassThrough(PassThroughView),
     Menu,
     Popup(String, String),
 }
@@ -19,13 +21,15 @@ pub struct AppState {
     pub should_quit: bool,
     pub apps: Vec<App>,
     pub selected: usize,
+    pub wisdoms: WisdomDb,
 }
 
 impl AppState {
     pub fn new() -> Self {
+        let wisdoms = WisdomDb::from_file("data/wisdoms.json").unwrap();
         AppState {
             mode: Mode::PassThrough,
-            screen: Screen::PassThrough,
+            screen: Screen::PassThrough(PassThroughView::Splash),
             should_quit: false,
             apps: vec![
                 App {
@@ -50,6 +54,7 @@ impl AppState {
                 },
             ],
             selected: 0,
+            wisdoms,
         }
     }
 
