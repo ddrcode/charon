@@ -34,6 +34,15 @@ pub struct CharonConfig {
 
     #[serde(default)]
     pub keyboards: Option<KeyboardConfig>,
+
+    #[serde(default = "defaults::default_time_to_sleep")]
+    pub time_to_sleep: u64,
+
+    #[serde(default)]
+    pub sleep_script: Option<PathBuf>,
+
+    #[serde(default)]
+    pub awake_script: Option<PathBuf>,
 }
 
 impl CharonConfig {
@@ -78,6 +87,9 @@ impl Default for CharonConfig {
             toggle_mode_shortcut: defaults::default_toggle_mode_shortcut(),
             enable_telemetry: false,
             keyboards: None,
+            time_to_sleep: defaults::default_time_to_sleep(),
+            sleep_script: None,
+            awake_script: None,
         }
     }
 }
