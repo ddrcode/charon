@@ -19,13 +19,15 @@ use tokio::{
 
 use crate::{
     app::{AppState, Screen},
-    domain::PassThroughView,
+    domain::{AppMsg, PassThroughView},
+    root::AppManager,
     screen::{draw_menu, draw_pass_through, draw_popup},
     tui::{resume_tui, suspend_tui},
     util::DynamicInterval,
 };
 
 pub struct CharonClient {
+    app_mngr: AppManager,
     state: AppState,
     terminal: Terminal<CrosstermBackend<Stdout>>,
     reader: BufReader<OwnedReadHalf>,
@@ -34,7 +36,7 @@ pub struct CharonClient {
 }
 
 impl CharonClient {
-    pub fn new(state: AppState, stream: UnixStream) -> Self {
+    pub fn new(app_mngr: AppManager, state: AppState, stream: UnixStream) -> Self {
         enable_raw_mode().unwrap();
         let mut stdout = io::stdout();
         execute!(stdout, EnterAlternateScreen).unwrap();
@@ -46,6 +48,7 @@ impl CharonClient {
         let reader = BufReader::new(reader);
 
         Self {
+            app_mngr,
             state,
             terminal,
             reader,
@@ -96,11 +99,7 @@ impl CharonClient {
     }
 
     fn redraw(&mut self) -> io::Result<()> {
-        self.terminal.draw(|f| match self.state.screen {
-            Screen::PassThrough(view) => draw_pass_through(f, view, &self.state.wisdoms),
-            Screen::Menu => draw_menu(f, &self.state),
-            Screen::Popup(ref title, ref msg) => draw_popup(f, title, msg),
-        })?;
+        self.terminal.draw(|f| self.app_mngr.render(f))?;
         Ok(())
     }
 
@@ -120,6 +119,8 @@ impl CharonClient {
             DomainEvent::TextSent => self.switch_screen(Screen::Menu).unwrap(),
             _ => {}
         }
+        self.app_mngr
+            .update(&AppMsg::Backend(event.payload.clone()));
     }
 
     async fn handle_key_input(&mut self, key: &evdev::KeyCode) {
