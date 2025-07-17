@@ -23,12 +23,6 @@ impl Actor for PipelineActor {
         })
     }
 
-    async fn init(&mut self) {
-        for proc in &mut self.processors {
-            proc.set_state(&self.state);
-        }
-    }
-
     async fn tick(&mut self) {
         if let Some(event) = self.state.receiver.recv().await {
             if event.payload == DomainEvent::Exit {

@@ -41,10 +41,7 @@ async fn main() -> Result<(), anyhow::Error> {
         .add_pipeline(
             "PassThroughPipeline",
             &[T::System, T::KeyInput],
-            vec![
-                Box::new(KeyEventToUsbReport::new()),
-                Box::new(SystemShortcut::new()),
-            ],
+            &[KeyEventToUsbReport::factory, SystemShortcut::factory],
         )
         .add_actor_conditionally::<PowerManager>(
             config.sleep_script.is_some() && config.awake_script.is_some(),

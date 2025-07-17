@@ -14,8 +14,10 @@ use crate::{
     actor::{key_scanner::KeyScanner, pipeline_actor::PipelineActor},
     broker::EventBroker,
     config::CharonConfig,
-    domain::{Actor, ActorState, Processor},
+    domain::{Actor, ActorState, Processor, ProcessorState},
 };
+
+type ProcessorCtor = fn(ProcessorState) -> Box<dyn Processor + Send + Sync>;
 
 pub struct Daemon {
     tasks: Vec<JoinHandle<()>>,
@@ -115,8 +117,10 @@ impl Daemon {
         &mut self,
         name: &'static str,
         topics: &'static [Topic],
-        processors: Vec<Box<dyn Processor + Send + Sync + 'static>>,
+        factories: &[ProcessorCtor],
     ) -> &mut Self {
+        let state = ProcessorState::new(name.into(), self.mode.clone(), self.config.clone());
+        let processors: Vec<_> = factories.iter().map(|f| f(state.clone())).collect();
         self.register_actor::<PipelineActor>(name.into(), processors, topics, self.config.clone());
         self
     }

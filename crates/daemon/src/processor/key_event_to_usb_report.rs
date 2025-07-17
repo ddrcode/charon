@@ -2,19 +2,23 @@ use charon_lib::event::{DomainEvent, Event};
 use evdev::KeyCode;
 use tracing::error;
 
-use crate::domain::{HidKeyCode, KeyboardState, Processor};
+use crate::domain::{HidKeyCode, KeyboardState, Processor, ProcessorState};
 
 pub struct KeyEventToUsbReport {
-    id: &'static str,
+    state: ProcessorState,
     report: KeyboardState,
     events: Vec<Event>,
 }
 
 impl KeyEventToUsbReport {
-    pub fn new() -> Self {
+    pub fn factory(state: ProcessorState) -> Box<dyn Processor + Send + Sync> {
+        Box::new(KeyEventToUsbReport::new(state))
+    }
+
+    pub fn new(state: ProcessorState) -> Self {
         Self {
-            id: "PassThroughProcessor",
             report: KeyboardState::new(),
+            state,
             events: Vec::new(),
         }
     }
@@ -44,7 +48,7 @@ impl KeyEventToUsbReport {
     async fn send_report(&mut self) {
         let report = self.report.to_report();
         let payload = DomainEvent::HidReport(report);
-        let event = Event::new(self.id.into(), payload);
+        let event = Event::new(self.state.id.clone(), payload);
         self.events.push(event);
     }
 }

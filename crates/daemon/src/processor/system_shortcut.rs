@@ -1,39 +1,33 @@
-use std::{sync::Arc, time::Instant};
-
-use charon_lib::event::{DomainEvent, Event, Mode};
-use tokio::sync::RwLock;
+use charon_lib::event::{DomainEvent, Event};
 use tracing::{debug, error, info};
 use uuid::Uuid;
 use wake_on_lan::MagicPacket;
 
 use crate::{
-    config::CharonConfig,
-    domain::{ActorState, Processor},
+    domain::{Processor, ProcessorState},
     util::time::get_delta_since_start,
 };
 
 pub struct SystemShortcut {
-    id: &'static str,
+    state: ProcessorState,
     events: Vec<Event>,
-    mode: Option<Arc<RwLock<Mode>>>,
-    config: Option<CharonConfig>,
-    start_time: Option<Instant>,
 }
 
 impl SystemShortcut {
-    pub fn new() -> Self {
+    pub fn factory(state: ProcessorState) -> Box<dyn Processor + Send + Sync> {
+        Box::new(SystemShortcut::new(state))
+    }
+
+    pub fn new(state: ProcessorState) -> Self {
         Self {
-            id: "SystemShortcutProcessor",
+            state,
             events: Vec::new(),
-            mode: None,
-            config: None,
-            start_time: None,
         }
     }
 
     async fn handle_report(&mut self, report: &[u8; 8], parent_id: Uuid) -> bool {
-        let config = self.config.as_ref().expect("Config must be set");
         let num: u64 = u64::from_ne_bytes(*report);
+        let config = self.state.config();
 
         if num == u64::from(&config.quit_shortcut) {
             self.send_exit(parent_id).await;
@@ -50,22 +44,24 @@ impl SystemShortcut {
     }
 
     async fn send_exit(&mut self, parent_id: Uuid) {
-        let event = Event::with_source_id(self.id.into(), DomainEvent::Exit, parent_id);
+        let event = Event::with_source_id(self.state.id.clone(), DomainEvent::Exit, parent_id);
         self.events.push(event);
     }
 
     async fn toggle_mode(&mut self, parent_id: Uuid) {
-        let mode = self.mode.as_ref().expect("Mode must be set");
-        let new_mode = mode.read().await.toggle();
-        debug!("Switching mode to {:?}", mode);
-        *mode.write().await = new_mode;
-        let event =
-            Event::with_source_id(self.id.into(), DomainEvent::ModeChange(new_mode), parent_id);
+        let new_mode = self.state.mode().await.toggle();
+        debug!("Switching mode to {:?}", new_mode);
+        self.state.set_mode(new_mode).await;
+        let event = Event::with_source_id(
+            self.state.id.clone(),
+            DomainEvent::ModeChange(new_mode),
+            parent_id,
+        );
         self.events.push(event);
     }
 
     fn wake_up_host(&self) {
-        let config = self.config.as_ref().expect("Config must be set");
+        let config = self.state.config();
         if let Some(ref mac) = config.host_mac_address {
             let packet = MagicPacket::new(mac.as_slice().try_into().expect("Incorrect MAC format"));
             match packet.send() {
@@ -76,11 +72,11 @@ impl SystemShortcut {
     }
 
     fn send_telemetry(&mut self, parent_id: Uuid) {
-        let config = self.config.as_ref().expect("Config must be set");
+        let config = self.state.config();
         if config.enable_telemetry {
-            let start_time = self.start_time.expect("start_time must be set");
+            let start_time = self.state.start_time();
             let event = Event::with_source_id(
-                self.id.into(),
+                self.state.id.clone(),
                 DomainEvent::ReportConsumed(get_delta_since_start(&start_time)),
                 parent_id,
             );
@@ -103,11 +99,5 @@ impl Processor for SystemShortcut {
             }
         }
         std::mem::take(&mut self.events)
-    }
-
-    fn set_state(&mut self, state: &ActorState) {
-        self.mode = Some(state.clone_mode());
-        self.config = Some(state.config().clone());
-        self.start_time = Some(*state.start_time());
     }
 }

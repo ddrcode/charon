@@ -60,3 +60,9 @@ impl From<&KeyShortcut> for u64 {
         u64::from_ne_bytes(bytes)
     }
 }
+
+impl From<KeyShortcut> for u64 {
+    fn from(key: KeyShortcut) -> Self {
+        u64::from(&key)
+    }
+}
