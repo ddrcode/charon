@@ -4,9 +4,9 @@ use charon_lib::event::{DomainEvent, Event, Mode};
 use tokio::{io::unix::AsyncFd, task::JoinHandle};
 use uuid::Uuid;
 
-use super::find_input_device;
 use crate::{
-    domain::{Actor, ActorState},
+    devices::evdev::find_input_device,
+    domain::{ActorState, traits::Actor},
     util::time::get_delta_since_start,
 };
 use evdev::{Device, EventSummary, InputEvent};

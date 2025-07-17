@@ -1,15 +1,18 @@
 use charon_lib::event::DomainEvent;
 use tokio::task::JoinHandle;
 
-use crate::domain::{Actor, ActorState, Processor};
+use crate::domain::{
+    ActorState,
+    traits::{Actor, Processor},
+};
 
-pub struct PipelineActor {
+pub struct Pipeline {
     state: ActorState,
     processors: Vec<Box<dyn Processor + Send + Sync>>,
 }
 
 #[async_trait::async_trait]
-impl Actor for PipelineActor {
+impl Actor for Pipeline {
     type Init = Vec<Box<dyn Processor + Send + Sync>>;
 
     fn name() -> &'static str {
@@ -17,7 +20,7 @@ impl Actor for PipelineActor {
     }
 
     fn spawn(state: ActorState, processors: Self::Init) -> JoinHandle<()> {
-        let mut actor = PipelineActor { state, processors };
+        let mut actor = Pipeline { state, processors };
         tokio::spawn(async move {
             actor.run().await;
         })

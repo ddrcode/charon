@@ -16,13 +16,10 @@ use tracing::{debug, info, warn};
 use tracing_subscriber::FmtSubscriber;
 
 use crate::{
-    actor::{
-        ipc_server::IPCServer, key_writer::KeyWriter, power_manager::PowerManager,
-        telemetry::Telemetry, typing_stats::TypingStats, typist::Typist,
-    },
+    actor::{KeyWriter, PowerManager, Telemetry, TypingStats, Typist, ipc_server::IPCServer},
     config::CharonConfig,
     daemon::Daemon,
-    processor::{KeyEventToUsbReport, SystemShortcut},
+    processor::{KeyEventProcessor, SystemShortcutProcessor},
 };
 
 #[tokio::main]
@@ -41,7 +38,7 @@ async fn main() -> Result<(), anyhow::Error> {
         .add_pipeline(
             "PassThroughPipeline",
             &[T::System, T::KeyInput],
-            &[KeyEventToUsbReport::factory, SystemShortcut::factory],
+            &[KeyEventProcessor::factory, SystemShortcutProcessor::factory],
         )
         .add_actor_conditionally::<PowerManager>(
             config.sleep_script.is_some() && config.awake_script.is_some(),

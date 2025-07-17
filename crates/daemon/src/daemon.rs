@@ -11,10 +11,13 @@ use tokio::{
 use tracing::{debug, info};
 
 use crate::{
-    actor::{key_scanner::KeyScanner, pipeline_actor::PipelineActor},
+    actor::{KeyScanner, Pipeline},
     broker::EventBroker,
     config::CharonConfig,
-    domain::{Actor, ActorState, Processor, ProcessorState},
+    domain::{
+        ActorState, ProcessorState,
+        traits::{Actor, Processor},
+    },
 };
 
 type ProcessorCtor = fn(ProcessorState) -> Box<dyn Processor + Send + Sync>;
@@ -121,7 +124,7 @@ impl Daemon {
     ) -> &mut Self {
         let state = ProcessorState::new(name.into(), self.mode.clone(), self.config.clone());
         let processors: Vec<_> = factories.iter().map(|f| f(state.clone())).collect();
-        self.register_actor::<PipelineActor>(name.into(), processors, topics, self.config.clone());
+        self.register_actor::<Pipeline>(name.into(), processors, topics, self.config.clone());
         self
     }
 

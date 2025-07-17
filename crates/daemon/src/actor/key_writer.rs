@@ -5,7 +5,7 @@ use tokio::task::JoinHandle;
 
 use crate::{
     devices::HIDKeyboard,
-    domain::{Actor, ActorState},
+    domain::{ActorState, traits::Actor},
     util::time::get_delta_since_start,
 };
 

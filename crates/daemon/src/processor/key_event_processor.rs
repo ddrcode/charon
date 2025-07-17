@@ -2,17 +2,17 @@ use charon_lib::event::{DomainEvent, Event};
 use evdev::KeyCode;
 use tracing::error;
 
-use crate::domain::{HidKeyCode, KeyboardState, Processor, ProcessorState};
+use crate::domain::{HidKeyCode, KeyboardState, ProcessorState, traits::Processor};
 
-pub struct KeyEventToUsbReport {
+pub struct KeyEventProcessor {
     state: ProcessorState,
     report: KeyboardState,
     events: Vec<Event>,
 }
 
-impl KeyEventToUsbReport {
+impl KeyEventProcessor {
     pub fn factory(state: ProcessorState) -> Box<dyn Processor + Send + Sync> {
-        Box::new(KeyEventToUsbReport::new(state))
+        Box::new(KeyEventProcessor::new(state))
     }
 
     pub fn new(state: ProcessorState) -> Self {
@@ -54,7 +54,7 @@ impl KeyEventToUsbReport {
 }
 
 #[async_trait::async_trait]
-impl Processor for KeyEventToUsbReport {
+impl Processor for KeyEventProcessor {
     async fn process(&mut self, input: Vec<Event>) -> Vec<Event> {
         for event in input.into_iter() {
             match &event.payload {

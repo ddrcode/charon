@@ -1,7 +1,8 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use crate::domain::{Actor, ActorState};
+use crate::domain::ActorState;
+use crate::domain::traits::Actor;
 use charon_lib::event::{DomainEvent, Event};
 use tokio::sync::mpsc;
 use tokio::{net::UnixListener, task::JoinHandle};

@@ -7,7 +7,7 @@ use tracing::warn;
 use uuid::Uuid;
 
 use crate::{
-    domain::{Actor, ActorState, HidKeyCode, KeyboardState},
+    domain::{ActorState, HidKeyCode, KeyboardState, traits::Actor},
     error::KOSError,
 };
 

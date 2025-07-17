@@ -1,21 +1,20 @@
 use charon_lib::event::{DomainEvent, Event};
 use tracing::{debug, error, info};
 use uuid::Uuid;
-use wake_on_lan::MagicPacket;
 
 use crate::{
-    domain::{Processor, ProcessorState},
-    util::time::get_delta_since_start,
+    domain::{ProcessorState, traits::Processor},
+    util::{system::wake_host_on_lan, time::get_delta_since_start},
 };
 
-pub struct SystemShortcut {
+pub struct SystemShortcutProcessor {
     state: ProcessorState,
     events: Vec<Event>,
 }
 
-impl SystemShortcut {
+impl SystemShortcutProcessor {
     pub fn factory(state: ProcessorState) -> Box<dyn Processor + Send + Sync> {
-        Box::new(SystemShortcut::new(state))
+        Box::new(SystemShortcutProcessor::new(state))
     }
 
     pub fn new(state: ProcessorState) -> Self {
@@ -63,8 +62,8 @@ impl SystemShortcut {
     fn wake_up_host(&self) {
         let config = self.state.config();
         if let Some(ref mac) = config.host_mac_address {
-            let packet = MagicPacket::new(mac.as_slice().try_into().expect("Incorrect MAC format"));
-            match packet.send() {
+            let mac_addr: [u8; 6] = mac.as_slice().try_into().expect("Incorrect MAC format");
+            match wake_host_on_lan(&mac_addr) {
                 Ok(_) => info!("Magic packet sent"),
                 Err(e) => error!("Error while sendimg magic packet: {e}"),
             }
@@ -86,7 +85,7 @@ impl SystemShortcut {
 }
 
 #[async_trait::async_trait]
-impl Processor for SystemShortcut {
+impl Processor for SystemShortcutProcessor {
     async fn process(&mut self, input: Vec<Event>) -> Vec<Event> {
         for event in input.into_iter() {
             match &event.payload {

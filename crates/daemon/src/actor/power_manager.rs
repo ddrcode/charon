@@ -4,7 +4,7 @@ use charon_lib::event::{DomainEvent, Event};
 use tokio::{process::Command, task::JoinHandle};
 use tracing::{error, info, warn};
 
-use crate::domain::{Actor, ActorState};
+use crate::domain::{ActorState, traits::Actor};
 
 pub struct PowerManager {
     state: ActorState,

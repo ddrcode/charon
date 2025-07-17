@@ -4,7 +4,7 @@ use charon_lib::event::{DomainEvent, Event};
 use tokio::task::JoinHandle;
 use uuid::Uuid;
 
-use crate::domain::{Actor, ActorState};
+use crate::domain::{ActorState, traits::Actor};
 
 pub struct Telemetry {
     state: ActorState,
