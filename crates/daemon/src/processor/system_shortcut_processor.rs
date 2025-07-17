@@ -86,16 +86,14 @@ impl SystemShortcutProcessor {
 
 #[async_trait::async_trait]
 impl Processor for SystemShortcutProcessor {
-    async fn process(&mut self, input: Vec<Event>) -> Vec<Event> {
-        for event in input.into_iter() {
-            match &event.payload {
-                DomainEvent::HidReport(report) => {
-                    if self.handle_report(&report, event.id).await {
-                        self.events.push(event);
-                    }
+    async fn process(&mut self, event: Event) -> Vec<Event> {
+        match &event.payload {
+            DomainEvent::HidReport(report) => {
+                if self.handle_report(&report, event.id).await {
+                    self.events.push(event);
                 }
-                _ => self.events.push(event),
             }
+            _ => self.events.push(event),
         }
         std::mem::take(&mut self.events)
     }

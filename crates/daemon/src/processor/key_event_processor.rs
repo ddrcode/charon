@@ -55,13 +55,11 @@ impl KeyEventProcessor {
 
 #[async_trait::async_trait]
 impl Processor for KeyEventProcessor {
-    async fn process(&mut self, input: Vec<Event>) -> Vec<Event> {
-        for event in input.into_iter() {
-            match &event.payload {
-                DomainEvent::KeyPress(key, _) => self.handle_key_press(key).await,
-                DomainEvent::KeyRelease(key, _) => self.handle_key_release(key).await,
-                _ => self.events.push(event),
-            }
+    async fn process(&mut self, event: Event) -> Vec<Event> {
+        match &event.payload {
+            DomainEvent::KeyPress(key, _) => self.handle_key_press(key).await,
+            DomainEvent::KeyRelease(key, _) => self.handle_key_release(key).await,
+            _ => self.events.push(event),
         }
         std::mem::take(&mut self.events)
     }

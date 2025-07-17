@@ -34,9 +34,16 @@ impl Actor for Pipeline {
             }
 
             let mut events = vec![event];
+
             for proc in &mut self.processors {
-                events = proc.process(events).await;
+                let mut next_events = Vec::new();
+                for event in events {
+                    let mut out = proc.process(event).await;
+                    next_events.append(&mut out);
+                }
+                events = next_events;
             }
+
             for mut ev in events {
                 ev.sender = self.id();
                 self.send_raw(ev).await;
