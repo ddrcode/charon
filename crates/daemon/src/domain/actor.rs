@@ -8,6 +8,10 @@ use crate::domain::ActorState;
 
 #[async_trait::async_trait]
 pub trait Actor {
+    type Init: Send + Sync + 'static;
+
+    fn name() -> &'static str;
+
     fn id(&self) -> Cow<'static, str> {
         self.state().id.clone()
     }
@@ -69,5 +73,5 @@ pub trait Actor {
     async fn init(&mut self) {}
     async fn shutdown(&mut self) {}
 
-    fn spawn(state: ActorState) -> JoinHandle<()>;
+    fn spawn(state: ActorState, init: Self::Init) -> JoinHandle<()>;
 }

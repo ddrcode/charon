@@ -58,7 +58,13 @@ impl KeyWriter {
 
 #[async_trait::async_trait]
 impl Actor for KeyWriter {
-    fn spawn(state: ActorState) -> JoinHandle<()> {
+    type Init = ();
+
+    fn name() -> &'static str {
+        "KeyWriter"
+    }
+
+    fn spawn(state: ActorState, (): ()) -> JoinHandle<()> {
         let dev = state.config().hid_keyboard.clone();
         let mut writer = KeyWriter::new(state, &dev);
         tokio::spawn(async move { writer.run().await })

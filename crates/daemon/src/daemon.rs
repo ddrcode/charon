@@ -10,7 +10,12 @@ use tokio::{
 };
 use tracing::{debug, info};
 
-use crate::{broker::EventBroker, config::CharonConfig, domain::ActorState};
+use crate::{
+    actor::key_scanner::KeyScanner,
+    broker::EventBroker,
+    config::CharonConfig,
+    domain::{Actor, ActorState},
+};
 
 pub struct Daemon {
     tasks: Vec<JoinHandle<()>>,
@@ -49,10 +54,10 @@ impl Daemon {
         }
     }
 
-    pub fn add_actor_with_config(
+    fn register_actor<T: Actor>(
         &mut self,
         name: Cow<'static, str>,
-        spawn_fn: fn(ActorState) -> JoinHandle<()>,
+        init: T::Init,
         topics: &'static [Topic],
         config: CharonConfig,
     ) -> &mut Self {
@@ -65,43 +70,45 @@ impl Daemon {
             pt_rx,
             config,
         );
-        let task = spawn_fn(state);
+        let task = T::spawn(state, init);
         self.tasks.push(task);
         self
     }
 
-    pub fn add_actor(
-        &mut self,
-        name: &'static str,
-        spawn_fn: fn(ActorState) -> JoinHandle<()>,
-        topics: &'static [Topic],
-    ) -> &mut Self {
-        self.add_actor_with_config(name.into(), spawn_fn, topics, self.config.clone())
+    pub fn add_actor<T: Actor<Init = ()>>(&mut self, topics: &'static [Topic]) -> &mut Self {
+        self.register_actor::<T>(T::name().into(), (), topics, self.config.clone())
     }
 
-    pub fn add_actor_conditionally(
+    pub fn add_actor_conditionally<T: Actor<Init = ()>>(
         &mut self,
         should_add: bool,
-        name: &'static str,
-        spawn_fn: fn(ActorState) -> JoinHandle<()>,
         topics: &'static [Topic],
     ) -> &mut Self {
         if should_add {
-            self.add_actor(name, spawn_fn, topics);
+            self.add_actor::<T>(topics);
         }
         self
     }
 
-    pub fn add_scanners(
-        &mut self,
-        spawn_fn: fn(ActorState) -> JoinHandle<()>,
-        topics: &'static [Topic],
-    ) -> &mut Self {
+    pub fn add_scanners(&mut self, topics: &'static [Topic]) -> &mut Self {
         for (name, config) in self.config.get_config_per_keyboard() {
             debug!("Registering scanner: {name}");
-            self.add_actor_with_config(name.into(), spawn_fn, topics, config);
+            self.register_actor::<KeyScanner>(
+                format!("KeyScanner-{name}").into(),
+                name,
+                topics,
+                config,
+            );
         }
         self
+    }
+
+    pub fn add_actor_with_init<T: Actor>(
+        &mut self,
+        init: T::Init,
+        topics: &'static [Topic],
+    ) -> &mut Self {
+        self.register_actor::<T>(T::name().into(), init, topics, self.config.clone())
     }
 
     pub fn update_config(&mut self, transform_cfg: fn(&mut CharonConfig)) -> &mut Self {

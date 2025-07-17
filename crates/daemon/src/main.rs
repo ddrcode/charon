@@ -16,13 +16,12 @@ use tracing_subscriber::FmtSubscriber;
 
 use crate::{
     actor::{
-        ipc_server::IPCServer, key_scanner::KeyScanner, key_writer::KeyWriter,
-        passthrough::PassThrough, power_manager::PowerManager, telemetry::Telemetry,
-        typing_stats::TypingStats, typist::Typist,
+        ipc_server::IPCServer, key_writer::KeyWriter, passthrough::PassThrough,
+        power_manager::PowerManager, telemetry::Telemetry, typing_stats::TypingStats,
+        typist::Typist,
     },
     config::CharonConfig,
     daemon::Daemon,
-    domain::Actor,
 };
 
 #[tokio::main]
@@ -33,26 +32,18 @@ async fn main() -> Result<(), anyhow::Error> {
     let mut daemon = Daemon::new();
     daemon
         .with_config(config.clone())
-        .add_scanners(KeyScanner::spawn, &[T::System])
-        .add_actor("PassThrough", PassThrough::spawn, &[T::System, T::KeyInput])
-        .add_actor("Typist", Typist::spawn, &[T::System, T::TextInput])
-        .add_actor("KeyWriter", KeyWriter::spawn, &[T::System, T::KeyOutput])
-        .add_actor("TypingStats", TypingStats::spawn, &[T::System, T::KeyInput])
-        .add_actor_conditionally(
+        .add_scanners(&[T::System])
+        .add_actor::<PassThrough>(&[T::System, T::KeyInput])
+        .add_actor::<Typist>(&[T::System, T::TextInput])
+        .add_actor::<KeyWriter>(&[T::System, T::KeyOutput])
+        .add_actor::<TypingStats>(&[T::System, T::KeyInput])
+        .add_actor::<IPCServer>(&[T::System, T::KeyInput, T::Stats, T::Monitoring])
+        .add_actor_conditionally::<PowerManager>(
             config.sleep_script.is_some() && config.awake_script.is_some(),
-            "PowerManager",
-            PowerManager::spawn,
             &[T::System, T::KeyInput],
         )
-        .add_actor(
-            "IPCServer",
-            IPCServer::spawn,
-            &[T::System, T::KeyInput, T::Stats, T::Monitoring],
-        )
-        .add_actor_conditionally(
+        .add_actor_conditionally::<Telemetry>(
             config.enable_telemetry,
-            "Telemetry",
-            Telemetry::spawn,
             &[T::System, T::Telemetry, T::KeyInput],
         );
 

@@ -77,10 +77,10 @@ impl PassThrough {
 
     async fn handle_event(&mut self, event: &Event) {
         match &event.payload {
-            DomainEvent::KeyPress(key) => {
+            DomainEvent::KeyPress(key, _) => {
                 self.handle_key_press(key, &event.id).await;
             }
-            DomainEvent::KeyRelease(key) => {
+            DomainEvent::KeyRelease(key, _) => {
                 self.handle_key_release(key, &event.id).await;
             }
             DomainEvent::Exit => {
@@ -119,7 +119,13 @@ impl Drop for PassThrough {
 
 #[async_trait::async_trait]
 impl Actor for PassThrough {
-    fn spawn(state: ActorState) -> JoinHandle<()> {
+    type Init = ();
+
+    fn name() -> &'static str {
+        "PassThrough"
+    }
+
+    fn spawn(state: ActorState, (): ()) -> JoinHandle<()> {
         let mut passthrough = PassThrough::new(state);
         tokio::spawn(async move {
             passthrough.run().await;

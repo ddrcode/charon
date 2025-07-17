@@ -22,7 +22,13 @@ impl TypingStats {
 
 #[async_trait::async_trait]
 impl Actor for TypingStats {
-    fn spawn(state: ActorState) -> JoinHandle<()> {
+    type Init = ();
+
+    fn name() -> &'static str {
+        "TypingStats"
+    }
+
+    fn spawn(state: ActorState, (): ()) -> JoinHandle<()> {
         let mut stats = TypingStats::new(state);
         tokio::spawn(async move { stats.run().await })
     }

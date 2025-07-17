@@ -67,8 +67,7 @@ impl CharonConfig {
                             let mut config = self.clone();
                             config.keyboards = None;
                             config.keyboard = InputConfig::Name(dev.name.clone().into());
-                            let actor_name = format!("KeyScanner-{}", dev.alias);
-                            (actor_name, config)
+                            (dev.alias.clone(), config)
                         })
                         .collect()
                 })

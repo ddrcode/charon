@@ -15,16 +15,18 @@ use tracing::{debug, error, warn};
 pub struct KeyScanner {
     state: ActorState,
     device: AsyncFd<Device>,
+    keyboard_name: String,
 }
 
 impl KeyScanner {
-    pub fn new(state: ActorState, device_path: PathBuf) -> Self {
+    pub fn new(state: ActorState, device_path: PathBuf, keyboard_name: String) -> Self {
         let device = Device::open(device_path).unwrap();
         let async_dev = AsyncFd::new(device).unwrap();
 
         KeyScanner {
             state,
             device: async_dev,
+            keyboard_name,
         }
     }
 
@@ -32,8 +34,14 @@ impl KeyScanner {
         for event in key_events {
             let (payload, ts) = match event.destructure() {
                 EventSummary::Key(ev, key, value) => match value {
-                    1 | 2 => (DomainEvent::KeyPress(key), ev.timestamp()),
-                    0 => (DomainEvent::KeyRelease(key), ev.timestamp()),
+                    1 | 2 => (
+                        DomainEvent::KeyPress(key, self.keyboard_name.clone()),
+                        ev.timestamp(),
+                    ),
+                    0 => (
+                        DomainEvent::KeyRelease(key, self.keyboard_name.clone()),
+                        ev.timestamp(),
+                    ),
                     other => {
                         warn!("Unhandled key event value: {}", other);
                         continue;
@@ -108,10 +116,16 @@ impl Drop for KeyScanner {
 
 #[async_trait::async_trait]
 impl Actor for KeyScanner {
-    fn spawn(state: ActorState) -> JoinHandle<()> {
+    type Init = String;
+
+    fn name() -> &'static str {
+        "KeyScanner"
+    }
+
+    fn spawn(state: ActorState, keyboard_name: String) -> JoinHandle<()> {
         let input = &state.config().keyboard;
         let device_path = find_input_device(input).expect("Couldn't find keyboard device");
-        let mut scanner = KeyScanner::new(state, device_path);
+        let mut scanner = KeyScanner::new(state, device_path, keyboard_name);
         tokio::task::spawn(async move {
             scanner.run().await;
         })

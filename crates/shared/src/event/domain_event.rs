@@ -7,8 +7,8 @@ use crate::stats::CurrentStats;
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[non_exhaustive]
 pub enum DomainEvent {
-    KeyPress(KeyCode),
-    KeyRelease(KeyCode),
+    KeyPress(KeyCode, String),
+    KeyRelease(KeyCode, String),
     HidReport([u8; 8]),
     SendText(String),
     SendFile(String, bool),

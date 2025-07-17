@@ -16,11 +16,11 @@ impl From<&DomainEvent> for Topic {
         use DomainEvent::*;
         use Topic::*;
         match value {
-            KeyPress(_) => KeyInput,
-            KeyRelease(_) => KeyInput,
+            KeyPress(..) => KeyInput,
+            KeyRelease(..) => KeyInput,
             HidReport(_) => KeyOutput,
             SendText(_) => TextInput,
-            SendFile(_, _) => TextInput,
+            SendFile(..) => TextInput,
             TextSent => Monitoring,
             CurrentStats(_) => Stats,
 

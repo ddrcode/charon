@@ -116,7 +116,7 @@ impl CharonClient {
                     .unwrap();
                 self.next_refresh_timer.reset();
             }
-            DomainEvent::KeyRelease(key) => self.handle_key_input(key).await,
+            DomainEvent::KeyRelease(key, _) => self.handle_key_input(key).await,
             DomainEvent::TextSent => self.switch_screen(Screen::Menu).unwrap(),
             _ => {}
         }
