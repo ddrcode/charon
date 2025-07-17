@@ -1,7 +1,7 @@
 use crate::domain::HidKeyCode;
 use std::fmt;
 
-#[derive(Debug, PartialEq, Clone, Default)]
+#[derive(Debug, PartialEq, Clone, Copy, Default)]
 #[repr(transparent)]
 pub struct Modifiers(u8);
 

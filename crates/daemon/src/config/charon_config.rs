@@ -29,6 +29,13 @@ pub struct CharonConfig {
     #[serde(default = "defaults::default_toggle_mode_shortcut")]
     pub toggle_mode_shortcut: KeyShortcut,
 
+    #[serde(with = "shortcut")]
+    #[serde(default = "defaults::default_awake_host_shortcut")]
+    pub awake_host_shortcut: KeyShortcut,
+
+    #[serde(default)]
+    pub host_mac_address: Option<Vec<u8>>,
+
     #[serde(default)]
     pub enable_telemetry: bool,
 
@@ -60,8 +67,7 @@ impl CharonConfig {
                             let mut config = self.clone();
                             config.keyboards = None;
                             config.keyboard = InputConfig::Name(dev.name.clone().into());
-                            let actor_name = format!("KeyScanner-{}", dev.alias);
-                            (actor_name, config)
+                            (dev.alias.clone(), config)
                         })
                         .collect()
                 })
@@ -85,6 +91,8 @@ impl Default for CharonConfig {
             channel_size: defaults::default_channel_size(),
             quit_shortcut: defaults::default_quit_shortcut(),
             toggle_mode_shortcut: defaults::default_toggle_mode_shortcut(),
+            awake_host_shortcut: defaults::default_awake_host_shortcut(),
+            host_mac_address: None,
             enable_telemetry: false,
             keyboards: None,
             time_to_sleep: defaults::default_time_to_sleep(),

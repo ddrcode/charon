@@ -7,7 +7,7 @@ use tracing::warn;
 use uuid::Uuid;
 
 use crate::{
-    domain::{Actor, ActorState, HidKeyCode, KeyboardState},
+    domain::{ActorState, HidKeyCode, KeyboardState, traits::Actor},
     error::KOSError,
 };
 
@@ -90,7 +90,13 @@ impl Typist {
 
 #[async_trait::async_trait]
 impl Actor for Typist {
-    fn spawn(state: ActorState) -> JoinHandle<()> {
+    type Init = ();
+
+    fn name() -> &'static str {
+        "Typist"
+    }
+
+    fn spawn(state: ActorState, (): ()) -> JoinHandle<()> {
         let speed = state.config().typing_interval;
         let mut writer = Typist::new(state, speed);
         tokio::spawn(async move { writer.run().await })

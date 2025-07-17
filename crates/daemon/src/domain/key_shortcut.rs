@@ -4,7 +4,7 @@ use crate::error::KOSError;
 
 use super::{HidKeyCode, Modifiers};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct KeyShortcut {
     modifiers: Modifiers,
     key: HidKeyCode,
@@ -49,5 +49,20 @@ impl FromStr for KeyShortcut {
 impl fmt::Display for KeyShortcut {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}+{}", self.modifiers, self.key)
+    }
+}
+
+impl From<&KeyShortcut> for u64 {
+    fn from(key: &KeyShortcut) -> Self {
+        let mut bytes = [0u8; 8];
+        bytes[0] = key.modifiers.into();
+        bytes[2] = key.key.into();
+        u64::from_ne_bytes(bytes)
+    }
+}
+
+impl From<KeyShortcut> for u64 {
+    fn from(key: KeyShortcut) -> Self {
+        u64::from(&key)
     }
 }

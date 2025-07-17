@@ -4,7 +4,7 @@ use charon_lib::event::{DomainEvent, Event};
 use tokio::task::JoinHandle;
 use uuid::Uuid;
 
-use crate::domain::{Actor, ActorState};
+use crate::domain::{ActorState, traits::Actor};
 
 pub struct Telemetry {
     state: ActorState,
@@ -41,7 +41,13 @@ impl Telemetry {
 
 #[async_trait::async_trait]
 impl Actor for Telemetry {
-    fn spawn(state: ActorState) -> JoinHandle<()> {
+    type Init = ();
+
+    fn name() -> &'static str {
+        "Telemetry"
+    }
+
+    fn spawn(state: ActorState, (): ()) -> JoinHandle<()> {
         let mut telemetry = Telemetry::new(state);
         tokio::spawn(async move { telemetry.run().await })
     }

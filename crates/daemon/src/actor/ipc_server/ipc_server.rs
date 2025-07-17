@@ -1,7 +1,8 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use crate::domain::{Actor, ActorState};
+use crate::domain::ActorState;
+use crate::domain::traits::Actor;
 use charon_lib::event::{DomainEvent, Event};
 use tokio::sync::mpsc;
 use tokio::{net::UnixListener, task::JoinHandle};
@@ -44,7 +45,13 @@ impl IPCServer {
 
 #[async_trait::async_trait]
 impl Actor for IPCServer {
-    fn spawn(state: ActorState) -> JoinHandle<()> {
+    type Init = ();
+
+    fn name() -> &'static str {
+        "IPCServer"
+    }
+
+    fn spawn(state: ActorState, (): ()) -> JoinHandle<()> {
         let path = state.config().server_socket.clone();
         let mut ipc_server = IPCServer::new(state, &path);
         tokio::spawn(async move {

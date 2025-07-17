@@ -5,7 +5,7 @@ use tokio::task::JoinHandle;
 
 use crate::{
     devices::HIDKeyboard,
-    domain::{Actor, ActorState},
+    domain::{ActorState, traits::Actor},
     util::time::get_delta_since_start,
 };
 
@@ -31,6 +31,7 @@ impl KeyWriter {
                 self.send_telemetry(event).await;
             }
             DomainEvent::Exit => self.stop().await,
+            DomainEvent::ModeChange(_) => self.device.reset(),
             _ => {}
         }
     }
@@ -57,7 +58,13 @@ impl KeyWriter {
 
 #[async_trait::async_trait]
 impl Actor for KeyWriter {
-    fn spawn(state: ActorState) -> JoinHandle<()> {
+    type Init = ();
+
+    fn name() -> &'static str {
+        "KeyWriter"
+    }
+
+    fn spawn(state: ActorState, (): ()) -> JoinHandle<()> {
         let dev = state.config().hid_keyboard.clone();
         let mut writer = KeyWriter::new(state, &dev);
         tokio::spawn(async move { writer.run().await })
@@ -67,6 +74,10 @@ impl Actor for KeyWriter {
         if let Some(event) = self.recv().await {
             self.handle_event(&event).await;
         }
+    }
+
+    async fn shutdown(&mut self) {
+        self.device.reset();
     }
 
     fn state(&self) -> &ActorState {
