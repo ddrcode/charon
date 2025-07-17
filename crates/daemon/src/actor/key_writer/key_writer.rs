@@ -31,6 +31,7 @@ impl KeyWriter {
                 self.send_telemetry(event).await;
             }
             DomainEvent::Exit => self.stop().await,
+            DomainEvent::ModeChange(_) => self.device.reset(),
             _ => {}
         }
     }
@@ -67,6 +68,10 @@ impl Actor for KeyWriter {
         if let Some(event) = self.recv().await {
             self.handle_event(&event).await;
         }
+    }
+
+    async fn shutdown(&mut self) {
+        self.device.reset();
     }
 
     fn state(&self) -> &ActorState {

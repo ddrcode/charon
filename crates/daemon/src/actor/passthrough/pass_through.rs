@@ -1,8 +1,9 @@
 use charon_lib::event::{DomainEvent, Event, Mode};
 use evdev::KeyCode;
 use tokio::task::JoinHandle;
-use tracing::{debug, error, warn};
+use tracing::{debug, error, info, warn};
 use uuid::Uuid;
+use wake_on_lan::MagicPacket;
 
 use crate::{
     domain::{Actor, ActorState, HidKeyCode, KeyboardState, Modifiers},
@@ -35,6 +36,11 @@ impl PassThrough {
             self.send_telemetry(source_id).await;
         } else if self.report.is(HidKeyCode::KEY_Q, Modifiers::LEFT_CTRL) {
             self.send(DomainEvent::Exit).await;
+            self.send_telemetry(source_id).await;
+        } else if self.report.is(HidKeyCode::KEY_F8, Modifiers::default()) {
+            let packet = MagicPacket::new(&[0xa4, 0xfc, 0x14, 0x42, 0xa2, 0x4a]);
+            packet.send().unwrap();
+            info!("Magic packet sent");
             self.send_telemetry(source_id).await;
         } else {
             self.send_report(source_id).await;
@@ -79,6 +85,9 @@ impl PassThrough {
             }
             DomainEvent::Exit => {
                 self.stop().await;
+            }
+            DomainEvent::ModeChange(_) => {
+                self.reset();
             }
             e => {
                 warn!("Unhandled event: {:?}", e);

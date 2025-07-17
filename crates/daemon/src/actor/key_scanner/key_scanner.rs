@@ -10,7 +10,7 @@ use crate::{
     util::time::get_delta_since_start,
 };
 use evdev::{Device, EventSummary, InputEvent};
-use tracing::{error, warn};
+use tracing::{debug, error, warn};
 
 pub struct KeyScanner {
     state: ActorState,
@@ -59,7 +59,7 @@ impl KeyScanner {
             }
             DomainEvent::ModeChange(mode) => self.switch_mode(mode),
             other => {
-                warn!("Unhandled event: {:?}", other);
+                debug!("Unhandled event: {:?}", other);
             }
         }
     }
