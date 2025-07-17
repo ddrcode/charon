@@ -11,10 +11,10 @@ use tokio::{
 use tracing::{debug, info};
 
 use crate::{
-    actor::key_scanner::KeyScanner,
+    actor::{key_scanner::KeyScanner, pipeline_actor::PipelineActor},
     broker::EventBroker,
     config::CharonConfig,
-    domain::{Actor, ActorState},
+    domain::{Actor, ActorState, Processor},
 };
 
 pub struct Daemon {
@@ -109,6 +109,16 @@ impl Daemon {
         topics: &'static [Topic],
     ) -> &mut Self {
         self.register_actor::<T>(T::name().into(), init, topics, self.config.clone())
+    }
+
+    pub fn add_pipeline(
+        &mut self,
+        name: &'static str,
+        topics: &'static [Topic],
+        processors: Vec<Box<dyn Processor + Send + Sync + 'static>>,
+    ) -> &mut Self {
+        self.register_actor::<PipelineActor>(name.into(), processors, topics, self.config.clone());
+        self
     }
 
     pub fn update_config(&mut self, transform_cfg: fn(&mut CharonConfig)) -> &mut Self {

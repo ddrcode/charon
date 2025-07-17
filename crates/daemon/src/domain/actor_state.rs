@@ -52,4 +52,8 @@ impl ActorState {
     pub fn start_time(&self) -> &Instant {
         &self.start_time
     }
+
+    pub fn clone_mode(&self) -> Arc<RwLock<Mode>> {
+        self.mode.clone()
+    }
 }
