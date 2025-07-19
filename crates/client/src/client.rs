@@ -60,6 +60,8 @@ impl CharonClient {
     pub async fn run(&mut self) -> io::Result<()> {
         let mut line = String::new();
         let idle_interval = Duration::from_secs(30);
+        let tick_duration = Duration::from_secs(1);
+        let mut interval = tokio::time::interval(tick_duration);
 
         self.redraw()?;
 
@@ -89,6 +91,10 @@ impl CharonClient {
                     }
                     self.redraw()?;
                     self.next_refresh_timer.reset();
+                }
+
+                _ = interval.tick() => {
+                    self.app_mngr.update(&AppMsg::TimerTick(tick_duration)).await;
                 }
             }
         }
@@ -120,7 +126,8 @@ impl CharonClient {
             _ => {}
         }
         self.app_mngr
-            .update(&AppMsg::Backend(event.payload.clone()));
+            .update(&AppMsg::Backend(event.payload.clone()))
+            .await;
     }
 
     async fn handle_key_input(&mut self, key: &evdev::KeyCode) {

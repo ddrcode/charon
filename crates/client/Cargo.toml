@@ -16,3 +16,4 @@ uuid.workspace = true
 futures = "0.3.31"
 serde.workspace = true
 rand = "0.9.1"
+async-trait = "0.1.88"

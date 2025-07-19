@@ -31,7 +31,9 @@ impl WisdomDb {
             .collect();
         Ok(WisdomDb {
             db,
-            default_wisdom: String::from("Charon is rowing..."),
+            default_wisdom: String::from(
+                "Charon is rowing...\n\nPress the <[magic key]> to take control",
+            ),
         })
     }
 

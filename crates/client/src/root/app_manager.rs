@@ -5,12 +5,15 @@ use ratatui::Frame;
 use crate::domain::{AppMsg, traits::UiApp};
 
 pub struct AppManager {
-    apps: HashMap<&'static str, Box<dyn UiApp>>,
+    apps: HashMap<&'static str, Box<dyn UiApp + Send + Sync>>,
     active_id: &'static str,
 }
 
 impl AppManager {
-    pub fn new(apps: HashMap<&'static str, Box<dyn UiApp>>, active_id: &'static str) -> Self {
+    pub fn new(
+        apps: HashMap<&'static str, Box<dyn UiApp + Send + Sync>>,
+        active_id: &'static str,
+    ) -> Self {
         Self { apps, active_id }
     }
 
@@ -20,9 +23,9 @@ impl AppManager {
         }
     }
 
-    pub fn update(&mut self, msg: &AppMsg) {
+    pub async fn update(&mut self, msg: &AppMsg) {
         for app in self.apps.values_mut() {
-            app.update(msg);
+            app.update(msg).await;
         }
     }
 }
