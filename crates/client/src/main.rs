@@ -1,9 +1,9 @@
 pub mod app;
 pub mod apps;
 pub mod client;
+pub mod components;
 pub mod config;
 pub mod domain;
-pub mod editor;
 pub mod repository;
 pub mod root;
 pub mod screen;
@@ -18,7 +18,7 @@ use tracing_subscriber::EnvFilter;
 
 use crate::{
     apps::{
-        Charonsay,
+        Charonsay, Editor,
         menu::{Menu, MenuItem},
     },
     client::CharonClient,
@@ -40,6 +40,7 @@ async fn main() -> anyhow::Result<()> {
     let apps: HashMap<&'static str, Box<dyn UiApp + Send + Sync>> = vec![
         Charonsay::new_box(ctx.clone()),
         Menu::new_box(ctx.clone(), menu_items()),
+        Editor::new_box(ctx.clone()),
     ]
     .into_iter()
     .map(|app| (app.id(), app))

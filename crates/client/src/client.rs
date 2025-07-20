@@ -1,3 +1,4 @@
+use async_recursion::async_recursion;
 use charon_lib::event::{DomainEvent, Event};
 use crossterm::{
     execute,
@@ -16,7 +17,7 @@ use tokio::{
     },
     task::spawn_blocking,
 };
-use tracing::info;
+use tracing::{error, info, warn};
 
 use crate::{
     app::AppState,
@@ -70,16 +71,13 @@ impl CharonClient {
                         self.state.quit(); // socket closed
                     } else {
                         let event: Event = serde_json::from_str(&line.trim()).unwrap();
-                        self.handle_event(&event).await;
+                        self.update_with_msg(&AppMsg::Backend(event.payload.clone())).await;
                     }
                     line.clear();
                 }
 
                 _ = interval.tick() => {
-                    let cmd = self.app_mngr.update(&AppMsg::TimerTick(tick_duration)).await;
-                    if let Some(cmd) = cmd {
-                        self.handle_command(&cmd).await;
-                    }
+                    self.update_with_msg(&AppMsg::TimerTick(tick_duration)).await;
                 }
             }
         }
@@ -95,23 +93,41 @@ impl CharonClient {
         Ok(())
     }
 
-    async fn handle_event(&mut self, event: &Event) {
-        let cmd = self
-            .app_mngr
-            .update(&AppMsg::Backend(event.payload.clone()))
-            .await;
+    #[async_recursion]
+    async fn update_with_msg(&mut self, msg: &AppMsg) {
+        let cmd = self.app_mngr.update(msg).await;
         if let Some(cmd) = cmd {
             self.handle_command(&cmd).await;
         }
     }
 
     async fn handle_command(&mut self, command: &Command) {
-        info!("Command to execute: {:?}", command);
+        info!("Executing command: {:?}", command);
         match command {
             Command::Render => self.redraw().unwrap(),
             Command::SendEvent(event) => self.send(event).await.unwrap(),
+            Command::SuspendTUI => {
+                suspend_tui(&mut self.terminal).unwrap();
+            }
+            Command::ResumeTUI => {
+                resume_tui(&mut self.terminal).unwrap();
+                self.terminal.clear().unwrap();
+                self.redraw().unwrap();
+            }
+            Command::RunApp(app) => {
+                if self.app_mngr.has_app(app) {
+                    self.update_with_msg(&AppMsg::Deactivate).await;
+                    self.app_mngr.set_active(app);
+                    self.update_with_msg(&AppMsg::Activate).await;
+                    self.redraw().unwrap();
+                } else {
+                    error!("Couldn't find app: {app}");
+                }
+            }
             Command::Exit => self.state.should_quit = true,
-            _ => {}
+            // c => {
+            //     warn!("Unhandled command: {:?}", c)
+            // }
         }
     }
 
@@ -146,6 +162,18 @@ impl CharonClient {
         self.writer.write_all(json.as_bytes()).await?;
         self.writer.write_all(b"\n").await?;
         self.writer.flush().await?;
+        Ok(())
+    }
+
+    async fn run_system_command(&mut self, prg: &String, args: &Vec<String>) -> anyhow::Result<()> {
+        let prg: String = prg.clone();
+        let args: Vec<String> = args.clone();
+
+        suspend_tui(&mut self.terminal)?;
+        spawn_blocking(move || std::process::Command::new(prg).args(args).status()).await??;
+        resume_tui(&mut self.terminal)?;
+        self.terminal.clear();
+        self.redraw()?;
         Ok(())
     }
 }

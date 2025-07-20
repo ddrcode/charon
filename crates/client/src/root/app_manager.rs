@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use charon_lib::event::{DomainEvent, Mode};
 use ratatui::Frame;
+use tracing::{error, info};
 
 use crate::domain::{AppMsg, Command, traits::UiApp};
 
@@ -37,6 +38,19 @@ impl AppManager {
                     None
                 }
             }
+        }
+    }
+
+    pub fn has_app(&self, app: &'static str) -> bool {
+        self.apps.contains_key(app)
+    }
+
+    pub fn set_active(&mut self, app: &'static str) {
+        if self.has_app(app) {
+            info!("Activating app: {app}.");
+            self.active_id = app;
+        } else {
+            error!("Couldn't find app: {app}");
         }
     }
 

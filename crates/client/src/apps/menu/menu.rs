@@ -8,7 +8,6 @@ use ratatui::{
     style::{Color, Modifier, Style},
     widgets::{Block, Borders, Paragraph},
 };
-use tracing::info;
 
 use crate::{
     apps::menu::menu_item::MenuItem,
@@ -36,6 +35,7 @@ impl UiApp for Menu {
         match msg {
             AppMsg::Backend(DomainEvent::KeyRelease(key, _)) => match *key {
                 KeyCode::KEY_Q => Some(Command::Exit),
+                KeyCode::KEY_E => Some(Command::RunApp("editor")),
                 _ => None,
             },
             _ => None,
