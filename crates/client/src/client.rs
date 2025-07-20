@@ -17,7 +17,7 @@ use tokio::{
     },
     task::spawn_blocking,
 };
-use tracing::{error, info, warn};
+use tracing::{error, info};
 
 use crate::{
     app::AppState,

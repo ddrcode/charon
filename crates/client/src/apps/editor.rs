@@ -2,36 +2,58 @@ use std::sync::Arc;
 
 use charon_lib::event::DomainEvent;
 use ratatui::Frame;
-use tempfile::NamedTempFile;
 use tokio::task::spawn_blocking;
 
 use crate::{
     components::notification,
     domain::{AppMsg, Command, Context, traits::UiApp},
-    tui::{resume_tui, suspend_tui},
 };
+
+#[derive(Debug, PartialEq)]
+enum EditorState {
+    Started,
+    EditorRunning,
+    EditorClosed,
+    Sending,
+    Done,
+    Error,
+}
 
 pub struct Editor {
     ctx: Arc<Context>,
+    state: EditorState,
 }
 
 impl Editor {
     pub fn new(ctx: Arc<Context>) -> Self {
-        Self { ctx }
+        Self {
+            ctx,
+            state: EditorState::Started,
+        }
     }
 
     pub fn new_box(ctx: Arc<Context>) -> Box<dyn UiApp + Send + Sync> {
-        Box::new(Self { ctx })
+        Box::new(Editor::new(ctx))
     }
 
-    // pub fn run() -> anyhow::Result<()> {
-    //     let tmp = NamedTempFile::new()?;
-    //     let path = tmp.path().to_owned();
-    //
-    //     Command::new("nvim").arg(&path).status()?;
-    //
-    //     Ok(())
-    // }
+    async fn run(&mut self) -> anyhow::Result<String> {
+        self.state = EditorState::EditorRunning;
+        use tempfile::NamedTempFile;
+
+        let tmp = NamedTempFile::new()?;
+        let path = tmp.into_temp_path().keep()?; // closes handle, keeps file alive
+        let path_for_child = path.to_path_buf();
+
+        spawn_blocking(move || {
+            std::process::Command::new("nvim")
+                .arg(&path_for_child)
+                .status()
+        })
+        .await??;
+
+        let path = path.to_string_lossy().to_string();
+        Ok(path)
+    }
 }
 
 #[async_trait::async_trait]
@@ -40,43 +62,44 @@ impl UiApp for Editor {
         "editor"
     }
 
-    // async fn start(&mut self) -> anyhow::Result<()> {
-    //     use tempfile::NamedTempFile;
-    //
-    //     let tmp = NamedTempFile::new()?;
-    //     let path = tmp.into_temp_path().keep()?; // closes handle, keeps file alive
-    //     let path_for_child = path.to_path_buf();
-    //
-    //     suspend_tui(&mut self.terminal)?;
-    //     spawn_blocking(move || {
-    //         std::process::Command::new("nvim")
-    //             .arg(&path_for_child)
-    //             .status()
-    //     })
-    //     .await??;
-    //     resume_tui(&mut self.terminal)?;
-    //
-    //     self.terminal.clear()?;
-    //     self.redraw()?;
-    //
-    //     let path = path.to_string_lossy().to_string();
-    //     self.send(&DomainEvent::SendFile(path, true)).await?;
-    //
-    //     Ok(())
-    // }
-
     async fn update(&mut self, msg: &AppMsg) -> Option<Command> {
-        match msg {
-            _ => {}
-        }
-        None
+        let cmd = match msg {
+            AppMsg::Activate => {
+                self.state = EditorState::Started;
+                Command::SuspendTUI
+            }
+            AppMsg::Deactivate => Command::ResumeTUI,
+            AppMsg::TimerTick(_) if self.state != EditorState::Done => {
+                match self.state {
+                    EditorState::Started => {
+                        let path = self.run().await.unwrap();
+                        self.state = EditorState::EditorClosed;
+                        return Some(Command::SendEvent(DomainEvent::SendFile(path, true)));
+                    }
+                    EditorState::EditorClosed => {
+                        self.state = EditorState::Sending;
+                        return Some(Command::ResumeTUI);
+                    }
+                    _ => {}
+                }
+                return None;
+            }
+            AppMsg::Backend(DomainEvent::TextSent) => {
+                self.state = EditorState::Done;
+                Command::RunApp("menu")
+            }
+            _ => return None,
+        };
+        Some(cmd)
     }
 
     fn render(&self, f: &mut Frame) {
-        notification(
-            f,
-            "Please wait".into(),
-            "Sending text...\nPress <[magic key]> to interrupt".into(),
-        );
+        if self.state == EditorState::Sending {
+            notification(
+                f,
+                "Please wait".into(),
+                "Sending text...\nPress <[magic key]> to interrupt".into(),
+            );
+        }
     }
 }
