@@ -12,7 +12,7 @@ use crate::{
         WisdomCategory,
         ascii_art::{BOAT, CERBERUS, GOAT, LOGO},
     },
-    domain::{AppMsg, Context, traits::UiApp},
+    domain::{AppMsg, Command, Context, traits::UiApp},
     repository::WisdomDb,
     util::string::unify_line_length,
 };
@@ -63,9 +63,10 @@ impl UiApp for Charonsay {
         "charonsay"
     }
 
-    async fn update(&mut self, msg: &AppMsg) {
+    async fn update(&mut self, msg: &AppMsg) -> Option<Command> {
         let state = &mut self.state;
         let config = &self.ctx.config;
+        let mut should_render = false;
         match msg {
             AppMsg::Activate => {
                 state.time_to_next = config.splash_duration;
@@ -83,6 +84,7 @@ impl UiApp for Charonsay {
                     state.time_to_idle = config.idle_time;
                     state.time_to_next = config.splash_duration;
                     state.view = WisdomCategory::Splash;
+                    should_render = true;
                 }
                 DomainEvent::KeyPress(..) if state.view != WisdomCategory::Idle => {
                     state.time_to_idle = config.idle_time;
@@ -103,6 +105,13 @@ impl UiApp for Charonsay {
             self.state.art = self.get_art(&cat);
             self.state.wisdom = self.wisdom_db.get_random_wisdom(cat.into()).to_string();
             self.state.title = self.get_title(&cat);
+            should_render = true;
+        }
+
+        if should_render {
+            Some(Command::Render)
+        } else {
+            None
         }
     }
 

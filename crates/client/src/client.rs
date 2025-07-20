@@ -1,4 +1,4 @@
-use charon_lib::event::{DomainEvent, Event, Mode};
+use charon_lib::event::{DomainEvent, Event};
 use crossterm::{
     execute,
     terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
@@ -16,14 +16,13 @@ use tokio::{
     },
     task::spawn_blocking,
 };
+use tracing::info;
 
 use crate::{
-    app::{AppState, Screen},
-    domain::{AppMsg, PassThroughView},
+    app::AppState,
+    domain::{AppMsg, Command},
     root::AppManager,
-    screen::{draw_menu, draw_pass_through, draw_popup},
     tui::{resume_tui, suspend_tui},
-    util::DynamicInterval,
 };
 
 pub struct CharonClient {
@@ -32,7 +31,6 @@ pub struct CharonClient {
     terminal: Terminal<CrosstermBackend<Stdout>>,
     reader: BufReader<OwnedReadHalf>,
     writer: BufWriter<OwnedWriteHalf>,
-    next_refresh_timer: DynamicInterval,
 }
 
 impl CharonClient {
@@ -53,13 +51,13 @@ impl CharonClient {
             terminal,
             reader,
             writer,
-            next_refresh_timer: DynamicInterval::new(Duration::from_secs(60)),
         }
     }
 
     pub async fn run(&mut self) -> io::Result<()> {
+        info!("Client started");
+
         let mut line = String::new();
-        let idle_interval = Duration::from_secs(30);
         let tick_duration = Duration::from_secs(1);
         let mut interval = tokio::time::interval(tick_duration);
 
@@ -76,31 +74,19 @@ impl CharonClient {
                     }
                     line.clear();
                 }
-                _ = tokio::time::sleep(idle_interval) => {
-                    match self.state.screen {
-                        Screen::PassThrough(_) => {
-                            self.switch_screen(Screen::PassThrough(PassThroughView::Idle))?;
-                        }
-                        _ => {}
-                    }
-                }
-
-                _ = self.next_refresh_timer.sleep_until() => {
-                    if let Screen::PassThrough(PassThroughView::Splash) = self.state.screen {
-                        self.state.switch_screen(Screen::PassThrough(PassThroughView::Charonsay));
-                    }
-                    self.redraw()?;
-                    self.next_refresh_timer.reset();
-                }
 
                 _ = interval.tick() => {
-                    self.app_mngr.update(&AppMsg::TimerTick(tick_duration)).await;
+                    let cmd = self.app_mngr.update(&AppMsg::TimerTick(tick_duration)).await;
+                    if let Some(cmd) = cmd {
+                        self.handle_command(&cmd).await;
+                    }
                 }
             }
         }
 
         disable_raw_mode()?;
         execute!(self.terminal.backend_mut(), LeaveAlternateScreen)?;
+        info!("Client quitting");
         Ok(())
     }
 
@@ -110,42 +96,21 @@ impl CharonClient {
     }
 
     async fn handle_event(&mut self, event: &Event) {
-        match &event.payload {
-            DomainEvent::Exit => self.state.quit(),
-            DomainEvent::ModeChange(Mode::InApp) => {
-                self.switch_screen(Screen::Menu).unwrap();
-                self.next_refresh_timer.stop();
-            }
-            DomainEvent::ModeChange(Mode::PassThrough) => {
-                self.switch_screen(Screen::PassThrough(PassThroughView::Splash))
-                    .unwrap();
-                self.next_refresh_timer.reset();
-            }
-            DomainEvent::KeyRelease(key, _) => self.handle_key_input(key).await,
-            DomainEvent::TextSent => self.switch_screen(Screen::Menu).unwrap(),
-            _ => {}
-        }
-        self.app_mngr
+        let cmd = self
+            .app_mngr
             .update(&AppMsg::Backend(event.payload.clone()))
             .await;
+        if let Some(cmd) = cmd {
+            self.handle_command(&cmd).await;
+        }
     }
 
-    async fn handle_key_input(&mut self, key: &evdev::KeyCode) {
-        use evdev::KeyCode;
-        match self.state.screen {
-            Screen::Menu => {
-                if *key == KeyCode::KEY_Q {
-                    self.state.quit();
-                }
-                if *key == KeyCode::KEY_E {
-                    self.run_editor().await.unwrap();
-                }
-            }
-            Screen::PassThrough(PassThroughView::Idle) => {
-                self.switch_screen(Screen::PassThrough(PassThroughView::Splash))
-                    .unwrap();
-                self.next_refresh_timer.reset();
-            }
+    async fn handle_command(&mut self, command: &Command) {
+        info!("Command to execute: {:?}", command);
+        match command {
+            Command::Render => self.redraw().unwrap(),
+            Command::SendEvent(event) => self.send(event).await.unwrap(),
+            Command::Exit => self.state.should_quit = true,
             _ => {}
         }
     }
@@ -164,31 +129,23 @@ impl CharonClient {
 
         self.terminal.clear()?;
         self.redraw()?;
-        self.switch_screen(Screen::Popup(
-            "Please wait".into(),
-            "Sending text...\nPress <[magic key]> to interrupt".into(),
-        ))?;
+        // self.switch_screen(Screen::Popup(
+        //     "Please wait".into(),
+        //     "Sending text...\nPress <[magic key]> to interrupt".into(),
+        // ))?;
 
         let path = path.to_string_lossy().to_string();
-        self.send(DomainEvent::SendFile(path, true)).await?;
+        self.send(&DomainEvent::SendFile(path, true)).await?;
 
         Ok(())
     }
 
-    async fn send(&mut self, payload: DomainEvent) -> anyhow::Result<()> {
-        let event = Event::new("client".into(), payload);
+    async fn send(&mut self, payload: &DomainEvent) -> anyhow::Result<()> {
+        let event = Event::new("client".into(), payload.clone());
         let json = serde_json::to_string(&event)?;
         self.writer.write_all(json.as_bytes()).await?;
         self.writer.write_all(b"\n").await?;
         self.writer.flush().await?;
-        Ok(())
-    }
-
-    fn switch_screen(&mut self, screen: Screen) -> io::Result<()> {
-        if screen != self.state.screen {
-            self.state.switch_screen(screen);
-            self.redraw()?;
-        }
         Ok(())
     }
 }
