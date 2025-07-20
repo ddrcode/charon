@@ -15,7 +15,6 @@ use tokio::{
         UnixStream,
         unix::{OwnedReadHalf, OwnedWriteHalf},
     },
-    task::spawn_blocking,
 };
 use tracing::{error, info};
 
@@ -131,49 +130,12 @@ impl CharonClient {
         }
     }
 
-    async fn run_editor(&mut self) -> anyhow::Result<()> {
-        use std::process::Command;
-        use tempfile::NamedTempFile;
-
-        let tmp = NamedTempFile::new()?;
-        let path = tmp.into_temp_path().keep()?; // closes handle, keeps file alive
-        let path_for_child = path.to_path_buf();
-
-        suspend_tui(&mut self.terminal)?;
-        spawn_blocking(move || Command::new("nvim").arg(&path_for_child).status()).await??;
-        resume_tui(&mut self.terminal)?;
-
-        self.terminal.clear()?;
-        self.redraw()?;
-        // self.switch_screen(Screen::Popup(
-        //     "Please wait".into(),
-        //     "Sending text...\nPress <[magic key]> to interrupt".into(),
-        // ))?;
-
-        let path = path.to_string_lossy().to_string();
-        self.send(&DomainEvent::SendFile(path, true)).await?;
-
-        Ok(())
-    }
-
     async fn send(&mut self, payload: &DomainEvent) -> anyhow::Result<()> {
         let event = Event::new("client".into(), payload.clone());
         let json = serde_json::to_string(&event)?;
         self.writer.write_all(json.as_bytes()).await?;
         self.writer.write_all(b"\n").await?;
         self.writer.flush().await?;
-        Ok(())
-    }
-
-    async fn run_system_command(&mut self, prg: &String, args: &Vec<String>) -> anyhow::Result<()> {
-        let prg: String = prg.clone();
-        let args: Vec<String> = args.clone();
-
-        suspend_tui(&mut self.terminal)?;
-        spawn_blocking(move || std::process::Command::new(prg).args(args).status()).await??;
-        resume_tui(&mut self.terminal)?;
-        self.terminal.clear();
-        self.redraw()?;
         Ok(())
     }
 }
