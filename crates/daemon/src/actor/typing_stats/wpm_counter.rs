@@ -1,6 +1,5 @@
-use std::time::Duration;
-
 use evdev::KeyCode;
+use std::time::Duration;
 
 static EXCLUDED_KEYS: &'static [u16] = &[
     14, 29, 42, 54, 56, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70,
@@ -68,5 +67,66 @@ impl WPMCounter {
 
     pub fn period(&self) -> Duration {
         self.period
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    fn register_word(wpm: &mut WPMCounter) {
+        wpm.register_key(&KeyCode::KEY_W);
+        wpm.register_key(&KeyCode::KEY_O);
+        wpm.register_key(&KeyCode::KEY_R);
+        wpm.register_key(&KeyCode::KEY_D);
+        wpm.register_key(&KeyCode::KEY_SPACE);
+    }
+
+    #[test]
+    fn test_60s_period() {
+        let mut wpm = WPMCounter::new(Duration::from_secs(60), 6);
+
+        register_word(&mut wpm);
+        wpm.next();
+        assert_eq!(1, wpm.wpm());
+        assert_eq!(1, wpm.max_wpm());
+
+        register_word(&mut wpm);
+        wpm.next();
+        assert_eq!(2, wpm.wpm());
+        assert_eq!(2, wpm.max_wpm());
+
+        wpm.next();
+        wpm.next();
+        wpm.next();
+        wpm.next();
+        wpm.next();
+
+        assert_eq!(1, wpm.wpm());
+        assert_eq!(2, wpm.max_wpm());
+    }
+
+    #[test]
+    fn test_30s_period() {
+        let mut wpm = WPMCounter::new(Duration::from_secs(30), 3);
+
+        register_word(&mut wpm);
+        wpm.next();
+        assert_eq!(1, wpm.wpm());
+        assert_eq!(1, wpm.max_wpm());
+
+        register_word(&mut wpm);
+        wpm.next();
+        assert_eq!(2, wpm.wpm());
+        assert_eq!(2, wpm.max_wpm());
+
+        wpm.next();
+        wpm.next();
+        wpm.next();
+        wpm.next();
+        wpm.next();
+
+        assert_eq!(0, wpm.wpm());
+        assert_eq!(2, wpm.max_wpm());
     }
 }

@@ -4,10 +4,15 @@ use serde::{Deserialize, Serialize};
 pub struct CurrentStats {
     pub total: u64,
     pub wpm: u16,
+    pub max_wpm: u16,
 }
 
 impl CurrentStats {
-    pub fn new(total: u64, wpm: u16) -> Self {
-        Self { total, wpm }
+    pub fn new(total: u64, wpm: u16, max_wpm: u16) -> Self {
+        Self {
+            total,
+            wpm,
+            max_wpm,
+        }
     }
 }

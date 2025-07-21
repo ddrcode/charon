@@ -63,7 +63,9 @@ impl Actor for TypingStats {
                 }
                 _ = interval.tick() => {
                     self.wpm.next();
-                    self.send(DomainEvent::CurrentStats(CurrentStats::new(self.total_count, self.wpm.wpm()))).await;
+                    self.send(DomainEvent::CurrentStats(CurrentStats::new(
+                        self.total_count, self.wpm.wpm(), self.wpm.max_wpm()
+                    ))).await;
                 }
             }
         }
