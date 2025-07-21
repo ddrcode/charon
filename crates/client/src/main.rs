@@ -72,7 +72,7 @@ fn init_logging() {
     tracing_subscriber::fmt()
         .with_writer(non_blocking)
         .with_env_filter(
-            EnvFilter::from_default_env().add_directive("charon=debug".parse().unwrap()),
+            EnvFilter::from_default_env().add_directive("charon=info".parse().unwrap()),
         )
         .with_ansi(false)
         .init();

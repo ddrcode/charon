@@ -34,9 +34,14 @@ impl IPCServer {
         if let Some(session) = &self.session {
             if let Err(e) = session.sender.send(event.clone()).await {
                 tracing::warn!("Failed to send event to session: {e}");
+                self.session = None;
             }
         }
         match &event.payload {
+            DomainEvent::ModeChange(mode) if event.sender == "client" => {
+                info!("Client requested to change mode to: {mode}");
+                self.state.set_mode(*mode).await;
+            }
             DomainEvent::Exit => self.stop().await,
             _ => {}
         }
