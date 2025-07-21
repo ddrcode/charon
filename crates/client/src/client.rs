@@ -1,4 +1,5 @@
-use charon_lib::event::{DomainEvent, Event, Mode};
+use async_recursion::async_recursion;
+use charon_lib::event::{DomainEvent, Event};
 use crossterm::{
     execute,
     terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
@@ -14,27 +15,25 @@ use tokio::{
         UnixStream,
         unix::{OwnedReadHalf, OwnedWriteHalf},
     },
-    task::spawn_blocking,
 };
+use tracing::{error, info};
 
 use crate::{
-    app::{AppState, Screen},
-    domain::PassThroughView,
-    screen::{draw_menu, draw_pass_through, draw_popup},
+    domain::{AppMsg, Command},
+    root::AppManager,
     tui::{resume_tui, suspend_tui},
-    util::DynamicInterval,
 };
 
 pub struct CharonClient {
-    state: AppState,
+    app_mngr: AppManager,
     terminal: Terminal<CrosstermBackend<Stdout>>,
     reader: BufReader<OwnedReadHalf>,
     writer: BufWriter<OwnedWriteHalf>,
-    next_refresh_timer: DynamicInterval,
+    should_quit: bool,
 }
 
 impl CharonClient {
-    pub fn new(state: AppState, stream: UnixStream) -> Self {
+    pub fn new(app_mngr: AppManager, stream: UnixStream) -> Self {
         enable_raw_mode().unwrap();
         let mut stdout = io::stdout();
         execute!(stdout, EnterAlternateScreen).unwrap();
@@ -46,141 +45,96 @@ impl CharonClient {
         let reader = BufReader::new(reader);
 
         Self {
-            state,
+            app_mngr,
             terminal,
             reader,
             writer,
-            next_refresh_timer: DynamicInterval::new(Duration::from_secs(60)),
+            should_quit: false,
         }
     }
 
     pub async fn run(&mut self) -> io::Result<()> {
+        info!("Client started");
+
         let mut line = String::new();
-        let idle_interval = Duration::from_secs(30);
+        let tick_duration = Duration::from_secs(1);
+        let mut interval = tokio::time::interval(tick_duration);
 
         self.redraw()?;
 
-        while !self.state.should_quit {
+        while !self.should_quit {
             tokio::select! {
                 Ok(bytes) = self.reader.read_line(&mut line) => {
                     if bytes == 0 {
-                        self.state.quit(); // socket closed
+                        self.should_quit = true;
                     } else {
                         let event: Event = serde_json::from_str(&line.trim()).unwrap();
-                        self.handle_event(&event).await;
+                        self.update_with_msg(&AppMsg::Backend(event.payload.clone())).await;
                     }
                     line.clear();
                 }
-                _ = tokio::time::sleep(idle_interval) => {
-                    match self.state.screen {
-                        Screen::PassThrough(_) => {
-                            self.switch_screen(Screen::PassThrough(PassThroughView::Idle))?;
-                        }
-                        _ => {}
-                    }
-                }
 
-                _ = self.next_refresh_timer.sleep_until() => {
-                    if let Screen::PassThrough(PassThroughView::Splash) = self.state.screen {
-                        self.state.switch_screen(Screen::PassThrough(PassThroughView::Charonsay));
-                    }
-                    self.redraw()?;
-                    self.next_refresh_timer.reset();
+                _ = interval.tick() => {
+                    self.update_with_msg(&AppMsg::TimerTick(tick_duration)).await;
                 }
             }
         }
 
         disable_raw_mode()?;
         execute!(self.terminal.backend_mut(), LeaveAlternateScreen)?;
+        info!("Client quitting");
         Ok(())
     }
 
     fn redraw(&mut self) -> io::Result<()> {
-        self.terminal.draw(|f| match self.state.screen {
-            Screen::PassThrough(view) => draw_pass_through(f, view, &self.state.wisdoms),
-            Screen::Menu => draw_menu(f, &self.state),
-            Screen::Popup(ref title, ref msg) => draw_popup(f, title, msg),
-        })?;
+        self.terminal.draw(|f| self.app_mngr.render(f))?;
         Ok(())
     }
 
-    async fn handle_event(&mut self, event: &Event) {
-        match &event.payload {
-            DomainEvent::Exit => self.state.quit(),
-            DomainEvent::ModeChange(Mode::InApp) => {
-                self.switch_screen(Screen::Menu).unwrap();
-                self.next_refresh_timer.stop();
-            }
-            DomainEvent::ModeChange(Mode::PassThrough) => {
-                self.switch_screen(Screen::PassThrough(PassThroughView::Splash))
-                    .unwrap();
-                self.next_refresh_timer.reset();
-            }
-            DomainEvent::KeyRelease(key, _) => self.handle_key_input(key).await,
-            DomainEvent::TextSent => self.switch_screen(Screen::Menu).unwrap(),
-            _ => {}
+    #[async_recursion]
+    async fn update_with_msg(&mut self, msg: &AppMsg) {
+        let cmd = self.app_mngr.update(msg).await;
+        if let Some(cmd) = cmd {
+            self.handle_command(&cmd).await;
         }
     }
 
-    async fn handle_key_input(&mut self, key: &evdev::KeyCode) {
-        use evdev::KeyCode;
-        match self.state.screen {
-            Screen::Menu => {
-                if *key == KeyCode::KEY_Q {
-                    self.state.quit();
-                }
-                if *key == KeyCode::KEY_E {
-                    self.run_editor().await.unwrap();
+    async fn handle_command(&mut self, command: &Command) {
+        info!("Executing command: {:?}", command);
+        match command {
+            Command::Render => self.redraw().unwrap(),
+            Command::SendEvent(event) => self.send(event).await.unwrap(),
+            Command::SuspendTUI => {
+                suspend_tui(&mut self.terminal).unwrap();
+            }
+            Command::ResumeTUI => {
+                resume_tui(&mut self.terminal).unwrap();
+                self.terminal.clear().unwrap();
+                self.redraw().unwrap();
+            }
+            Command::RunApp(app) => {
+                if self.app_mngr.has_app(app) {
+                    self.update_with_msg(&AppMsg::Deactivate).await;
+                    self.app_mngr.set_active(app);
+                    self.update_with_msg(&AppMsg::Activate).await;
+                    self.redraw().unwrap();
+                } else {
+                    error!("Couldn't find app: {app}");
                 }
             }
-            Screen::PassThrough(PassThroughView::Idle) => {
-                self.switch_screen(Screen::PassThrough(PassThroughView::Splash))
-                    .unwrap();
-                self.next_refresh_timer.reset();
-            }
-            _ => {}
+            Command::Exit => self.should_quit = true,
+            // c => {
+            //     warn!("Unhandled command: {:?}", c)
+            // }
         }
     }
 
-    async fn run_editor(&mut self) -> anyhow::Result<()> {
-        use std::process::Command;
-        use tempfile::NamedTempFile;
-
-        let tmp = NamedTempFile::new()?;
-        let path = tmp.into_temp_path().keep()?; // closes handle, keeps file alive
-        let path_for_child = path.to_path_buf();
-
-        suspend_tui(&mut self.terminal)?;
-        spawn_blocking(move || Command::new("nvim").arg(&path_for_child).status()).await??;
-        resume_tui(&mut self.terminal)?;
-
-        self.terminal.clear()?;
-        self.redraw()?;
-        self.switch_screen(Screen::Popup(
-            "Please wait".into(),
-            "Sending text...\nPress <[magic key]> to interrupt".into(),
-        ))?;
-
-        let path = path.to_string_lossy().to_string();
-        self.send(DomainEvent::SendFile(path, true)).await?;
-
-        Ok(())
-    }
-
-    async fn send(&mut self, payload: DomainEvent) -> anyhow::Result<()> {
-        let event = Event::new("client".into(), payload);
+    async fn send(&mut self, payload: &DomainEvent) -> anyhow::Result<()> {
+        let event = Event::new("client".into(), payload.clone());
         let json = serde_json::to_string(&event)?;
         self.writer.write_all(json.as_bytes()).await?;
         self.writer.write_all(b"\n").await?;
         self.writer.flush().await?;
-        Ok(())
-    }
-
-    fn switch_screen(&mut self, screen: Screen) -> io::Result<()> {
-        if screen != self.state.screen {
-            self.state.switch_screen(screen);
-            self.redraw()?;
-        }
         Ok(())
     }
 }

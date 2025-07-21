@@ -22,6 +22,8 @@ target
 
 .envrc
 .direnv
+.tmuxinator.yml
+logs
 
 
 # Added by cargo

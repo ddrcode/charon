@@ -16,3 +16,9 @@ uuid.workspace = true
 futures = "0.3.31"
 serde.workspace = true
 rand = "0.9.1"
+async-trait = "0.1.88"
+tracing-error = "0.2.1"
+tracing.workspace = true
+tracing-appender = "0.2.3"
+tracing-subscriber = { workspace = true, features = ["env-filter"] }
+async-recursion = "1.1.1"

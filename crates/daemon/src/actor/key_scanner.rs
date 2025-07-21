@@ -76,7 +76,6 @@ impl KeyScanner {
         match mode {
             Mode::PassThrough => self.grab(),
             Mode::InApp => self.ungrab(),
-            _ => todo!(),
         }
     }
 

@@ -1,4 +1,4 @@
-use charon_lib::event::{DomainEvent, Event};
+use charon_lib::event::{DomainEvent, Event, Mode};
 use tracing::{debug, error, info};
 use uuid::Uuid;
 
@@ -35,7 +35,7 @@ impl SystemShortcutProcessor {
         } else if num == u64::from(&config.awake_host_shortcut) {
             self.wake_up_host();
         } else {
-            return true;
+            return self.state.mode().await == Mode::PassThrough;
         }
 
         self.send_telemetry(parent_id);
