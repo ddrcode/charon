@@ -1,4 +1,3 @@
-pub mod app;
 pub mod apps;
 pub mod client;
 pub mod components;
@@ -6,7 +5,6 @@ pub mod config;
 pub mod domain;
 pub mod repository;
 pub mod root;
-pub mod screen;
 pub mod tui;
 pub mod util;
 
@@ -31,7 +29,6 @@ use crate::{
 async fn main() -> anyhow::Result<()> {
     init_logging();
 
-    let state = app::AppState::new();
     let sock = UnixStream::connect("/tmp/charon.sock").await.unwrap();
     let ctx = Arc::new(Context {
         config: AppConfig::default(),
@@ -48,7 +45,7 @@ async fn main() -> anyhow::Result<()> {
 
     let app_mngr = AppManager::new(apps, "menu");
 
-    let mut charon = CharonClient::new(app_mngr, state, sock);
+    let mut charon = CharonClient::new(app_mngr, sock);
     charon.run().await?;
     Ok(())
 }

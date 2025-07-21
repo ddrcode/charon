@@ -19,7 +19,6 @@ use tokio::{
 use tracing::{error, info};
 
 use crate::{
-    app::AppState,
     domain::{AppMsg, Command},
     root::AppManager,
     tui::{resume_tui, suspend_tui},
@@ -27,14 +26,14 @@ use crate::{
 
 pub struct CharonClient {
     app_mngr: AppManager,
-    state: AppState,
     terminal: Terminal<CrosstermBackend<Stdout>>,
     reader: BufReader<OwnedReadHalf>,
     writer: BufWriter<OwnedWriteHalf>,
+    should_quit: bool,
 }
 
 impl CharonClient {
-    pub fn new(app_mngr: AppManager, state: AppState, stream: UnixStream) -> Self {
+    pub fn new(app_mngr: AppManager, stream: UnixStream) -> Self {
         enable_raw_mode().unwrap();
         let mut stdout = io::stdout();
         execute!(stdout, EnterAlternateScreen).unwrap();
@@ -47,10 +46,10 @@ impl CharonClient {
 
         Self {
             app_mngr,
-            state,
             terminal,
             reader,
             writer,
+            should_quit: false,
         }
     }
 
@@ -63,11 +62,11 @@ impl CharonClient {
 
         self.redraw()?;
 
-        while !self.state.should_quit {
+        while !self.should_quit {
             tokio::select! {
                 Ok(bytes) = self.reader.read_line(&mut line) => {
                     if bytes == 0 {
-                        self.state.quit(); // socket closed
+                        self.should_quit = true;
                     } else {
                         let event: Event = serde_json::from_str(&line.trim()).unwrap();
                         self.update_with_msg(&AppMsg::Backend(event.payload.clone())).await;
@@ -123,7 +122,7 @@ impl CharonClient {
                     error!("Couldn't find app: {app}");
                 }
             }
-            Command::Exit => self.state.should_quit = true,
+            Command::Exit => self.should_quit = true,
             // c => {
             //     warn!("Unhandled command: {:?}", c)
             // }
