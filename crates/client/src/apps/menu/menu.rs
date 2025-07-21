@@ -15,13 +15,13 @@ use crate::{
 };
 
 pub struct Menu {
-    ctx: Arc<Context>,
+    _ctx: Arc<Context>,
     items: Vec<MenuItem>,
 }
 
 impl Menu {
     pub fn new_box(ctx: Arc<Context>, items: Vec<MenuItem>) -> Box<dyn UiApp + Send + Sync> {
-        Box::new(Self { ctx, items })
+        Box::new(Self { _ctx: ctx, items })
     }
 }
 

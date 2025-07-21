@@ -57,7 +57,7 @@ impl CharonClient {
         info!("Client started");
 
         let mut line = String::new();
-        let tick_duration = Duration::from_secs(1);
+        let tick_duration = Duration::from_millis(500);
         let mut interval = tokio::time::interval(tick_duration);
 
         self.redraw()?;

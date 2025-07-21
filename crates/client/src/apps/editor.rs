@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use charon_lib::event::DomainEvent;
+use charon_lib::event::{DomainEvent, Mode};
 use ratatui::Frame;
 use tokio::task::spawn_blocking;
 
@@ -16,18 +16,17 @@ enum EditorState {
     EditorClosed,
     Sending,
     Done,
-    Error,
 }
 
 pub struct Editor {
-    ctx: Arc<Context>,
+    _ctx: Arc<Context>,
     state: EditorState,
 }
 
 impl Editor {
     pub fn new(ctx: Arc<Context>) -> Self {
         Self {
-            ctx,
+            _ctx: ctx,
             state: EditorState::Started,
         }
     }
@@ -68,25 +67,21 @@ impl UiApp for Editor {
                 self.state = EditorState::Started;
                 Command::SuspendTUI
             }
-            AppMsg::Deactivate => Command::ResumeTUI,
-            AppMsg::TimerTick(_) if self.state != EditorState::Done => {
-                match self.state {
-                    EditorState::Started => {
-                        let path = self.run().await.unwrap();
-                        self.state = EditorState::EditorClosed;
-                        return Some(Command::SendEvent(DomainEvent::SendFile(path, true)));
-                    }
-                    EditorState::EditorClosed => {
-                        self.state = EditorState::Sending;
-                        return Some(Command::ResumeTUI);
-                    }
-                    _ => {}
+            AppMsg::TimerTick(_) if self.state != EditorState::Done => match self.state {
+                EditorState::Started => {
+                    let path = self.run().await.unwrap();
+                    self.state = EditorState::EditorClosed;
+                    Command::SendEvent(DomainEvent::SendFile(path, true))
                 }
-                return None;
-            }
+                EditorState::EditorClosed => {
+                    self.state = EditorState::Sending;
+                    Command::ResumeTUI
+                }
+                _ => return None,
+            },
             AppMsg::Backend(DomainEvent::TextSent) => {
                 self.state = EditorState::Done;
-                Command::RunApp("menu")
+                Command::SendEvent(DomainEvent::ModeChange(Mode::PassThrough))
             }
             _ => return None,
         };
