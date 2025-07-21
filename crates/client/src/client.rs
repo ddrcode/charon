@@ -16,7 +16,7 @@ use tokio::{
         unix::{OwnedReadHalf, OwnedWriteHalf},
     },
 };
-use tracing::{error, info};
+use tracing::{debug, error, info};
 
 use crate::{
     domain::{AppMsg, Command},
@@ -100,7 +100,7 @@ impl CharonClient {
     }
 
     async fn handle_command(&mut self, command: &Command) {
-        info!("Executing command: {:?}", command);
+        debug!("Executing command: {:?}", command);
         match command {
             Command::Render => self.redraw().unwrap(),
             Command::SendEvent(event) => self.send(event).await.unwrap(),

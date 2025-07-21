@@ -2,6 +2,7 @@ use std::{borrow::Cow, path::PathBuf};
 
 use charon_lib::event::{DomainEvent, Event, Mode};
 use tokio::task::JoinHandle;
+use tracing::debug;
 
 use crate::{
     devices::HIDKeyboard,
@@ -41,6 +42,7 @@ impl KeyWriter {
             self.device.reset();
             self.prev_sender = sender.clone()
         }
+        debug!("Writing report to HID controller: {:?}", report);
         self.device.send_report(report);
     }
 
