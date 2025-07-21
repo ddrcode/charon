@@ -20,7 +20,7 @@ impl TypingStats {
     pub fn new(state: ActorState) -> Self {
         Self {
             state,
-            wpm: WPMCounter::new(),
+            wpm: WPMCounter::new(Duration::from_secs(3), 10),
             total_count: 0,
         }
     }
@@ -54,7 +54,7 @@ impl Actor for TypingStats {
         info!("Starting actor: {}", self.id());
         self.init().await;
 
-        let mut interval = tokio::time::interval(Duration::from_secs(5));
+        let mut interval = tokio::time::interval(self.wpm.period());
 
         while self.state().alive {
             select! {
