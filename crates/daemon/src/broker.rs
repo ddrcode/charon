@@ -72,7 +72,7 @@ impl EventBroker {
                 let sender = s.sender.clone();
                 futures.push(async move {
                     if let Err(e) = sender.send(evt).await {
-                        warn!("Failed to send to subscriber: {}", e);
+                        warn!("Failed to send to subscriber <{}>: {}", s.name, e);
                     }
                 });
             }

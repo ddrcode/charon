@@ -52,7 +52,7 @@ impl WPMCounter {
 
     pub fn wpm(&self) -> u16 {
         let sum: u16 = self.slots.iter().sum();
-        sum / (5 * (self.period.as_secs() / 60).min(1) as u16)
+        sum / (5 * ((self.period.as_secs() / 60) as u16).max(1))
     }
 
     pub fn max_wpm(&self) -> u16 {
