@@ -9,6 +9,7 @@ use crate::domain::{AppMsg, Command, traits::UiApp};
 pub struct AppManager {
     apps: HashMap<&'static str, Box<dyn UiApp + Send + Sync>>,
     active_id: &'static str,
+    is_awake: bool,
 }
 
 impl AppManager {
@@ -16,10 +17,17 @@ impl AppManager {
         apps: HashMap<&'static str, Box<dyn UiApp + Send + Sync>>,
         active_id: &'static str,
     ) -> Self {
-        Self { apps, active_id }
+        Self {
+            apps,
+            active_id,
+            is_awake: true,
+        }
     }
 
     pub fn render(&self, frame: &mut Frame) {
+        if !self.is_awake {
+            return;
+        }
         if let Some(app) = self.apps.get(&self.active_id) {
             app.render(frame);
         }
@@ -31,7 +39,18 @@ impl AppManager {
                 self.active_id = Self::mode_screen(mode);
                 Some(Command::Render)
             }
+            AppMsg::Backend(DomainEvent::Sleep) => {
+                self.is_awake = false;
+                return None;
+            }
+            AppMsg::Backend(DomainEvent::WakeUp) => {
+                self.is_awake = true;
+                return None;
+            }
             m => {
+                if !self.is_awake {
+                    return None;
+                }
                 if let Some(app) = self.apps.get_mut(&self.active_id) {
                     app.update(m).await
                 } else {

@@ -67,11 +67,7 @@ impl ClientSession {
         writer.write_all(b"\n").await.unwrap();
         // writer.flush().await.unwrap();
 
-        match &event.payload {
-            DomainEvent::Exit => return false,
-            _ => {}
-        }
-        true
+        event.payload != DomainEvent::Exit
     }
 
     pub async fn send(&mut self, event: Event) -> anyhow::Result<()> {

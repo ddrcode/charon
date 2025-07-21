@@ -39,6 +39,7 @@ impl SystemShortcutProcessor {
         }
 
         self.send_telemetry(parent_id);
+        self.reset_hid(parent_id);
         false
     }
 
@@ -81,6 +82,15 @@ impl SystemShortcutProcessor {
             );
             self.events.push(event);
         }
+    }
+
+    fn reset_hid(&mut self, parent_id: Uuid) {
+        let event = Event::with_source_id(
+            self.state.id.clone(),
+            DomainEvent::HidReport([0; 8]),
+            parent_id,
+        );
+        self.events.push(event);
     }
 }
 

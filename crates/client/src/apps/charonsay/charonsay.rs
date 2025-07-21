@@ -6,6 +6,7 @@ use ratatui::{
     layout::Alignment,
     widgets::{Block, Borders, Paragraph},
 };
+use tracing::{debug, info};
 
 use crate::{
     apps::charonsay::{
@@ -75,22 +76,22 @@ impl UiApp for Charonsay {
             AppMsg::TimerTick(dur) => {
                 state.time_to_next = state.time_to_next.saturating_sub(*dur);
                 state.time_to_idle = state.time_to_idle.saturating_sub(*dur);
-                if state.time_to_idle == Duration::ZERO {
+                if state.time_to_idle == Duration::ZERO && state.view != WisdomCategory::Idle {
                     state.time_to_next = Duration::ZERO;
                 }
             }
-            AppMsg::Backend(e) => match e {
-                DomainEvent::KeyPress(..) if state.view == WisdomCategory::Idle => {
-                    state.time_to_idle = config.idle_time;
+            AppMsg::Backend(DomainEvent::KeyPress(..)) => {
+                state.time_to_idle = config.idle_time;
+                if state.view == WisdomCategory::Idle {
+                    debug!("Key pressed");
                     state.time_to_next = config.splash_duration;
                     state.view = WisdomCategory::Splash;
                     should_render = true;
                 }
-                DomainEvent::KeyPress(..) if state.view != WisdomCategory::Idle => {
-                    state.time_to_idle = config.idle_time;
-                }
-                _ => {}
-            },
+            }
+            AppMsg::Backend(DomainEvent::CurrentStats(stats)) => {
+                return None;
+            }
             _ => {}
         }
 
@@ -102,13 +103,14 @@ impl UiApp for Charonsay {
             };
             state.time_to_next = config.wisdom_duration;
             state.view = cat;
-            self.state.art = self.get_art(&cat);
-            self.state.wisdom = self.wisdom_db.get_random_wisdom(cat.into()).to_string();
-            self.state.title = self.get_title(&cat);
             should_render = true;
         }
 
         if should_render {
+            let cat = state.view;
+            self.state.art = self.get_art(&cat);
+            self.state.wisdom = self.wisdom_db.get_random_wisdom(cat.into()).to_string();
+            self.state.title = self.get_title(&cat);
             Some(Command::Render)
         } else {
             None
