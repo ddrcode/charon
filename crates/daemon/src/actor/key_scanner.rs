@@ -96,7 +96,11 @@ impl KeyScanner {
                 self.stop().await;
             }
             DomainEvent::ModeChange(mode) => {
-                self.should_handle_grab = Some(*mode);
+                if self.keyboard_state.is_empty() {
+                    self.toggle_grabbing(mode);
+                } else {
+                    self.should_handle_grab = Some(*mode);
+                }
             }
             other => {
                 debug!("Unhandled event: {:?}", other);
@@ -109,6 +113,7 @@ impl KeyScanner {
             "Toggling device grabbing: switching to {mode}, keys currently pressed: {:?}",
             self.keyboard_state
         );
+        self.should_handle_grab = None;
         match mode {
             Mode::PassThrough => self.grab(),
             Mode::InApp => self.ungrab(),
@@ -194,7 +199,6 @@ impl Actor for KeyScanner {
                 // grab/ungrab only when all keys are released
                 if self.should_handle_grab.is_some() && self.keyboard_state.is_empty() {
                     if let Some(mode) = self.should_handle_grab {
-                        self.should_handle_grab = None;
                         self.toggle_grabbing(&mode);
                     }
                 }
