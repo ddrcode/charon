@@ -51,22 +51,25 @@ impl WPMCounter {
 
     pub fn wpm(&self) -> u16 {
         let sum: u16 = self.slots.iter().sum();
-        sum / (5 * ((self.period.as_secs() / 60) as u16).max(1))
+        let seconds = self.slots.len() as f32 * self.period.as_secs_f32();
+
+        if seconds == 0.0 {
+            return 0;
+        }
+
+        ((sum as f32 * 60.0) / (5.0 * seconds)) as u16
     }
 
     pub fn max_wpm(&self) -> u16 {
         self.max_wpm
     }
 
-    pub fn reset(&mut self) {
-        self.current_count = 0;
-        self.current_slot = 0;
-        self.slots.clear();
-        self.max_wpm = 0;
-    }
-
     pub fn period(&self) -> Duration {
         self.period
+    }
+
+    pub fn set_wpm_max(&mut self, max: u16) {
+        self.max_wpm = max;
     }
 }
 

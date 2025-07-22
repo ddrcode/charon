@@ -10,9 +10,9 @@ pub struct AppConfig {
 impl Default for AppConfig {
     fn default() -> Self {
         Self {
-            idle_time: Duration::from_secs(30),
-            wisdom_duration: Duration::from_secs(12),
-            splash_duration: Duration::from_secs(18),
+            idle_time: Duration::from_secs(300),
+            wisdom_duration: Duration::from_secs(60),
+            splash_duration: Duration::from_secs(180),
             fast_typing_treshold: 35,
         }
     }
