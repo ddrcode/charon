@@ -55,6 +55,10 @@ fn menu_items() -> Vec<MenuItem> {
         ("Editor", '\u{ed39}', "e"),
         ("Stats", '\u{f04c5}', "s"),
         ("Passwords", '\u{f07f5}', "p"),
+        ("Calendar", '\u{f07f5}', "l"),
+        ("Calculator", '\u{f07f5}', "c"),
+        ("Todo", '\u{f07f5}', "t"),
+        ("Game", '\u{f07f5}', "g"),
         ("Quit", '\u{f0a48}', "q"),
     ]
     .iter()

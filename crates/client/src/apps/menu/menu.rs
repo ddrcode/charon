@@ -11,6 +11,7 @@ use ratatui::{
 
 use crate::{
     apps::menu::menu_item::MenuItem,
+    components::centered_area,
     domain::{AppMsg, Command, Context, traits::UiApp},
 };
 
@@ -22,6 +23,35 @@ pub struct Menu {
 impl Menu {
     pub fn new_box(ctx: Arc<Context>, items: Vec<MenuItem>) -> Box<dyn UiApp + Send + Sync> {
         Box::new(Self { _ctx: ctx, items })
+    }
+
+    fn render_app_icon(&self, f: &mut Frame, app: &MenuItem, area: Rect) {
+        let icon = Span::styled(
+            app.icon.to_string(),
+            Style::default().add_modifier(Modifier::BOLD),
+        );
+        let name = Span::styled(
+            app.name.clone(),
+            Style::default().add_modifier(Modifier::BOLD),
+        );
+        let shortcut = Span::styled(format!("({})", app.shortcut), Style::default().gray());
+
+        let lines = vec![
+            Line::from(icon),
+            Line::from(name),
+            Line::from(Span::raw(" ")),
+            Line::from(shortcut),
+        ];
+
+        let block = Block::default()
+            .borders(Borders::ALL)
+            .style(Style::default().bg(Color::Cyan));
+
+        let paragraph = Paragraph::new(lines)
+            .block(block)
+            .alignment(Alignment::Center);
+
+        f.render_widget(paragraph, area);
     }
 }
 
@@ -43,67 +73,55 @@ impl UiApp for Menu {
     }
 
     fn render(&self, f: &mut Frame) {
-        let area = f.area();
+        let (item_width, item_hmargin) = (13u16, 2u16);
+        let (item_height, item_vmargin) = (6u16, 1u16);
+
+        let hcount: usize = (f.area().width / (item_width + item_hmargin)).into();
+        let width = (hcount as u16 * (item_width + item_hmargin)) - item_hmargin;
+
+        let vcount: usize = (f.area().height / (item_height + item_vmargin)).into();
+        let height = (vcount as u16 * (item_height + item_vmargin)) - item_vmargin;
+
+        let area = centered_area(f.area(), width, height);
+
+        let constraints = [
+            Constraint::Length(item_height),
+            Constraint::Length(item_vmargin),
+        ]
+        .repeat(vcount)
+        .into_iter()
+        .take(vcount * 2 - 1);
 
         let rows = Layout::default()
             .direction(Direction::Vertical)
-            .margin(1)
-            .constraints(vec![
-                Constraint::Length(6),
-                Constraint::Length(2),
-                Constraint::Length(6),
-            ])
+            .constraints(constraints)
             .split(area);
 
-        let mut boxes = vec![];
+        let constraints = [
+            Constraint::Length(item_width),
+            Constraint::Length(item_hmargin),
+        ]
+        .repeat(hcount as usize)
+        .into_iter()
+        .take(hcount * 2 - 1);
 
-        for row in rows.iter().step_by(2) {
-            let cols = Layout::default()
-                .direction(Direction::Horizontal)
-                .constraints(vec![
-                    Constraint::Length(13),
-                    Constraint::Length(2),
-                    Constraint::Length(13),
-                ])
-                .split(*row);
+        let row_layouts: Vec<Vec<Rect>> = rows
+            .iter()
+            .step_by(2)
+            .map(|row| {
+                Layout::default()
+                    .direction(Direction::Horizontal)
+                    .constraints(constraints.clone())
+                    .split(*row)
+                    .into_iter()
+                    .step_by(2)
+                    .copied()
+                    .collect::<Vec<Rect>>() // not &Rect
+            })
+            .collect();
 
-            for col in cols.iter().step_by(2) {
-                boxes.push(col.clone());
-            }
-        }
-
-        for (i, app) in self.items.iter().enumerate() {
-            if i >= boxes.len() {
-                break;
-            }
-
-            let icon = Span::styled(
-                app.icon.to_string(),
-                Style::default().add_modifier(Modifier::BOLD),
-            );
-            let name = Span::styled(
-                app.name.clone(),
-                Style::default().add_modifier(Modifier::BOLD),
-            );
-            let blank = Span::raw(" ");
-            let shortcut = Span::styled(format!("({})", app.shortcut), Style::default().gray());
-
-            let lines = vec![
-                Line::from(icon),
-                Line::from(name),
-                Line::from(blank),
-                Line::from(shortcut),
-            ];
-
-            let block = Block::default()
-                .borders(Borders::ALL)
-                .style(Style::default().bg(Color::Cyan));
-
-            let paragraph = Paragraph::new(lines)
-                .block(block)
-                .alignment(Alignment::Center);
-
-            f.render_widget(paragraph, boxes[i]);
+        for (app, area) in self.items.iter().zip(row_layouts.into_iter().flatten()) {
+            self.render_app_icon(f, app, area.clone());
         }
     }
 }

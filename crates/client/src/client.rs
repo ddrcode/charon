@@ -16,7 +16,7 @@ use tokio::{
         unix::{OwnedReadHalf, OwnedWriteHalf},
     },
 };
-use tracing::{debug, error, info};
+use tracing::{debug, error, info, warn};
 
 use crate::{
     domain::{AppMsg, Command},
@@ -66,10 +66,17 @@ impl CharonClient {
             tokio::select! {
                 Ok(bytes) = self.reader.read_line(&mut line) => {
                     if bytes == 0 {
+                        warn!("Connection closed by daemon");
                         self.should_quit = true;
                     } else {
-                        let event: Event = serde_json::from_str(&line.trim()).unwrap();
-                        self.update_with_msg(&AppMsg::Backend(event.payload.clone())).await;
+                        match serde_json::from_str::<Event>(&line.trim()) {
+                            Ok(event) => {
+                                self.update_with_msg(&AppMsg::Backend(event.payload.clone())).await;
+                            }
+                            Err(e) => {
+                                error!("Failed to parse event: {e}. Raw line: {:?}", line);
+                            }
+                        }
                     }
                     line.clear();
                 }

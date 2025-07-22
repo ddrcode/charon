@@ -1,19 +1,26 @@
-use std::{path::PathBuf, time::Duration};
+use std::{
+    path::{Path, PathBuf},
+    time::Duration,
+};
 
 use charon_lib::{
     event::{DomainEvent, Event},
     stats::CurrentStats,
 };
-use tokio::{fs::read_to_string, select, task::JoinHandle};
+use tokio::{select, task::JoinHandle};
 use tracing::{error, info};
 
 use super::WPMCounter;
-use crate::domain::{ActorState, traits::Actor};
+use crate::{
+    domain::{ActorState, traits::Actor},
+    util::time::{is_today, next_midnight_instant},
+};
 
 pub struct TypingStats {
     state: ActorState,
     wpm: WPMCounter,
     total_count: u64,
+    today_count: u64,
 }
 
 impl TypingStats {
@@ -26,6 +33,7 @@ impl TypingStats {
             state,
             wpm,
             total_count: 0,
+            today_count: 0,
         }
     }
 
@@ -35,22 +43,28 @@ impl TypingStats {
             DomainEvent::KeyPress(key, _) => {
                 self.wpm.register_key(key);
                 self.total_count += 1;
+                self.today_count += 1;
             }
             _ => {}
         }
     }
 
-    async fn load_stats(&self, file: &PathBuf) -> Option<CurrentStats> {
-        match read_to_string(file).await {
-            Ok(data) => serde_json::from_str::<CurrentStats>(&data).ok(),
-            Err(err) => {
-                error!("Couldn't read stats file: {err}");
-                None
+    async fn load_stats(&self, file: &Path) -> std::io::Result<CurrentStats> {
+        let data = tokio::fs::read_to_string(file).await?;
+        let mut stats = serde_json::from_str::<CurrentStats>(&data)?;
+        let today_count = stats.today;
+        stats.today = 0;
+        if let Ok(meta) = tokio::fs::metadata(file).await {
+            if let Ok(time) = meta.modified() {
+                if is_today(time) {
+                    stats.today = today_count;
+                }
             }
         }
+        Ok(stats)
     }
 
-    async fn write_stats(&self, file: &PathBuf, stats: CurrentStats) {
+    async fn write_stats(&self, file: &Path, stats: CurrentStats) {
         if let Ok(txt) = serde_json::to_string(&stats) {
             if let Err(err) = tokio::fs::write(file, txt).await {
                 error!("Couldn't write stats file: {err}");
@@ -59,7 +73,12 @@ impl TypingStats {
     }
 
     fn stats(&self) -> CurrentStats {
-        CurrentStats::new(self.total_count, self.wpm.wpm(), self.wpm.max_wpm())
+        CurrentStats::new(
+            self.today_count,
+            self.total_count,
+            self.wpm.wpm(),
+            self.wpm.max_wpm(),
+        )
     }
 }
 
@@ -77,9 +96,15 @@ impl Actor for TypingStats {
     }
 
     async fn init(&mut self) {
-        if let Some(stats) = self.load_stats(&self.state.config().stats_file).await {
-            self.total_count = stats.total;
-            self.wpm.set_wpm_max(stats.max_wpm);
+        match self.load_stats(&self.state.config().stats_file).await {
+            Ok(stats) => {
+                self.total_count = stats.total;
+                self.today_count = stats.today;
+                self.wpm.set_wpm_max(stats.max_wpm);
+            }
+            Err(err) => {
+                error!("Couldn't load stats file: {err}");
+            }
         }
     }
 
@@ -103,10 +128,18 @@ impl Actor for TypingStats {
                 _ = save_interval.tick() => {
                     self.write_stats(&self.state.config().stats_file, self.stats()).await;
                 }
+                _ = tokio::time::sleep_until(next_midnight_instant()) => {
+                    self.today_count = 0;
+                }
             }
         }
 
         self.shutdown().await;
+    }
+
+    async fn shutdown(&mut self) {
+        self.write_stats(&self.state.config().stats_file, self.stats())
+            .await;
     }
 
     async fn tick(&mut self) {}

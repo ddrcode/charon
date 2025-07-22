@@ -199,8 +199,11 @@ impl UiApp for Charonsay {
         ));
         let wpm = Paragraph::new(Line::from(vec![header, val])).fg(Color::Gray);
 
-        let header = Span::styled(" Total: ", Style::default().add_modifier(Modifier::BOLD));
-        let val = Span::from(format!("{} ", self.state.stats.total));
+        let header = Span::styled(" Mileage: ", Style::default().add_modifier(Modifier::BOLD));
+        let val = Span::from(format!(
+            "{} ({} today) ",
+            self.state.stats.total, self.state.stats.today
+        ));
         let total = Paragraph::new(Line::from(vec![header, val]))
             .alignment(Alignment::Right)
             .fg(Color::Gray);

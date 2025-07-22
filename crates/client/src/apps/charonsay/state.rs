@@ -35,7 +35,7 @@ impl Default for State {
             time_to_next: Duration::from_secs(180),
             time_to_idle: Duration::from_secs(300),
             view: WisdomCategory::default(),
-            stats: CurrentStats::new(0, 0, 0),
+            stats: CurrentStats::new(0, 0, 0, 0),
         }
     }
 }
