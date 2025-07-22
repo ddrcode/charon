@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::{collections::HashSet, path::PathBuf};
 
 use charon_lib::event::{DomainEvent, Event, Mode};
 use tokio::{io::unix::AsyncFd, task::JoinHandle};
@@ -12,10 +12,31 @@ use crate::{
 use evdev::{Device, EventSummary, InputEvent};
 use tracing::{debug, error, warn};
 
+/// The key actor of Charon, that scans evdev (input device) on Linux side
+/// and sends each captured event to the rest of the system.
+/// The events are produced regardless the mode (pass-through / in-app),
+/// however the mode determines whether input device is grabbed (pass-through)
+/// or not (in-app). The intention is that if in pass-through mode
+/// the key events should be send only to the host, while when in in-app mode
+/// the keyboard is available to Charon device.
 pub struct KeyScanner {
+    /// Actor's state
     state: ActorState,
+
+    /// System input device (/dev/input)
     device: AsyncFd<Device>,
+
+    /// Keyboard name added to every key event. Uses alias (if defined in config file)
+    /// or device name as in /dev/input/by-id/
+    /// It allows handling multiple keyboards by the rest of the system and is useful
+    /// when multiple instances of KeyScanner are active.
     keyboard_name: String,
+
+    /// Grab/ungrab intention (actual switch happens when all keys are released)
+    should_handle_grab: Option<Mode>,
+
+    /// Keeps currently pressed key codes. Used for clean grab/ungrab of input device.
+    keyboard_state: HashSet<u16>,
 }
 
 impl KeyScanner {
@@ -27,21 +48,30 @@ impl KeyScanner {
             state,
             device: async_dev,
             keyboard_name,
+            should_handle_grab: None,
+            keyboard_state: HashSet::new(),
         }
     }
 
     async fn handle_device_events(&mut self, key_events: Vec<InputEvent>) {
         for event in key_events {
             let (payload, ts) = match event.destructure() {
+                // meaning of value: 0 - key release, 1 - key press, 2 - key repeat
                 EventSummary::Key(ev, key, value) => match value {
-                    1 | 2 => (
-                        DomainEvent::KeyPress(key, self.keyboard_name.clone()),
-                        ev.timestamp(),
-                    ),
-                    0 => (
-                        DomainEvent::KeyRelease(key, self.keyboard_name.clone()),
-                        ev.timestamp(),
-                    ),
+                    1 | 2 => {
+                        self.keyboard_state.insert(key.code());
+                        (
+                            DomainEvent::KeyPress(key, self.keyboard_name.clone()),
+                            ev.timestamp(),
+                        )
+                    }
+                    0 => {
+                        self.keyboard_state.remove(&key.code());
+                        (
+                            DomainEvent::KeyRelease(key, self.keyboard_name.clone()),
+                            ev.timestamp(),
+                        )
+                    }
                     other => {
                         warn!("Unhandled key event value: {}", other);
                         continue;
@@ -65,14 +95,20 @@ impl KeyScanner {
             DomainEvent::Exit => {
                 self.stop().await;
             }
-            DomainEvent::ModeChange(mode) => self.switch_mode(mode),
+            DomainEvent::ModeChange(mode) => {
+                self.should_handle_grab = Some(*mode);
+            }
             other => {
                 debug!("Unhandled event: {:?}", other);
             }
         }
     }
 
-    fn switch_mode(&mut self, mode: &Mode) {
+    fn toggle_grabbing(&mut self, mode: &Mode) {
+        debug!(
+            "Toggling device grabbing: switching to {mode}, keys currently pressed: {:?}",
+            self.keyboard_state
+        );
         match mode {
             Mode::PassThrough => self.grab(),
             Mode::InApp => self.ungrab(),
@@ -139,7 +175,7 @@ impl Actor for KeyScanner {
     }
 
     async fn init(&mut self) {
-        self.switch_mode(&self.state.mode().await);
+        self.toggle_grabbing(&self.state.mode().await);
     }
 
     async fn tick(&mut self) {
@@ -154,6 +190,14 @@ impl Actor for KeyScanner {
                     device.fetch_events().unwrap().collect::<Vec<_>>()
                 };
                 self.handle_device_events(events).await;
+
+                // grab/ungrab only when all keys are released
+                if self.should_handle_grab.is_some() && self.keyboard_state.is_empty() {
+                    if let Some(mode) = self.should_handle_grab {
+                        self.should_handle_grab = None;
+                        self.toggle_grabbing(&mode);
+                    }
+                }
             }
         }
     }
