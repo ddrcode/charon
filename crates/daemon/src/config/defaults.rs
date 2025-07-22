@@ -33,3 +33,19 @@ pub fn default_awake_host_shortcut() -> KeyShortcut {
 pub fn default_time_to_sleep() -> u64 {
     900
 }
+
+pub fn default_stats_file() -> PathBuf {
+    PathBuf::from("/var/lib/charon/stats.json")
+}
+
+pub fn default_stats_save_interval() -> u64 {
+    60
+}
+
+pub fn default_stats_wpm_slot_duration() -> u64 {
+    3
+}
+
+pub fn default_stats_wpm_slot_count() -> usize {
+    10
+}

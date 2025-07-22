@@ -1,5 +1,7 @@
 use std::time::Duration;
 
+use charon_lib::stats::CurrentStats;
+
 use crate::{apps::charonsay::WisdomCategory, config::AppConfig};
 
 use super::ascii_art::LOGO;
@@ -12,8 +14,7 @@ pub struct State {
     pub time_to_next: Duration,
     pub time_to_idle: Duration,
     pub view: WisdomCategory,
-    pub wpm: u16,
-    pub total_keys: u64,
+    pub stats: CurrentStats,
 }
 
 impl State {
@@ -34,8 +35,7 @@ impl Default for State {
             time_to_next: Duration::from_secs(180),
             time_to_idle: Duration::from_secs(300),
             view: WisdomCategory::default(),
-            wpm: 0,
-            total_keys: 0,
+            stats: CurrentStats::new(0, 0, 0, 0),
         }
     }
 }

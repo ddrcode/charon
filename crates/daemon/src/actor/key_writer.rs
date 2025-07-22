@@ -1,6 +1,6 @@
 use std::{borrow::Cow, path::PathBuf};
 
-use charon_lib::event::{DomainEvent, Event, Mode};
+use charon_lib::event::{DomainEvent, Event};
 use tokio::task::JoinHandle;
 use tracing::debug;
 

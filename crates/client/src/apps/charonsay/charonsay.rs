@@ -119,9 +119,8 @@ impl UiApp for Charonsay {
                 state.time_to_idle = config.idle_time;
             }
             AppMsg::Backend(DomainEvent::CurrentStats(stats)) => {
-                if state.wpm != stats.wpm || state.total_keys != stats.total {
-                    state.wpm = stats.wpm;
-                    state.total_keys = stats.total;
+                if state.stats != *stats {
+                    state.stats = stats.clone();
                     should_render = true;
                 }
             }
@@ -194,11 +193,17 @@ impl UiApp for Charonsay {
         let text = Paragraph::new(text).alignment(Alignment::Center);
 
         let header = Span::styled(" WPM: ", Style::default().add_modifier(Modifier::BOLD));
-        let val = Span::from(self.state.wpm.to_string());
+        let val = Span::from(format!(
+            "{} (max: {})",
+            self.state.stats.wpm, self.state.stats.max_wpm
+        ));
         let wpm = Paragraph::new(Line::from(vec![header, val])).fg(Color::Gray);
 
-        let header = Span::styled(" Total: ", Style::default().add_modifier(Modifier::BOLD));
-        let val = Span::from(format!("{} ", self.state.total_keys));
+        let header = Span::styled(" Mileage: ", Style::default().add_modifier(Modifier::BOLD));
+        let val = Span::from(format!(
+            "{} ({} today) ",
+            self.state.stats.total, self.state.stats.today
+        ));
         let total = Paragraph::new(Line::from(vec![header, val]))
             .alignment(Alignment::Right)
             .fg(Color::Gray);

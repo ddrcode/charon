@@ -50,6 +50,18 @@ pub struct CharonConfig {
 
     #[serde(default)]
     pub awake_script: Option<PathBuf>,
+
+    #[serde(default = "defaults::default_stats_file")]
+    pub stats_file: PathBuf,
+
+    #[serde(default = "defaults::default_stats_save_interval")]
+    pub stats_save_interval: u64,
+
+    #[serde(default = "defaults::default_stats_wpm_slot_duration")]
+    pub stats_wpm_slot_duration: u64,
+
+    #[serde(default = "defaults::default_stats_wpm_slot_count")]
+    pub stats_wpm_slot_count: usize,
 }
 
 impl CharonConfig {
@@ -98,6 +110,10 @@ impl Default for CharonConfig {
             time_to_sleep: defaults::default_time_to_sleep(),
             sleep_script: None,
             awake_script: None,
+            stats_file: defaults::default_stats_file(),
+            stats_save_interval: defaults::default_stats_save_interval(),
+            stats_wpm_slot_duration: defaults::default_stats_wpm_slot_duration(),
+            stats_wpm_slot_count: defaults::default_stats_wpm_slot_count(),
         }
     }
 }
