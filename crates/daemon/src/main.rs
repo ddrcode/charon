@@ -46,7 +46,7 @@ async fn main() -> Result<(), anyhow::Error> {
         )
         .add_actor_conditionally::<Telemetry>(
             config.enable_telemetry,
-            &[T::System, T::Telemetry, T::KeyInput],
+            &[T::System, T::Telemetry, T::KeyInput, T::Stats],
         );
 
     let mut sigterm = unix::signal(unix::SignalKind::terminate())?;

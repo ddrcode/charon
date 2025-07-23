@@ -16,7 +16,7 @@ use tracing_subscriber::EnvFilter;
 
 use crate::{
     apps::{
-        Charonsay, Editor,
+        Charonsay, Editor, Stats,
         menu::{Menu, MenuItem},
     },
     client::CharonClient,
@@ -38,6 +38,7 @@ async fn main() -> anyhow::Result<()> {
         Charonsay::new_box(ctx.clone()),
         Menu::new_box(ctx.clone(), menu_items()),
         Editor::new_box(ctx.clone()),
+        Stats::new_box(ctx.clone()),
     ]
     .into_iter()
     .map(|app| (app.id(), app))

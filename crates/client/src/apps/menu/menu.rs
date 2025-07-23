@@ -66,6 +66,7 @@ impl UiApp for Menu {
             AppMsg::Backend(DomainEvent::KeyRelease(key, _)) => match *key {
                 KeyCode::KEY_Q => Some(Command::Exit),
                 KeyCode::KEY_E => Some(Command::RunApp("editor")),
+                KeyCode::KEY_S => Some(Command::RunApp("stats")),
                 _ => None,
             },
             _ => None,

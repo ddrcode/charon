@@ -1,7 +1,7 @@
 use std::{collections::HashMap, time::Duration};
 
 use charon_lib::event::{DomainEvent, Event};
-use tokio::{select, task::JoinHandle, time::Interval};
+use tokio::{select, task::JoinHandle};
 use tracing::{info, warn};
 use uuid::Uuid;
 
@@ -77,7 +77,7 @@ impl Actor for Telemetry {
         info!("Starting actor: {}", self.id());
         self.init().await;
 
-        let mut push_interval = tokio::time::interval(Duration::from_secs(10));
+        let mut push_interval = tokio::time::interval(Duration::from_secs(15));
 
         while self.state().alive {
             select! {

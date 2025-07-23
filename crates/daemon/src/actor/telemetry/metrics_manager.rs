@@ -1,12 +1,7 @@
 use evdev::KeyCode;
 use prometheus::{
-    Encoder, GaugeVec, Histogram, IntCounterVec, Registry, TextEncoder, histogram_opts, labels,
-    opts, push_metrics,
+    GaugeVec, Histogram, IntCounterVec, Registry, histogram_opts, labels, opts, push_metrics,
 };
-use std::sync::{Arc, Mutex};
-use std::{convert::Infallible, net::SocketAddr};
-use tokio::net::TcpListener;
-use tokio::sync::oneshot;
 use tokio::task::{JoinHandle, spawn_blocking};
 use tracing::{debug, error, info};
 
@@ -15,7 +10,6 @@ pub struct MetricsManager {
     keypress_counter: IntCounterVec,
     key_latency_histogram: Histogram,
     wpm_gauge: GaugeVec,
-    shutdown_trigger: Mutex<Option<oneshot::Sender<()>>>,
 }
 
 impl MetricsManager {
@@ -47,7 +41,6 @@ impl MetricsManager {
             keypress_counter,
             key_latency_histogram,
             wpm_gauge,
-            shutdown_trigger: Mutex::new(None),
         })
     }
 

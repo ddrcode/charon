@@ -22,3 +22,4 @@ tracing.workspace = true
 tracing-appender = "0.2.3"
 tracing-subscriber = { workspace = true, features = ["env-filter"] }
 async-recursion = "1.1.1"
+reqwest = { version = "0.12.22", features = ["json"] }
