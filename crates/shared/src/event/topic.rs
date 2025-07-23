@@ -29,9 +29,8 @@ impl From<&DomainEvent> for Topic {
             Sleep => System,
             WakeUp => System,
 
-            ReportSent(_) => Telemetry,
-            ReportConsumed(_) => Telemetry,
-            KeySent(_) => Telemetry,
+            ReportSent() => Telemetry,
+            ReportConsumed() => Telemetry,
         }
     }
 }

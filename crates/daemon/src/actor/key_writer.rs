@@ -7,7 +7,6 @@ use tracing::debug;
 use crate::{
     devices::HIDKeyboard,
     domain::{ActorState, traits::Actor},
-    util::time::get_delta_since_start,
 };
 
 pub struct KeyWriter {
@@ -50,7 +49,7 @@ impl KeyWriter {
         if self.state.config().enable_telemetry {
             self.send_raw(Event::with_source_id(
                 self.id(),
-                DomainEvent::ReportSent(get_delta_since_start(self.state.start_time())),
+                DomainEvent::ReportSent(),
                 event.source_event_id.unwrap().clone(),
             ))
             .await;

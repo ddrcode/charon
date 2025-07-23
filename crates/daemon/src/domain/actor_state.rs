@@ -1,4 +1,4 @@
-use std::{borrow::Cow, sync::Arc, time::Instant};
+use std::{borrow::Cow, sync::Arc};
 
 use charon_lib::event::{Event, Mode};
 use tokio::sync::{
@@ -15,7 +15,6 @@ pub struct ActorState {
     pub(crate) receiver: Receiver<Event>,
     mode: Arc<RwLock<Mode>>,
     config: CharonConfig,
-    start_time: Instant,
 }
 
 impl ActorState {
@@ -33,7 +32,6 @@ impl ActorState {
             sender,
             receiver,
             config,
-            start_time: Instant::now(),
         }
     }
 
@@ -47,10 +45,6 @@ impl ActorState {
 
     pub fn config(&self) -> &CharonConfig {
         &self.config
-    }
-
-    pub fn start_time(&self) -> &Instant {
-        &self.start_time
     }
 
     pub fn clone_mode(&self) -> Arc<RwLock<Mode>> {

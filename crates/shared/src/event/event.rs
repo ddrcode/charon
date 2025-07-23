@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
-use std::{borrow::Cow, time::SystemTime};
+use std::borrow::Cow;
 use uuid::Uuid;
+
+use crate::util::time::nanos_since_start;
 
 use super::DomainEvent;
 
@@ -17,21 +19,7 @@ impl Event {
     pub fn new(sender: Cow<'static, str>, payload: DomainEvent) -> Self {
         Self {
             id: Uuid::new_v4(),
-            timestamp: Self::into_millis(&SystemTime::now()),
-            sender: sender.into(),
-            payload,
-            source_event_id: None,
-        }
-    }
-
-    pub fn with_time(
-        sender: Cow<'static, str>,
-        payload: DomainEvent,
-        timestamp: SystemTime,
-    ) -> Self {
-        Self {
-            id: Uuid::new_v4(),
-            timestamp: Self::into_millis(&timestamp),
+            timestamp: nanos_since_start(),
             sender: sender.into(),
             payload,
             source_event_id: None,
@@ -45,16 +33,10 @@ impl Event {
     ) -> Self {
         Self {
             id: Uuid::new_v4(),
-            timestamp: Self::into_millis(&SystemTime::now()),
+            timestamp: nanos_since_start(),
             sender: sender.into(),
             payload,
             source_event_id: Some(source_id),
         }
-    }
-
-    fn into_millis(time: &SystemTime) -> u64 {
-        time.duration_since(SystemTime::UNIX_EPOCH)
-            .unwrap()
-            .as_millis() as u64
     }
 }
