@@ -1,4 +1,4 @@
-#[derive(Debug, Default, PartialEq)]
+#[derive(Debug, Default, PartialEq, Clone, Copy)]
 pub enum StatsPeriod {
     #[default]
     Day,
@@ -41,5 +41,11 @@ impl From<&StatsPeriod> for u64 {
             StatsPeriod::Month => 3600 * 24 * 30,
             StatsPeriod::Year => 3600 * 24 * 365,
         }
+    }
+}
+
+impl From<StatsPeriod> for u64 {
+    fn from(value: StatsPeriod) -> Self {
+        u64::from(&value)
     }
 }
