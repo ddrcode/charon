@@ -1,20 +1,15 @@
-use std::{
-    path::{Path, PathBuf},
-    time::Duration,
-};
+use std::{path::Path, time::Duration};
 
 use charon_lib::{
     event::{DomainEvent, Event},
     stats::CurrentStats,
+    util::time::{is_today, next_midnight_instant},
 };
 use tokio::{select, task::JoinHandle};
 use tracing::{error, info};
 
 use super::WPMCounter;
-use crate::{
-    domain::{ActorState, traits::Actor},
-    util::time::{is_today, next_midnight_instant},
-};
+use crate::domain::{ActorState, traits::Actor};
 
 pub struct TypingStats {
     state: ActorState,

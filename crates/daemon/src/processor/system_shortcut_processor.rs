@@ -4,7 +4,7 @@ use uuid::Uuid;
 
 use crate::{
     domain::{ProcessorState, traits::Processor},
-    util::{system::wake_host_on_lan, time::get_delta_since_start},
+    util::system::wake_host_on_lan,
 };
 
 pub struct SystemShortcutProcessor {
@@ -74,10 +74,9 @@ impl SystemShortcutProcessor {
     fn send_telemetry(&mut self, parent_id: Uuid) {
         let config = self.state.config();
         if config.enable_telemetry {
-            let start_time = self.state.start_time();
             let event = Event::with_source_id(
                 self.state.id.clone(),
-                DomainEvent::ReportConsumed(get_delta_since_start(&start_time)),
+                DomainEvent::ReportConsumed(),
                 parent_id,
             );
             self.events.push(event);
@@ -99,7 +98,10 @@ impl Processor for SystemShortcutProcessor {
     async fn process(&mut self, event: Event) -> Vec<Event> {
         match &event.payload {
             DomainEvent::HidReport(report) => {
-                if self.handle_report(&report, event.id).await {
+                if self
+                    .handle_report(&report, event.source_event_id.unwrap())
+                    .await
+                {
                     self.events.push(event);
                 }
             }

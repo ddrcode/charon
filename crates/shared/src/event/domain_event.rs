@@ -22,9 +22,8 @@ pub enum DomainEvent {
     WakeUp,
 
     // telemetry events
-    KeySent(u128),
-    ReportSent(u128),
-    ReportConsumed(u128),
+    ReportSent(),
+    ReportConsumed(),
 }
 
 impl DomainEvent {

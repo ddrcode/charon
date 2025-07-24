@@ -1,4 +1,4 @@
-{ pkgs ? import <nixpkgs> {} }:
+{ pkgs ? import <nixpkgs> { } }:
 pkgs.mkShell {
   packages = with pkgs; [
     cargo
@@ -7,6 +7,8 @@ pkgs.mkShell {
     rustc
     rustfmt
     treefmt
+    openssl
+    pkg-config
   ];
 
   # inputsFrom = [ pkgs.hello pkgs.gnutar ];

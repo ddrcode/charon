@@ -2,12 +2,10 @@ use std::{collections::HashSet, path::PathBuf};
 
 use charon_lib::event::{DomainEvent, Event, Mode};
 use tokio::{io::unix::AsyncFd, task::JoinHandle};
-use uuid::Uuid;
 
 use crate::{
     devices::evdev::find_input_device,
     domain::{ActorState, traits::Actor},
-    util::time::get_delta_since_start,
 };
 use evdev::{Device, EventSummary, InputEvent};
 use tracing::{debug, error, warn};
@@ -55,22 +53,16 @@ impl KeyScanner {
 
     async fn handle_device_events(&mut self, key_events: Vec<InputEvent>) {
         for event in key_events {
-            let (payload, ts) = match event.destructure() {
+            let payload = match event.destructure() {
                 // meaning of value: 0 - key release, 1 - key press, 2 - key repeat
-                EventSummary::Key(ev, key, value) => match value {
+                EventSummary::Key(_, key, value) => match value {
                     1 | 2 => {
                         self.keyboard_state.insert(key.code());
-                        (
-                            DomainEvent::KeyPress(key, self.keyboard_name.clone()),
-                            ev.timestamp(),
-                        )
+                        DomainEvent::KeyPress(key, self.keyboard_name.clone())
                     }
                     0 => {
                         self.keyboard_state.remove(&key.code());
-                        (
-                            DomainEvent::KeyRelease(key, self.keyboard_name.clone()),
-                            ev.timestamp(),
-                        )
+                        DomainEvent::KeyRelease(key, self.keyboard_name.clone())
                     }
                     other => {
                         warn!("Unhandled key event value: {}", other);
@@ -84,9 +76,7 @@ impl KeyScanner {
                 }
             };
 
-            let charon_event = Event::with_time(self.id(), payload, ts);
-            self.send_telemetry(&charon_event.id).await;
-            self.send_raw(charon_event).await;
+            self.send(payload).await;
         }
     }
 
@@ -140,17 +130,6 @@ impl KeyScanner {
             // if let Ok(termios) = tcgetattr(std::io::stdin()) {
             //     let _ = tcsetattr(std::io::stdin(), SetArg::TCSANOW, &termios);
             // }
-        }
-    }
-
-    async fn send_telemetry(&mut self, source_id: &Uuid) {
-        if self.state.config().enable_telemetry {
-            self.send_raw(Event::with_source_id(
-                self.id(),
-                DomainEvent::KeySent(get_delta_since_start(self.state.start_time())),
-                source_id.clone(),
-            ))
-            .await;
         }
     }
 }
