@@ -1,23 +1,16 @@
-use std::{
-    sync::Arc,
-    time::{SystemTime, UNIX_EPOCH},
-};
+use std::{borrow::Cow, sync::Arc};
 
-use charon_lib::{
-    event::DomainEvent,
-    util::time::{beginning_of_today_as_unix_timestamp, beginning_of_week_as_unix_timestamp},
-};
+use charon_lib::event::DomainEvent;
 use evdev::KeyCode;
 use ratatui::{
     Frame,
     layout::{Alignment, Constraint, Direction, Layout, Rect},
-    style::{Color, Style, Stylize},
+    style::{Style, Stylize},
     symbols,
     widgets::{Axis, Block, Chart, Dataset, GraphType},
 };
-use tracing::{error, info};
 
-use super::State;
+use super::{State, StatsPeriod};
 use crate::{
     domain::{AppMsg, Command, Context, traits::UiApp},
     repository::metrics::MetricsRepository,
@@ -38,22 +31,24 @@ impl Stats {
         })
     }
 
-    fn title(&self) -> &str {
+    fn title(&self) -> Cow<'static, str> {
         use super::StatsPeriod::*;
+        use chrono::prelude::*;
         let shift = self.state.shift;
+        let date: DateTime<Local> = Local.timestamp_opt(self.state.start as i64, 0).unwrap();
         match self.state.period {
-            Day if shift == 0 => "today",
-            Day if shift == 1 => "yesterday",
-            Day => "FIXME",
-            Week if shift == 0 => "this week",
-            Week if shift == 1 => "last week",
-            Week => todo!(),
-            Month if shift == 0 => "this month",
-            Month if shift == 1 => "last month",
-            Month => todo!(),
-            Year if shift == 0 => "this year",
-            Year if shift == 1 => "last year",
-            Year => todo!(),
+            Day if shift == 0 => "today".into(),
+            Day if shift == 1 => "yesterday".into(),
+            Day => date.format("%v").to_string().into(),
+            Week if shift == 0 => "this week".into(),
+            Week if shift == 1 => "last week".into(),
+            Week => format!("week starting {}", date.format("%v")).into(),
+            Month if shift == 0 => "this month".into(),
+            Month if shift == 1 => "last month".into(),
+            Month => date.format("%B, %Y").to_string().into(),
+            Year if shift == 0 => "this year".into(),
+            Year if shift == 1 => "last year".into(),
+            Year => date.format("%Y").to_string().into(),
         }
     }
 
@@ -68,8 +63,8 @@ impl Stats {
     }
 
     fn render_chart(&self, f: &mut Frame, rect: Rect) {
-        let data1 = self.state.data1.clone().unwrap();
-        let data2 = self.state.data2.clone().unwrap();
+        let data1 = self.state.data1.as_deref().unwrap();
+        let data2 = self.state.data2.as_deref().unwrap();
         let len = data1.len().max(data2.len());
         let max = data2
             .iter()
@@ -146,7 +141,7 @@ impl UiApp for Stats {
         match msg {
             AppMsg::Activate => {
                 self.state.resolution = 25;
-                self.state.start = beginning_of_today_as_unix_timestamp();
+                self.state.reset_with_period(StatsPeriod::Day);
                 self.update_data().await
             }
             AppMsg::Backend(DomainEvent::KeyRelease(key, _)) => match *key {
@@ -160,8 +155,11 @@ impl UiApp for Stats {
                     self.update_data().await
                 }
                 KeyCode::KEY_UP => {
-                    self.state.period = self.state.period.next();
-                    self.state.start = beginning_of_week_as_unix_timestamp();
+                    self.state.reset_with_period(self.state.period.next());
+                    self.update_data().await
+                }
+                KeyCode::KEY_DOWN => {
+                    self.state.reset_with_period(self.state.period.prev());
                     self.update_data().await
                 }
                 _ => None,

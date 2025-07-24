@@ -1,7 +1,5 @@
 use reqwest::Client;
 use serde::Deserialize;
-use std::time::{SystemTime, UNIX_EPOCH};
-use tracing::info;
 
 #[derive(Debug, Deserialize)]
 pub struct RangeResponse {
@@ -17,12 +15,13 @@ pub struct RangeData {
 #[derive(Debug, Deserialize)]
 pub struct RangeResult {
     metric: serde_json::Value,
-    values: Vec<(f64, String)>, // (timestamp, value)
+    values: Vec<(f64, String)>,
 }
 
 pub struct MetricsRepository {
     base_url: String,
     dataset_size: usize,
+    client: Client,
 }
 
 impl MetricsRepository {
@@ -30,6 +29,7 @@ impl MetricsRepository {
         Self {
             base_url: "http://localhost:9090/api/v1".into(),
             dataset_size,
+            client: Client::new(),
         }
     }
 
@@ -39,13 +39,12 @@ impl MetricsRepository {
         end: u64,
         step: u64,
     ) -> anyhow::Result<RangeResponse> {
-        let client = Client::new();
         let query = format!(
             "{}/query_range?query=avg_over_time(wpm[{step}s])&start={start}&end={end}&step={step}s",
             // "{}/query_range?query=wpm&start={start}&end={end}&step={step}s",
             self.base_url
         );
-        let resp = client.get(&query).send().await?;
+        let resp = self.client.get(&query).send().await?;
         let parsed = resp.json::<RangeResponse>().await?;
 
         Ok(parsed)
@@ -66,12 +65,11 @@ impl MetricsRepository {
         end: u64,
         step: u64,
     ) -> anyhow::Result<RangeResponse> {
-        let client = Client::new();
         let query = format!(
             "{}/query_range?query=max_over_time(wpm[{step}s])&start={start}&end={end}&step={step}s",
             self.base_url
         );
-        let resp = client.get(&query).send().await?;
+        let resp = self.client.get(&query).send().await?;
         let parsed = resp.json::<RangeResponse>().await?;
 
         Ok(parsed)
@@ -102,8 +100,10 @@ impl MetricsRepository {
         let mut slots = vec![0f64; self.dataset_size + 1];
         let max = (end - start) as f64;
         for (ts, val) in self.into_vec(data).into_iter() {
-            let idx = ((ts - start as f64) * (self.dataset_size as f64)) / max;
-            slots[idx as usize] = val;
+            let idx = (((ts - start as f64) * self.dataset_size as f64) / max)
+                .floor()
+                .clamp(0.0, self.dataset_size as f64) as usize;
+            slots[idx] = val;
         }
         slots
             .iter()

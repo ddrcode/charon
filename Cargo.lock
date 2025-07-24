@@ -193,6 +193,7 @@ dependencies = [
  "async-recursion",
  "async-trait",
  "charon-lib",
+ "chrono",
  "crossterm 0.29.0",
  "evdev",
  "futures",
