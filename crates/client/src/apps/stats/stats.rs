@@ -3,7 +3,10 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
-use charon_lib::{event::DomainEvent, util::time::beginning_of_today_as_unix_timestamp};
+use charon_lib::{
+    event::DomainEvent,
+    util::time::{beginning_of_today_as_unix_timestamp, beginning_of_week_as_unix_timestamp},
+};
 use evdev::KeyCode;
 use ratatui::{
     Frame,
@@ -144,25 +147,7 @@ impl UiApp for Stats {
             AppMsg::Activate => {
                 self.state.resolution = 25;
                 self.state.start = beginning_of_today_as_unix_timestamp();
-                self.state.data1 = self
-                    .metrics
-                    .avg_wpm_for_range_normalized(
-                        self.state.start,
-                        self.state.end(),
-                        self.state.step(),
-                    )
-                    .await
-                    .ok();
-                self.state.data2 = self
-                    .metrics
-                    .max_wpm_for_range_normalized(
-                        self.state.start,
-                        self.state.end(),
-                        self.state.step(),
-                    )
-                    .await
-                    .ok();
-                Some(Command::Render)
+                self.update_data().await
             }
             AppMsg::Backend(DomainEvent::KeyRelease(key, _)) => match *key {
                 KeyCode::KEY_ESC => Some(Command::RunApp("menu")),
@@ -172,6 +157,11 @@ impl UiApp for Stats {
                 }
                 KeyCode::KEY_RIGHT => {
                     self.state.next();
+                    self.update_data().await
+                }
+                KeyCode::KEY_UP => {
+                    self.state.period = self.state.period.next();
+                    self.state.start = beginning_of_week_as_unix_timestamp();
                     self.update_data().await
                 }
                 _ => None,

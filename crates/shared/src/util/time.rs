@@ -48,3 +48,13 @@ pub fn beginning_of_week_as_unix_timestamp() -> u64 {
     let week_start = today_midnight - chrono::Duration::days(days_since_monday);
     week_start.timestamp() as u64
 }
+
+pub fn beginning_of_month_as_unix_timestamp() -> u64 {
+    let now = Local::now();
+    let today_midnight = Local
+        .with_ymd_and_hms(now.year(), now.month(), now.day(), 0, 0, 0)
+        .unwrap();
+    let day = today_midnight.day();
+    let month_start = today_midnight - chrono::Duration::days(day);
+    month_start.timestamp() as u64
+}

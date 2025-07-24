@@ -1,3 +1,7 @@
+use charon_lib::util::time::{
+    beginning_of_today_as_unix_timestamp, beginning_of_week_as_unix_timestamp,
+};
+
 use crate::apps::stats::StatsPeriod;
 
 #[derive(Debug, Default)]
@@ -30,5 +34,15 @@ impl State {
             self.shift -= 1;
             self.start += self.period.val();
         }
+    }
+
+    pub fn reset_with_period(&mut self, period: StatsPeriod) {
+        self.period = period;
+        self.start = match period {
+            StatsPeriod::Day => beginning_of_today_as_unix_timestamp(),
+            StatsPeriod::Week => beginning_of_week_as_unix_timestamp(),
+            StatsPeriod::Month => todo!(),
+            StatsPeriod::Year => todo!(),
+        };
     }
 }
