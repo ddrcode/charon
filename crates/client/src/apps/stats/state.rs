@@ -7,7 +7,7 @@ use crate::apps::stats::StatsPeriod;
 pub struct State {
     pub start: u64,
     pub period: StatsPeriod,
-    pub resolution: u64,
+    pub resolution: usize,
     pub shift: u16,
     pub data1: Option<Vec<(f64, f64)>>,
     pub data2: Option<Vec<(f64, f64)>>,
@@ -19,7 +19,7 @@ impl State {
     }
 
     pub fn step(&self) -> u64 {
-        self.sec_per_period() / self.resolution
+        self.sec_per_period() / self.resolution as u64
     }
 
     pub fn start_end_step(&self) -> (u64, u64, u64) {

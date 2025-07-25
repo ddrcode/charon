@@ -9,6 +9,7 @@ use ratatui::{
     symbols,
     widgets::{Axis, Block, Chart, Dataset, GraphType},
 };
+use tracing::warn;
 
 use super::{State, StatsPeriod};
 use crate::{
@@ -118,22 +119,20 @@ impl Stats {
 
     async fn update_data(&mut self) -> Option<Command> {
         let (start, end, step) = self.state.start_end_step();
-        self.state.data1 = self
-            .metrics
-            .normalize_with_zeros(
-                self.metrics.avg_wpm_for_range(start, end, step).await,
-                start,
-                end,
-            )
-            .ok();
-        self.state.data2 = self
-            .metrics
-            .normalize_with_zeros(
-                self.metrics.max_wpm_for_range(start, end, step).await,
-                start,
-                end,
-            )
-            .ok();
+        self.state.data1 = match self.metrics.avg_wpm_for_range(start, end, step).await {
+            Ok(data) => Some(data.normalize_with_zeros(start..end, self.state.resolution)),
+            Err(err) => {
+                warn!("Failed fetching metrics (data1): {err:?}");
+                None
+            }
+        };
+        self.state.data2 = match self.metrics.max_wpm_for_range(start, end, step).await {
+            Ok(data) => Some(data.normalize_with_zeros(start..end, self.state.resolution)),
+            Err(err) => {
+                warn!("Failed fetching metrics (data2): {err:?}");
+                None
+            }
+        };
         Some(Command::Render)
     }
 }
