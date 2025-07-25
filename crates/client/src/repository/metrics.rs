@@ -1,5 +1,6 @@
 use reqwest::Client;
 use serde::Deserialize;
+use tracing::debug;
 
 #[derive(Debug, Deserialize)]
 pub struct RangeResponse {
@@ -58,6 +59,7 @@ impl MetricsRepository {
             "{}/query_range?query=wpm&start={start}&end={end}&step={step}s",
             self.base_url
         );
+        debug!("Sending query: {query}");
         let resp = self.client.get(&query).send().await?;
         let parsed = resp.json::<RangeResponse>().await?;
 
@@ -74,6 +76,7 @@ impl MetricsRepository {
             "{}/query_range?query=max_over_time(wpx[{step}s])&start={start}&end={end}&step={step}s",
             self.base_url
         );
+        debug!("Sending query: {query}");
         let resp = self.client.get(&query).send().await?;
         let parsed = resp.json::<RangeResponse>().await?;
 
