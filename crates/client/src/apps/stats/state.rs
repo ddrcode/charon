@@ -22,6 +22,10 @@ impl State {
         self.sec_per_period() / self.resolution
     }
 
+    pub fn start_end_step(&self) -> (u64, u64, u64) {
+        (self.start, self.end(), self.step())
+    }
+
     pub fn prev(&mut self) {
         let date: DateTime<Local> = Local.timestamp_opt(self.start as i64, 0).unwrap();
         let maybe_new_start = match self.period {

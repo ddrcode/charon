@@ -3,25 +3,39 @@ use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
 pub struct RangeResponse {
-    status: String,
-    data: RangeData,
+    pub status: String,
+    pub data: RangeData,
+}
+
+impl RangeResponse {
+    pub fn into_vec(&self) -> Vec<(f64, Option<f64>)> {
+        let data = &self.data.result;
+        if data.is_empty() {
+            return Vec::new();
+        }
+        data[0]
+            .values
+            .iter()
+            .map(|(ts, val)| (*ts, val.parse().ok()))
+            .collect()
+    }
 }
 
 #[derive(Debug, Deserialize)]
 pub struct RangeData {
-    result: Vec<RangeResult>,
+    pub result: Vec<RangeResult>,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct RangeResult {
-    metric: serde_json::Value,
-    values: Vec<(f64, String)>,
+    pub metric: serde_json::Value,
+    pub values: Vec<(f64, String)>,
 }
 
 pub struct MetricsRepository {
-    base_url: String,
-    dataset_size: usize,
-    client: Client,
+    pub base_url: String,
+    pub dataset_size: usize,
+    pub client: Client,
 }
 
 impl MetricsRepository {
@@ -40,23 +54,14 @@ impl MetricsRepository {
         step: u64,
     ) -> anyhow::Result<RangeResponse> {
         let query = format!(
-            "{}/query_range?query=avg_over_time(wpm[{step}s])&start={start}&end={end}&step={step}s",
-            // "{}/query_range?query=wpm&start={start}&end={end}&step={step}s",
+            // "{}/query_range?query=avg_over_time(wpm[{step}s])&start={start}&end={end}&step={step}s",
+            "{}/query_range?query=wpm&start={start}&end={end}&step={step}s",
             self.base_url
         );
         let resp = self.client.get(&query).send().await?;
         let parsed = resp.json::<RangeResponse>().await?;
 
         Ok(parsed)
-    }
-
-    pub async fn avg_wpm_for_range_normalized(
-        &self,
-        start: u64,
-        end: u64,
-        step: u64,
-    ) -> anyhow::Result<Vec<(f64, f64)>> {
-        Ok(self.normalize(&self.avg_wpm_for_range(start, end, step).await?, start, end))
     }
 
     pub async fn max_wpm_for_range(
@@ -66,7 +71,7 @@ impl MetricsRepository {
         step: u64,
     ) -> anyhow::Result<RangeResponse> {
         let query = format!(
-            "{}/query_range?query=max_over_time(wpm[{step}s])&start={start}&end={end}&step={step}s",
+            "{}/query_range?query=max_over_time(wpx[{step}s])&start={start}&end={end}&step={step}s",
             self.base_url
         );
         let resp = self.client.get(&query).send().await?;
@@ -75,40 +80,26 @@ impl MetricsRepository {
         Ok(parsed)
     }
 
-    pub async fn max_wpm_for_range_normalized(
+    pub fn normalize_with_zeros(
         &self,
+        data: anyhow::Result<RangeResponse>,
         start: u64,
         end: u64,
-        step: u64,
     ) -> anyhow::Result<Vec<(f64, f64)>> {
-        Ok(self.normalize(&self.max_wpm_for_range(start, end, step).await?, start, end))
-    }
-
-    fn into_vec(&self, data: &RangeResponse) -> Vec<(f64, f64)> {
-        let data = &data.data.result;
-        if data.is_empty() {
-            return Vec::new();
-        }
-        data[0]
-            .values
-            .iter()
-            .map(|(ts, val)| (*ts, val.parse().unwrap()))
-            .collect()
-    }
-
-    fn normalize(&self, data: &RangeResponse, start: u64, end: u64) -> Vec<(f64, f64)> {
-        let mut slots = vec![0f64; self.dataset_size + 1];
+        let data = data?;
+        let mut slots = vec![0f64; self.dataset_size];
         let max = (end - start) as f64;
-        for (ts, val) in self.into_vec(data).into_iter() {
+        for (ts, val) in data.into_vec().into_iter() {
             let idx = (((ts - start as f64) * self.dataset_size as f64) / max)
                 .floor()
                 .clamp(0.0, self.dataset_size as f64) as usize;
-            slots[idx] = val;
+            slots[idx] = val.unwrap_or(0.0);
         }
-        slots
+        let result = slots
             .iter()
             .enumerate()
             .map(|(idx, val)| (idx as f64, *val))
-            .collect()
+            .collect();
+        Ok(result)
     }
 }

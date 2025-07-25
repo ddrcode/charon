@@ -17,7 +17,7 @@ use crate::{
 };
 
 pub struct Stats {
-    ctx: Arc<Context>,
+    _ctx: Arc<Context>,
     metrics: MetricsRepository,
     state: State,
 }
@@ -25,7 +25,7 @@ pub struct Stats {
 impl Stats {
     pub fn new_box(ctx: Arc<Context>) -> Box<dyn UiApp + Send + Sync> {
         Box::new(Self {
-            ctx,
+            _ctx: ctx,
             metrics: MetricsRepository::new(25),
             state: State::default(),
         })
@@ -117,15 +117,22 @@ impl Stats {
     }
 
     async fn update_data(&mut self) -> Option<Command> {
+        let (start, end, step) = self.state.start_end_step();
         self.state.data1 = self
             .metrics
-            .avg_wpm_for_range_normalized(self.state.start, self.state.end(), self.state.step())
-            .await
+            .normalize_with_zeros(
+                self.metrics.avg_wpm_for_range(start, end, step).await,
+                start,
+                end,
+            )
             .ok();
         self.state.data2 = self
             .metrics
-            .max_wpm_for_range_normalized(self.state.start, self.state.end(), self.state.step())
-            .await
+            .normalize_with_zeros(
+                self.metrics.max_wpm_for_range(start, end, step).await,
+                start,
+                end,
+            )
             .ok();
         Some(Command::Render)
     }
