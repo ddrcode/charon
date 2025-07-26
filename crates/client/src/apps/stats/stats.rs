@@ -13,8 +13,9 @@ use tracing::warn;
 
 use super::{State, StatsPeriod};
 use crate::{
+    apps::stats::StatType,
     domain::{AppMsg, Command, Context, traits::UiApp},
-    repository::metrics::MetricsRepository,
+    repository::metrics::{MetricsRepository, RangeResponse},
 };
 
 pub struct Stats {
@@ -117,22 +118,39 @@ impl Stats {
         f.render_widget(chart, rect);
     }
 
-    async fn update_data(&mut self) -> Option<Command> {
-        let (start, end, step) = self.state.start_end_step();
-        self.state.data1 = match self.metrics.avg_wpm_for_range(start, end, step).await {
+    fn normalize(&mut self, data: anyhow::Result<RangeResponse>) -> Option<Vec<(f64, f64)>> {
+        let (start, end, _) = self.state.start_end_step();
+        match data {
             Ok(data) => Some(data.normalize_with_zeros(start..end, self.state.resolution)),
             Err(err) => {
                 warn!("Failed fetching metrics (data1): {err:?}");
                 None
             }
+        }
+    }
+
+    async fn update_data(&mut self) -> Option<Command> {
+        let (start, end, step) = self.state.start_end_step();
+        let (data1, data2) = match self.state.stat_type {
+            StatType::Wpm => (
+                self.normalize(self.metrics.avg_wpm_for_range(start, end, step).await),
+                self.normalize(self.metrics.max_wpm_for_range(start, end, step).await),
+            ),
+            StatType::TotalKeyPress => (
+                self.normalize(
+                    self.metrics
+                        .total_key_presses_for_range(start, end, step)
+                        .await,
+                ),
+                self.normalize(
+                    self.metrics
+                        .total_key_presses_for_range(start, end, step)
+                        .await,
+                ),
+            ),
         };
-        self.state.data2 = match self.metrics.max_wpm_for_range(start, end, step).await {
-            Ok(data) => Some(data.normalize_with_zeros(start..end, self.state.resolution)),
-            Err(err) => {
-                warn!("Failed fetching metrics (data2): {err:?}");
-                None
-            }
-        };
+        self.state.data1 = data1;
+        self.state.data2 = data2;
         Some(Command::Render)
     }
 }
@@ -166,6 +184,10 @@ impl UiApp for Stats {
                 }
                 KeyCode::KEY_DOWN => {
                     self.state.reset_with_period(self.state.period.prev());
+                    self.update_data().await
+                }
+                KeyCode::KEY_SPACE => {
+                    self.state.reset_with_type(self.state.stat_type.next());
                     self.update_data().await
                 }
                 _ => None,

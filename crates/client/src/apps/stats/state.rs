@@ -1,10 +1,11 @@
 use chrono::{Days, Months, offset::LocalResult, prelude::*};
 use tracing::warn;
 
-use crate::apps::stats::StatsPeriod;
+use crate::apps::stats::{StatType, StatsPeriod};
 
 #[derive(Debug, Default)]
 pub struct State {
+    pub stat_type: StatType,
     pub start: u64,
     pub period: StatsPeriod,
     pub resolution: usize,
@@ -83,6 +84,11 @@ impl State {
         }
         .unwrap();
         self.start = date.timestamp() as u64;
+    }
+
+    pub fn reset_with_type(&mut self, stat_type: StatType) {
+        self.stat_type = stat_type;
+        self.reset_with_period(StatsPeriod::Day);
     }
 
     pub fn sec_per_period(&self) -> u64 {
