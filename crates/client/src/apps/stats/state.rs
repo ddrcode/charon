@@ -10,8 +10,7 @@ pub struct State {
     pub period: StatsPeriod,
     pub resolution: usize,
     pub shift: u16,
-    pub data1: Option<Vec<(f64, f64)>>,
-    pub data2: Option<Vec<(f64, f64)>>,
+    pub data: Vec<Vec<(f64, f64)>>,
 }
 
 impl State {
