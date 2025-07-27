@@ -1,17 +1,15 @@
 use std::{borrow::Cow, convert::identity, sync::Arc};
 
-use charon_lib::{event::DomainEvent, util::number::integer_digit_count};
+use charon_lib::event::DomainEvent;
 use evdev::KeyCode;
 use ratatui::{
     Frame,
-    layout::{Alignment, Constraint, Direction, Layout, Rect},
-    style::{Style, Stylize},
-    symbols,
-    widgets::{Axis, Block, Chart, Dataset, GraphType},
+    layout::{Constraint, Direction, Layout},
+    style::Stylize,
 };
-use tracing::warn;
+use tracing::{info, warn};
 
-use super::{State, StatsPeriod};
+use super::{LineChartRenderer, State, StatsPeriod};
 use crate::{
     apps::stats::StatType,
     domain::{AppMsg, Command, Context, traits::UiApp},
@@ -37,109 +35,23 @@ impl Stats {
         use super::StatsPeriod::*;
         use chrono::prelude::*;
         let shift = self.state.shift;
-        let date: DateTime<Local> = Local.timestamp_opt(self.state.start as i64, 0).unwrap();
-        match self.state.period {
-            Day if shift == 0 => "today".into(),
-            Day if shift == 1 => "yesterday".into(),
-            Day => date.format("%v").to_string().into(),
-            Week if shift == 0 => "this week".into(),
-            Week if shift == 1 => "last week".into(),
-            Week => format!("week starting {}", date.format("%v")).into(),
-            Month if shift == 0 => "this month".into(),
-            Month if shift == 1 => "last month".into(),
-            Month => date.format("%B, %Y").to_string().into(),
-            Year if shift == 0 => "this year".into(),
-            Year if shift == 1 => "last year".into(),
-            Year => date.format("%Y").to_string().into(),
+        match Local.timestamp_opt(self.state.start as i64, 0) {
+            chrono::offset::LocalResult::Single(date) => match self.state.period {
+                Day if shift == 0 => "today".into(),
+                Day if shift == 1 => "yesterday".into(),
+                Day => date.format("%v").to_string().into(),
+                Week if shift == 0 => "this week".into(),
+                Week if shift == 1 => "last week".into(),
+                Week => format!("week starting {}", date.format("%v")).into(),
+                Month if shift == 0 => "this month".into(),
+                Month if shift == 1 => "last month".into(),
+                Month => date.format("%B, %Y").to_string().into(),
+                Year if shift == 0 => "this year".into(),
+                Year if shift == 1 => "last year".into(),
+                Year => date.format("%Y").to_string().into(),
+            },
+            _ => "Unknown period".into(),
         }
-    }
-
-    fn x_axis_labels(&self) -> Vec<&str> {
-        use super::StatsPeriod::*;
-        match self.state.period {
-            Day => vec!["0", "12", "24"],
-            Week => vec!["Mon", "Thu", "Sun"],
-            Month => vec!["1", "15", "30"],
-            Year => vec!["Jan", "Jul", "Dec"],
-        }
-    }
-
-    fn dataset_style(dataset_id: usize) -> Style {
-        match dataset_id {
-            0 => Style::default().cyan(),
-            1 => Style::default().yellow(),
-            _ => Style::default().magenta(),
-        }
-    }
-
-    fn set_dataset_name<'a>(&self, dataset: Dataset<'a>, dataset_id: usize) -> Dataset<'a> {
-        let name = match (&self.state.stat_type, dataset_id) {
-            (StatType::Wpm, 0) => "Avg",
-            (StatType::Wpm, 1) => "Max",
-            _ => return dataset,
-        };
-        dataset.name(name)
-    }
-
-    fn compute_y_max(&self) -> f64 {
-        self.state
-            .data
-            .iter()
-            .flatten()
-            .map(|(_, val)| val)
-            .copied()
-            .reduce(f64::max)
-            .map(|m| {
-                let base = 10_u64.pow(integer_digit_count(m) - 1) as f64;
-                (m / base).ceil() * base
-            })
-            .unwrap_or(0.0)
-    }
-
-    fn render_chart(&self, f: &mut Frame, rect: Rect) {
-        let title = self.state.stat_type.to_string();
-        let len = self.state.data.iter().map(|d| d.len()).max().unwrap_or(0);
-        let max = self.compute_y_max();
-
-        let datasets = self
-            .state
-            .data
-            .iter()
-            .enumerate()
-            .map(|(idx, d)| {
-                let ds = Dataset::default()
-                    .marker(symbols::Marker::Dot)
-                    .graph_type(GraphType::Line)
-                    .style(Self::dataset_style(idx))
-                    .data(d.as_ref());
-                self.set_dataset_name(ds, idx)
-            })
-            .collect();
-
-        let x_axis = Axis::default()
-            .style(Style::default().white())
-            .bounds([0.0, len as f64])
-            .labels::<Vec<&str>>(self.x_axis_labels());
-
-        let y_axis = Axis::default()
-            .style(Style::default().white())
-            .bounds([0.0, max])
-            .labels([
-                "0".to_string(),
-                format!("{:.0}", max / 2.0),
-                format!("{max:.0}"),
-            ]);
-
-        let chart = Chart::new(datasets)
-            .block(
-                Block::new()
-                    .title(format!("{title} ({})", self.period_name()).bold())
-                    .title_alignment(Alignment::Center),
-            )
-            .x_axis(x_axis)
-            .y_axis(y_axis);
-
-        f.render_widget(chart, rect);
     }
 
     fn normalize(&mut self, data: anyhow::Result<RangeResponse>) -> Option<Vec<(f64, f64)>> {
@@ -219,6 +131,7 @@ impl UiApp for Stats {
     }
 
     fn render(&self, f: &mut Frame) {
+        info!("AREA----> {:?}", f.area());
         let layout = Layout::default()
             .direction(Direction::Vertical)
             .constraints(vec![Constraint::Percentage(99), Constraint::Length(1)])
@@ -229,7 +142,12 @@ impl UiApp for Stats {
             .constraints([Constraint::Fill(1)].repeat(4))
             .split(layout[1]);
 
-        self.render_chart(f, layout[0]);
+        match self.state.stat_type {
+            StatType::Wpm | StatType::TotalKeyPress => {
+                LineChartRenderer::new(&self.state, self.period_name()).render(f, layout[0]);
+            }
+        }
+
         f.render_widget(" \u{f06c1} \u{f06c2} Prev/next".gray(), bottom_layout[0]);
         f.render_widget("\u{f06c3} \u{f06c0} Period".gray(), bottom_layout[1]);
         f.render_widget(
