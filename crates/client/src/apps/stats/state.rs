@@ -1,16 +1,16 @@
 use chrono::{Days, Months, offset::LocalResult, prelude::*};
 use tracing::warn;
 
-use crate::apps::stats::StatsPeriod;
+use super::{StatData, StatType, StatsPeriod};
 
 #[derive(Debug, Default)]
 pub struct State {
+    pub stat_type: StatType,
     pub start: u64,
     pub period: StatsPeriod,
-    pub resolution: u64,
+    pub resolution: usize,
     pub shift: u16,
-    pub data1: Option<Vec<(f64, f64)>>,
-    pub data2: Option<Vec<(f64, f64)>>,
+    pub data: StatData,
 }
 
 impl State {
@@ -19,7 +19,11 @@ impl State {
     }
 
     pub fn step(&self) -> u64 {
-        self.sec_per_period() / self.resolution
+        self.sec_per_period() / self.resolution as u64
+    }
+
+    pub fn start_end_step(&self) -> (u64, u64, u64) {
+        (self.start, self.end(), self.step())
     }
 
     pub fn prev(&mut self) {
@@ -79,6 +83,11 @@ impl State {
         }
         .unwrap();
         self.start = date.timestamp() as u64;
+    }
+
+    pub fn reset_with_type(&mut self, stat_type: StatType) {
+        self.stat_type = stat_type;
+        self.reset_with_period(StatsPeriod::Day);
     }
 
     pub fn sec_per_period(&self) -> u64 {

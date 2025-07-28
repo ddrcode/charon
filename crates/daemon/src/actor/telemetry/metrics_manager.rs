@@ -3,7 +3,7 @@ use prometheus::{
     GaugeVec, Histogram, IntCounterVec, Registry, histogram_opts, labels, opts, push_metrics,
 };
 use tokio::task::{JoinHandle, spawn_blocking};
-use tracing::{debug, error, info};
+use tracing::{debug, error};
 
 pub struct MetricsManager {
     registry: Registry,

@@ -1,23 +1,23 @@
-use std::{borrow::Cow, sync::Arc};
+use std::{borrow::Cow, collections::HashMap, sync::Arc};
 
 use charon_lib::event::DomainEvent;
 use evdev::KeyCode;
 use ratatui::{
     Frame,
-    layout::{Alignment, Constraint, Direction, Layout, Rect},
-    style::{Style, Stylize},
-    symbols,
-    widgets::{Axis, Block, Chart, Dataset, GraphType},
+    layout::{Constraint, Direction, Layout},
+    style::Stylize,
 };
+use tracing::warn;
 
-use super::{State, StatsPeriod};
+use super::{LineChartRenderer, StatData, State, StatsPeriod};
 use crate::{
+    apps::stats::{KeyHeatmapRenderer, StatType},
     domain::{AppMsg, Command, Context, traits::UiApp},
-    repository::metrics::MetricsRepository,
+    repository::metrics::{MetricsRepository, RangeResponse},
 };
 
 pub struct Stats {
-    ctx: Arc<Context>,
+    _ctx: Arc<Context>,
     metrics: MetricsRepository,
     state: State,
 }
@@ -25,109 +25,91 @@ pub struct Stats {
 impl Stats {
     pub fn new_box(ctx: Arc<Context>) -> Box<dyn UiApp + Send + Sync> {
         Box::new(Self {
-            ctx,
+            _ctx: ctx,
             metrics: MetricsRepository::new(25),
             state: State::default(),
         })
     }
 
-    fn title(&self) -> Cow<'static, str> {
+    fn period_name(&self) -> Cow<'static, str> {
         use super::StatsPeriod::*;
         use chrono::prelude::*;
         let shift = self.state.shift;
-        let date: DateTime<Local> = Local.timestamp_opt(self.state.start as i64, 0).unwrap();
-        match self.state.period {
-            Day if shift == 0 => "today".into(),
-            Day if shift == 1 => "yesterday".into(),
-            Day => date.format("%v").to_string().into(),
-            Week if shift == 0 => "this week".into(),
-            Week if shift == 1 => "last week".into(),
-            Week => format!("week starting {}", date.format("%v")).into(),
-            Month if shift == 0 => "this month".into(),
-            Month if shift == 1 => "last month".into(),
-            Month => date.format("%B, %Y").to_string().into(),
-            Year if shift == 0 => "this year".into(),
-            Year if shift == 1 => "last year".into(),
-            Year => date.format("%Y").to_string().into(),
+        match Local.timestamp_opt(self.state.start as i64, 0) {
+            chrono::offset::LocalResult::Single(date) => match self.state.period {
+                Day if shift == 0 => "today".into(),
+                Day if shift == 1 => "yesterday".into(),
+                Day => date.format("%v").to_string().into(),
+                Week if shift == 0 => "this week".into(),
+                Week if shift == 1 => "last week".into(),
+                Week => format!("week starting {}", date.format("%v")).into(),
+                Month if shift == 0 => "this month".into(),
+                Month if shift == 1 => "last month".into(),
+                Month => date.format("%B, %Y").to_string().into(),
+                Year if shift == 0 => "this year".into(),
+                Year if shift == 1 => "last year".into(),
+                Year => date.format("%Y").to_string().into(),
+            },
+            _ => "Unknown period".into(),
         }
     }
 
-    fn x_axis_labels(&self) -> Vec<&str> {
-        use super::StatsPeriod::*;
-        match self.state.period {
-            Day => vec!["0", "12", "24"],
-            Week => vec!["Mon", "Thu", "Sun"],
-            Month => vec!["1", "15", "30"],
-            Year => vec!["Jan", "Jul", "Dec"],
+    fn title(&self) -> String {
+        format!("{} ({})", self.state.stat_type, self.period_name())
+    }
+
+    fn normalize_vec(&mut self, data: anyhow::Result<RangeResponse>) -> Option<Vec<(f64, f64)>> {
+        let (start, end, _) = self.state.start_end_step();
+        match data {
+            Ok(data) => Some(data.normalize_with_zeros(start..end, self.state.resolution)),
+            Err(err) => {
+                warn!("Failed fetching range data: {err:?}");
+                None
+            }
         }
     }
 
-    fn render_chart(&self, f: &mut Frame, rect: Rect) {
-        let data1 = self.state.data1.as_deref().unwrap();
-        let data2 = self.state.data2.as_deref().unwrap();
-        let len = data1.len().max(data2.len());
-        let max = data2
-            .iter()
-            .map(|(_, val)| val)
-            .copied()
-            .reduce(f64::max)
-            .map(|m| (m / 10.0).ceil() * 10.0)
-            .unwrap_or(0.0);
-        let datasets = vec![
-            Dataset::default()
-                .name("Avg")
-                .marker(symbols::Marker::Dot)
-                .graph_type(GraphType::Line)
-                .style(Style::default().cyan())
-                .data(data1.as_ref()),
-            Dataset::default()
-                .name("Max")
-                .marker(symbols::Marker::Dot)
-                .graph_type(GraphType::Line)
-                .style(Style::default().yellow())
-                .data(&data2),
-        ];
-
-        let x_axis = Axis::default()
-            // .title("Day".red())
-            .style(Style::default().white())
-            .bounds([0.0, len as f64])
-            .labels::<Vec<&str>>(self.x_axis_labels());
-
-        let y_axis = Axis::default()
-            .title("WPM".red())
-            .style(Style::default().white())
-            .bounds([0.0, max])
-            .labels([
-                "0".to_string(),
-                format!("{:.0}", max / 2.0),
-                format!("{max:.0}"),
-            ]);
-
-        let chart = Chart::new(datasets)
-            .block(
-                Block::new()
-                    .title(format!("WPM ({})", self.title()).bold())
-                    .title_alignment(Alignment::Center),
-            )
-            .x_axis(x_axis)
-            .y_axis(y_axis);
-
-        f.render_widget(chart, rect);
+    fn normalize_map(&mut self, data: anyhow::Result<RangeResponse>) -> HashMap<String, f64> {
+        match data {
+            Ok(data) => data.normalize_frequencies(),
+            Err(err) => {
+                warn!("Failed fetching frequencies: {err:?}");
+                HashMap::new()
+            }
+        }
     }
 
     async fn update_data(&mut self) -> Option<Command> {
-        self.state.data1 = self
-            .metrics
-            .avg_wpm_for_range_normalized(self.state.start, self.state.end(), self.state.step())
-            .await
-            .ok();
-        self.state.data2 = self
-            .metrics
-            .max_wpm_for_range_normalized(self.state.start, self.state.end(), self.state.step())
-            .await
-            .ok();
+        let (start, end, step) = self.state.start_end_step();
+        self.state.data = match self.state.stat_type {
+            StatType::Wpm => StatData::from(vec![
+                self.normalize_vec(self.metrics.avg_wpm_for_range(start, end, step).await),
+                self.normalize_vec(self.metrics.max_wpm_for_range(start, end, step).await),
+            ]),
+            StatType::TotalKeyPress => StatData::from(vec![
+                self.normalize_vec(
+                    self.metrics
+                        .total_key_presses_for_range(start, end, step)
+                        .await,
+                ),
+            ]),
+            StatType::KeyFrequency => StatData::Frequency(
+                self.normalize_map(
+                    self.metrics
+                        .key_frequency_for_range(start, end, (end - start) + 1)
+                        .await,
+                ),
+            ),
+        };
         Some(Command::Render)
+    }
+
+    async fn update_after<F>(&mut self, op: F) -> Option<Command>
+    where
+        F: FnOnce(&mut State),
+    {
+        op(&mut self.state);
+        self.update_data().await
     }
 }
 
@@ -146,21 +128,19 @@ impl UiApp for Stats {
             }
             AppMsg::Backend(DomainEvent::KeyRelease(key, _)) => match *key {
                 KeyCode::KEY_ESC => Some(Command::RunApp("menu")),
-                KeyCode::KEY_LEFT => {
-                    self.state.prev();
-                    self.update_data().await
-                }
-                KeyCode::KEY_RIGHT => {
-                    self.state.next();
-                    self.update_data().await
-                }
+                KeyCode::KEY_LEFT => self.update_after(|state| state.prev()).await,
+                KeyCode::KEY_RIGHT => self.update_after(|state| state.next()).await,
                 KeyCode::KEY_UP => {
-                    self.state.reset_with_period(self.state.period.next());
-                    self.update_data().await
+                    self.update_after(|state| state.reset_with_period(state.period.next()))
+                        .await
                 }
                 KeyCode::KEY_DOWN => {
-                    self.state.reset_with_period(self.state.period.prev());
-                    self.update_data().await
+                    self.update_after(|state| state.reset_with_period(state.period.prev()))
+                        .await
+                }
+                KeyCode::KEY_SPACE => {
+                    self.update_after(|state| state.reset_with_type(state.stat_type.next()))
+                        .await
                 }
                 _ => None,
             },
@@ -179,7 +159,17 @@ impl UiApp for Stats {
             .constraints([Constraint::Fill(1)].repeat(4))
             .split(layout[1]);
 
-        self.render_chart(f, layout[0]);
+        match self.state.stat_type {
+            StatType::Wpm | StatType::TotalKeyPress => {
+                LineChartRenderer::new(&self.state, self.title().into()).render(f, layout[0]);
+            }
+            StatType::KeyFrequency => {
+                if let StatData::Frequency(ref freqs) = self.state.data {
+                    KeyHeatmapRenderer::new(freqs, self.title().into()).render(f, layout[0]);
+                }
+            }
+        }
+
         f.render_widget(" \u{f06c1} \u{f06c2} Prev/next".gray(), bottom_layout[0]);
         f.render_widget("\u{f06c3} \u{f06c0} Period".gray(), bottom_layout[1]);
         f.render_widget(
