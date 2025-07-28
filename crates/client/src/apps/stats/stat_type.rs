@@ -23,7 +23,7 @@ impl fmt::Display for StatType {
         let name = match self {
             StatType::Wpm => "WPM",
             StatType::TotalKeyPress => "Key Presses",
-            StatType::KeyFrequency => "Key Frequency",
+            StatType::KeyFrequency => "Key Frequencies",
         };
         write!(f, "{name}")
     }
