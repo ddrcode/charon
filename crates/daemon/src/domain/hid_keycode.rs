@@ -1,7 +1,7 @@
 use evdev::KeyCode;
 use std::{fmt, str::FromStr};
 
-use crate::error::KOSError;
+use crate::error::CharonError;
 
 /// Represents a USB HID Usage ID for a key.
 /// See: https://www.usb.org/sites/default/files/hut1_3_0.pdf for details
@@ -143,7 +143,7 @@ impl HidKeyCode {
         0
     }
 
-    pub fn seq_from_char(c: char) -> Result<Vec<Self>, KOSError> {
+    pub fn seq_from_char(c: char) -> Result<Vec<Self>, CharonError> {
         use HidKeyCode::*;
         let mut seq = Vec::with_capacity(4);
         let mut c = c;
@@ -202,7 +202,7 @@ impl HidKeyCode {
             ',' => KEY_COMMA,
             '.' => KEY_DOT,
             '/' => KEY_SLASH,
-            _ => return Err(KOSError::UnsupportedCharacter(c)),
+            _ => return Err(CharonError::UnsupportedCharacter(c)),
         };
 
         seq.push(key_code);
@@ -217,7 +217,7 @@ impl From<HidKeyCode> for u8 {
 }
 
 impl TryFrom<u8> for HidKeyCode {
-    type Error = KOSError;
+    type Error = CharonError;
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         use HidKeyCode::*;
@@ -338,7 +338,7 @@ impl TryFrom<u8> for HidKeyCode {
             0xE6 => KEY_RIGHTALT,
             0xE7 => KEY_RIGHTMETA,
 
-            _ => return Err(KOSError::UnsupportedCharacter(value.into())),
+            _ => return Err(CharonError::UnsupportedCharacter(value.into())),
         };
         Ok(val)
     }
@@ -350,13 +350,13 @@ macro_rules! match_key {
             $(
                 KeyCode::$name => HidKeyCode::$name,
             )*
-            other => return Err(KOSError::UnsupportedKeyCode(other)),
+            other => return Err(CharonError::UnsupportedKeyCode(other)),
         }
     };
 }
 
 impl TryFrom<&KeyCode> for HidKeyCode {
-    type Error = KOSError;
+    type Error = CharonError;
 
     fn try_from(kc: &KeyCode) -> Result<Self, Self::Error> {
         Ok(match_key!(
@@ -585,7 +585,7 @@ impl fmt::Display for HidKeyCode {
 }
 
 impl FromStr for HidKeyCode {
-    type Err = KOSError;
+    type Err = CharonError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         use HidKeyCode::*;
@@ -667,7 +667,7 @@ impl FromStr for HidKeyCode {
             "RIGHT" => KEY_RIGHT,
             "NUMLOCK" => KEY_NUMLOCK,
             "SCROLLLOCK" => KEY_SCROLLLOCK,
-            other => return Err(KOSError::UnsupportedKeyName(other.into())),
+            other => return Err(CharonError::UnsupportedKeyName(other.into())),
         };
         Ok(key)
     }

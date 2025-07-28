@@ -4,7 +4,7 @@ use std::{
     path::PathBuf,
 };
 
-use tracing::{debug, info};
+use tracing::{debug, error, info};
 
 use crate::config::InputConfig;
 
@@ -22,7 +22,7 @@ pub(crate) fn find_input_device(conf: &InputConfig) -> Option<PathBuf> {
     if let Some(device) = &maybe_device {
         info!("Keyboard found: {:?}", device);
     } else {
-        info!("Device not found for {:?}", conf);
+        error!("Device not found for {:?}", conf);
     }
 
     maybe_device

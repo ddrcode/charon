@@ -2,12 +2,13 @@ use std::{collections::HashMap, time::Duration};
 
 use charon_lib::event::{DomainEvent, Event};
 use tokio::{select, task::JoinHandle};
-use tracing::{info, warn};
+use tracing::{error, info, warn};
 use uuid::Uuid;
 
 use crate::{
     actor::telemetry::MetricsManager,
     domain::{ActorState, traits::Actor},
+    error::CharonError,
 };
 
 pub struct Telemetry {
@@ -17,11 +18,11 @@ pub struct Telemetry {
 }
 
 impl Telemetry {
-    pub fn new(state: ActorState) -> Self {
+    pub fn new(state: ActorState, metrics: MetricsManager) -> Self {
         Self {
             state,
             events: HashMap::with_capacity(1024),
-            metrics: MetricsManager::new().unwrap(),
+            metrics,
         }
     }
 
@@ -68,9 +69,10 @@ impl Actor for Telemetry {
         "Telemetry"
     }
 
-    fn spawn(state: ActorState, (): ()) -> JoinHandle<()> {
-        let mut telemetry = Telemetry::new(state);
-        tokio::spawn(async move { telemetry.run().await })
+    fn spawn(state: ActorState, (): ()) -> Result<JoinHandle<()>, CharonError> {
+        let metrics = MetricsManager::new()?;
+        let mut telemetry = Telemetry::new(state, metrics);
+        Ok(tokio::spawn(async move { telemetry.run().await }))
     }
 
     async fn run(&mut self) {

@@ -4,7 +4,7 @@ use charon_lib::event::{DomainEvent, Event};
 use tokio::task::JoinHandle;
 use tracing::{info, warn};
 
-use crate::domain::ActorState;
+use crate::{domain::ActorState, error::CharonError};
 
 #[async_trait::async_trait]
 pub trait Actor {
@@ -73,5 +73,5 @@ pub trait Actor {
     async fn init(&mut self) {}
     async fn shutdown(&mut self) {}
 
-    fn spawn(state: ActorState, init: Self::Init) -> JoinHandle<()>;
+    fn spawn(state: ActorState, init: Self::Init) -> Result<JoinHandle<()>, CharonError>;
 }

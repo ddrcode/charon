@@ -3,6 +3,7 @@ use std::path::{Path, PathBuf};
 
 use crate::domain::ActorState;
 use crate::domain::traits::Actor;
+use crate::error::CharonError;
 use charon_lib::event::{DomainEvent, Event};
 use tokio::sync::mpsc;
 use tokio::{net::UnixListener, task::JoinHandle};
@@ -56,12 +57,13 @@ impl Actor for IPCServer {
         "IPCServer"
     }
 
-    fn spawn(state: ActorState, (): ()) -> JoinHandle<()> {
+    fn spawn(state: ActorState, (): ()) -> Result<JoinHandle<()>, CharonError> {
         let path = state.config().server_socket.clone();
         let mut ipc_server = IPCServer::new(state, &path);
-        tokio::spawn(async move {
+        let handle = tokio::spawn(async move {
             ipc_server.run().await;
-        })
+        });
+        Ok(handle)
     }
 
     async fn tick(&mut self) {

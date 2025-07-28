@@ -6,6 +6,7 @@ use tokio::{io::unix::AsyncFd, task::JoinHandle};
 use crate::{
     devices::evdev::find_input_device,
     domain::{ActorState, traits::Actor},
+    error::CharonError,
 };
 use evdev::{Device, EventSummary, InputEvent};
 use tracing::{debug, error, warn};
@@ -148,13 +149,15 @@ impl Actor for KeyScanner {
         "KeyScanner"
     }
 
-    fn spawn(state: ActorState, keyboard_name: String) -> JoinHandle<()> {
+    fn spawn(state: ActorState, keyboard_name: String) -> Result<JoinHandle<()>, CharonError> {
         let input = &state.config().keyboard;
-        let device_path = find_input_device(input).expect("Couldn't find keyboard device");
+        let device_path = find_input_device(input)
+            .ok_or_else(|| CharonError::KeyboardNotFound(keyboard_name.clone()))?;
         let mut scanner = KeyScanner::new(state, device_path, keyboard_name);
-        tokio::task::spawn(async move {
+        let handle = tokio::task::spawn(async move {
             scanner.run().await;
-        })
+        });
+        Ok(handle)
     }
 
     fn state(&self) -> &ActorState {

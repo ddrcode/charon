@@ -7,6 +7,7 @@ use tracing::debug;
 use crate::{
     devices::HIDKeyboard,
     domain::{ActorState, traits::Actor},
+    error::CharonError,
 };
 
 pub struct KeyWriter {
@@ -47,12 +48,14 @@ impl KeyWriter {
 
     async fn send_telemetry(&mut self, event: &Event) {
         if self.state.config().enable_telemetry {
-            self.send_raw(Event::with_source_id(
-                self.id(),
-                DomainEvent::ReportSent(),
-                event.source_event_id.unwrap().clone(),
-            ))
-            .await;
+            if let Some(source_id) = event.source_event_id {
+                self.send_raw(Event::with_source_id(
+                    self.id(),
+                    DomainEvent::ReportSent(),
+                    source_id,
+                ))
+                .await;
+            }
         }
     }
 }
@@ -65,10 +68,10 @@ impl Actor for KeyWriter {
         "KeyWriter"
     }
 
-    fn spawn(state: ActorState, (): ()) -> JoinHandle<()> {
+    fn spawn(state: ActorState, (): ()) -> Result<JoinHandle<()>, CharonError> {
         let dev = state.config().hid_keyboard.clone();
         let mut writer = KeyWriter::new(state, &dev);
-        tokio::spawn(async move { writer.run().await })
+        Ok(tokio::spawn(async move { writer.run().await }))
     }
 
     async fn tick(&mut self) {

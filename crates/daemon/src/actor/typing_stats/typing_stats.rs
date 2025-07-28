@@ -9,7 +9,10 @@ use tokio::{select, task::JoinHandle};
 use tracing::{error, info};
 
 use super::WPMCounter;
-use crate::domain::{ActorState, traits::Actor};
+use crate::{
+    domain::{ActorState, traits::Actor},
+    error::CharonError,
+};
 
 pub struct TypingStats {
     state: ActorState,
@@ -85,9 +88,9 @@ impl Actor for TypingStats {
         "TypingStats"
     }
 
-    fn spawn(state: ActorState, (): ()) -> JoinHandle<()> {
+    fn spawn(state: ActorState, (): ()) -> Result<JoinHandle<()>, CharonError> {
         let mut stats = TypingStats::new(state);
-        tokio::spawn(async move { stats.run().await })
+        Ok(tokio::spawn(async move { stats.run().await }))
     }
 
     async fn init(&mut self) {

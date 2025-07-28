@@ -3,12 +3,12 @@ use tokio::{
     fs::{read_to_string, remove_file},
     task::JoinHandle,
 };
-use tracing::warn;
+use tracing::{debug, warn};
 use uuid::Uuid;
 
 use crate::{
     domain::{ActorState, HidKeyCode, KeyboardState, traits::Actor},
-    error::KOSError,
+    error::CharonError,
 };
 
 pub struct Typist {
@@ -68,6 +68,7 @@ impl Typist {
                 return;
             }
         }
+        debug!("Typing completed");
 
         let event = Event::with_source_id(self.id(), DomainEvent::TextSent, source_id.clone());
         self.send_raw(event).await;
@@ -78,7 +79,8 @@ impl Typist {
         path: &String,
         remove: bool,
         source_id: &Uuid,
-    ) -> Result<(), KOSError> {
+    ) -> Result<(), CharonError> {
+        debug!("Typing text from file: {path}");
         let text = read_to_string(path).await?;
         self.send_string(&text, source_id).await;
         if remove {
@@ -96,10 +98,10 @@ impl Actor for Typist {
         "Typist"
     }
 
-    fn spawn(state: ActorState, (): ()) -> JoinHandle<()> {
+    fn spawn(state: ActorState, (): ()) -> Result<JoinHandle<()>, CharonError> {
         let speed = state.config().typing_interval;
         let mut writer = Typist::new(state, speed);
-        tokio::spawn(async move { writer.run().await })
+        Ok(tokio::spawn(async move { writer.run().await }))
     }
 
     async fn tick(&mut self) {

@@ -1,9 +1,12 @@
 use charon_lib::event::DomainEvent;
 use tokio::task::JoinHandle;
 
-use crate::domain::{
-    ActorState,
-    traits::{Actor, Processor},
+use crate::{
+    domain::{
+        ActorState,
+        traits::{Actor, Processor},
+    },
+    error::CharonError,
 };
 
 pub struct Pipeline {
@@ -19,11 +22,12 @@ impl Actor for Pipeline {
         "Pipeline"
     }
 
-    fn spawn(state: ActorState, processors: Self::Init) -> JoinHandle<()> {
+    fn spawn(state: ActorState, processors: Self::Init) -> Result<JoinHandle<()>, CharonError> {
         let mut actor = Pipeline { state, processors };
-        tokio::spawn(async move {
+        let handle = tokio::spawn(async move {
             actor.run().await;
-        })
+        });
+        Ok(handle)
     }
 
     async fn tick(&mut self) {

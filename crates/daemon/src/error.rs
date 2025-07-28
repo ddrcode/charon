@@ -4,7 +4,7 @@ use thiserror;
 use tokio::sync::mpsc::error::SendError;
 
 #[derive(Debug, thiserror::Error)]
-pub enum KOSError {
+pub enum CharonError {
     #[error("Couldn't handle the keycode: {0:?}")]
     UnsupportedKeyCode(KeyCode),
 
@@ -20,9 +20,15 @@ pub enum KOSError {
     #[error("Unsupported key name: {0}")]
     UnsupportedKeyName(String),
 
+    #[error("Couldn't find requested keyboard: {0}")]
+    KeyboardNotFound(String),
+
     #[error("Event channel error: {0}")]
     EventChannelError(#[from] SendError<Event>),
 
     #[error("IO error: {0}")]
     IOError(#[from] std::io::Error),
+
+    #[error("Prometheus error: {0}")]
+    PrometheusError(#[from] prometheus::Error),
 }

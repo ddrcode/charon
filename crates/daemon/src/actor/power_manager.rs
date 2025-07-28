@@ -4,7 +4,10 @@ use charon_lib::event::{DomainEvent, Event};
 use tokio::{process::Command, task::JoinHandle};
 use tracing::{error, info, warn};
 
-use crate::domain::{ActorState, traits::Actor};
+use crate::{
+    domain::{ActorState, traits::Actor},
+    error::CharonError,
+};
 
 pub struct PowerManager {
     state: ActorState,
@@ -80,11 +83,12 @@ impl Actor for PowerManager {
         "PowerManager"
     }
 
-    fn spawn(state: ActorState, (): ()) -> JoinHandle<()> {
+    fn spawn(state: ActorState, (): ()) -> Result<JoinHandle<()>, CharonError> {
         let mut power_mngr = PowerManager::new(state);
-        tokio::task::spawn(async move {
+        let handle = tokio::task::spawn(async move {
             power_mngr.run().await;
-        })
+        });
+        Ok(handle)
     }
 
     fn state(&self) -> &ActorState {
