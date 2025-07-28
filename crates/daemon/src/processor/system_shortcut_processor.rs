@@ -98,11 +98,10 @@ impl Processor for SystemShortcutProcessor {
     async fn process(&mut self, event: Event) -> Vec<Event> {
         match &event.payload {
             DomainEvent::HidReport(report) => {
-                if self
-                    .handle_report(&report, event.source_event_id.unwrap())
-                    .await
-                {
-                    self.events.push(event);
+                if let Some(source_id) = event.source_event_id {
+                    if self.handle_report(&report, source_id).await {
+                        self.events.push(event);
+                    }
                 }
             }
             _ => self.events.push(event),

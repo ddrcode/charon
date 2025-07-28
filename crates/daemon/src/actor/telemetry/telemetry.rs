@@ -36,11 +36,13 @@ impl Telemetry {
                 self.events.insert(event.id, event.timestamp);
             }
             DomainEvent::ReportConsumed() => {
-                self.events.remove(&event.source_event_id.unwrap());
+                if let Some(ref source_id) = event.source_event_id {
+                    self.events.remove(source_id);
+                }
             }
             DomainEvent::ReportSent() => {
-                if let Some(source_id) = event.source_event_id {
-                    if let Some(timestamp) = self.events.remove(&source_id) {
+                if let Some(ref source_id) = event.source_event_id {
+                    if let Some(timestamp) = self.events.remove(source_id) {
                         if let Some(diff) = event.timestamp.checked_sub(timestamp) {
                             self.metrics.register_key_to_report_time(diff);
                         }

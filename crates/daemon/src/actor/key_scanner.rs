@@ -39,13 +39,10 @@ pub struct KeyScanner {
 }
 
 impl KeyScanner {
-    pub fn new(state: ActorState, device_path: PathBuf, keyboard_name: String) -> Self {
-        let device = Device::open(device_path).unwrap();
-        let async_dev = AsyncFd::new(device).unwrap();
-
+    pub fn new(state: ActorState, device: AsyncFd<Device>, keyboard_name: String) -> Self {
         KeyScanner {
             state,
-            device: async_dev,
+            device,
             keyboard_name,
             should_handle_grab: None,
             keyboard_state: HashSet::new(),
@@ -153,7 +150,9 @@ impl Actor for KeyScanner {
         let input = &state.config().keyboard;
         let device_path = find_input_device(input)
             .ok_or_else(|| CharonError::KeyboardNotFound(keyboard_name.clone()))?;
-        let mut scanner = KeyScanner::new(state, device_path, keyboard_name);
+        let device = Device::open(device_path)?;
+        let async_dev = AsyncFd::new(device)?;
+        let mut scanner = KeyScanner::new(state, async_dev, keyboard_name);
         let handle = tokio::task::spawn(async move {
             scanner.run().await;
         });

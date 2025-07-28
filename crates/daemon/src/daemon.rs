@@ -55,7 +55,9 @@ impl Daemon {
 
     pub async fn shutdown(&mut self) {
         for handle in self.tasks.drain(..) {
-            handle.await.unwrap();
+            if let Err(err) = handle.await {
+                error!("Error while sutting down an actor: {err}");
+            }
         }
     }
 
