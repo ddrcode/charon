@@ -1,6 +1,7 @@
-use std::ops::Range;
+use std::{collections::HashMap, ops::Range};
 
 use serde::Deserialize;
+use tracing::debug;
 
 #[derive(Debug, Deserialize)]
 pub struct RangeResponse {
@@ -35,6 +36,39 @@ impl RangeResponse {
             .iter()
             .enumerate()
             .map(|(idx, val)| (idx as f64, *val))
+            .collect()
+    }
+
+    pub fn into_map(&self) -> HashMap<String, Option<f64>> {
+        self.data
+            .result
+            .iter()
+            .map(|r| {
+                let key = match r.metric.get("key").unwrap() {
+                    serde_json::Value::String(s) => s.clone(),
+                    _ => String::from("unknown"),
+                };
+                let val = if let Some((_, val)) = r.values.get(0) {
+                    val.parse().ok()
+                } else {
+                    None
+                };
+                (key, val)
+            })
+            .collect()
+    }
+
+    pub fn normalize_frequencies(&self) -> HashMap<String, f64> {
+        self.into_map()
+            .iter()
+            .filter_map(|(key, val)| {
+                if let Some(val) = val {
+                    Some((key.clone(), *val))
+                } else {
+                    debug!("No value for key {key}");
+                    None
+                }
+            })
             .collect()
     }
 }

@@ -1,4 +1,4 @@
-use std::{borrow::Cow, convert::identity, sync::Arc};
+use std::{borrow::Cow, collections::HashMap, sync::Arc};
 
 use charon_lib::event::DomainEvent;
 use evdev::KeyCode;
@@ -7,11 +7,11 @@ use ratatui::{
     layout::{Constraint, Direction, Layout},
     style::Stylize,
 };
-use tracing::{info, warn};
+use tracing::warn;
 
-use super::{LineChartRenderer, State, StatsPeriod};
+use super::{LineChartRenderer, StatData, State, StatsPeriod};
 use crate::{
-    apps::stats::StatType,
+    apps::stats::{KeyHeatmapRenderer, StatType},
     domain::{AppMsg, Command, Context, traits::UiApp},
     repository::metrics::{MetricsRepository, RangeResponse},
 };
@@ -54,13 +54,27 @@ impl Stats {
         }
     }
 
-    fn normalize(&mut self, data: anyhow::Result<RangeResponse>) -> Option<Vec<(f64, f64)>> {
+    fn title(&self) -> String {
+        format!("{} ({})", self.state.stat_type, self.period_name())
+    }
+
+    fn normalize_vec(&mut self, data: anyhow::Result<RangeResponse>) -> Option<Vec<(f64, f64)>> {
         let (start, end, _) = self.state.start_end_step();
         match data {
             Ok(data) => Some(data.normalize_with_zeros(start..end, self.state.resolution)),
             Err(err) => {
-                warn!("Failed fetching metrics (data1): {err:?}");
+                warn!("Failed fetching range data: {err:?}");
                 None
+            }
+        }
+    }
+
+    fn normalize_map(&mut self, data: anyhow::Result<RangeResponse>) -> HashMap<String, f64> {
+        match data {
+            Ok(data) => data.normalize_frequencies(),
+            Err(err) => {
+                warn!("Failed fetching frequencies: {err:?}");
+                HashMap::new()
             }
         }
     }
@@ -68,21 +82,25 @@ impl Stats {
     async fn update_data(&mut self) -> Option<Command> {
         let (start, end, step) = self.state.start_end_step();
         self.state.data = match self.state.stat_type {
-            StatType::Wpm => vec![
-                self.normalize(self.metrics.avg_wpm_for_range(start, end, step).await),
-                self.normalize(self.metrics.max_wpm_for_range(start, end, step).await),
-            ],
-            StatType::TotalKeyPress => vec![
-                self.normalize(
+            StatType::Wpm => StatData::from(vec![
+                self.normalize_vec(self.metrics.avg_wpm_for_range(start, end, step).await),
+                self.normalize_vec(self.metrics.max_wpm_for_range(start, end, step).await),
+            ]),
+            StatType::TotalKeyPress => StatData::from(vec![
+                self.normalize_vec(
                     self.metrics
                         .total_key_presses_for_range(start, end, step)
                         .await,
                 ),
-            ],
-        }
-        .into_iter()
-        .filter_map(identity)
-        .collect();
+            ]),
+            StatType::KeyFrequency => StatData::Frequency(
+                self.normalize_map(
+                    self.metrics
+                        .key_frequency_for_range(start, end, (end - start) + 1)
+                        .await,
+                ),
+            ),
+        };
         Some(Command::Render)
     }
 
@@ -131,7 +149,6 @@ impl UiApp for Stats {
     }
 
     fn render(&self, f: &mut Frame) {
-        info!("AREA----> {:?}", f.area());
         let layout = Layout::default()
             .direction(Direction::Vertical)
             .constraints(vec![Constraint::Percentage(99), Constraint::Length(1)])
@@ -144,7 +161,12 @@ impl UiApp for Stats {
 
         match self.state.stat_type {
             StatType::Wpm | StatType::TotalKeyPress => {
-                LineChartRenderer::new(&self.state, self.period_name()).render(f, layout[0]);
+                LineChartRenderer::new(&self.state, self.title().into()).render(f, layout[0]);
+            }
+            StatType::KeyFrequency => {
+                if let StatData::Frequency(ref freqs) = self.state.data {
+                    KeyHeatmapRenderer::new(freqs, self.title().into()).render(f, layout[0]);
+                }
             }
         }
 

@@ -1,7 +1,7 @@
 use chrono::{Days, Months, offset::LocalResult, prelude::*};
 use tracing::warn;
 
-use crate::apps::stats::{StatType, StatsPeriod};
+use super::{StatData, StatType, StatsPeriod};
 
 #[derive(Debug, Default)]
 pub struct State {
@@ -10,7 +10,7 @@ pub struct State {
     pub period: StatsPeriod,
     pub resolution: usize,
     pub shift: u16,
-    pub data: Vec<Vec<(f64, f64)>>,
+    pub data: StatData,
 }
 
 impl State {

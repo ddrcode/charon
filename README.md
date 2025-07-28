@@ -11,7 +11,7 @@ The ghost between your keyboard and your machine.
 - Power management - disables the screen and reduces CPU when inactive
 
 ## Limitations
-- It can't wake up the host from sleep by sending key presses. Current workaround - it can send WoL magic packet. 
+- It can't wake up the host from sleep by sending key presses. Current workaround - it can send WoL magic packet.
 
 ## Is it stable?
 
@@ -21,9 +21,10 @@ Yes. So far it hasn’t crashed — despite the prototype being held together wi
 ## Planned features
 
 - Keyboard-specific settings and statistics
-- Multi-keyboard: use one keyboard for typing and the other one for macros
+- Multi-keyboard: i.e. use one keyboard for typing and the other one for macros
 - Multiple layouts
 - Sending Unicode characters (OS-specific)
+- Mouse Pass-through
 
 ## Screenshots
 

@@ -58,4 +58,19 @@ impl MetricsRepository {
             .send::<RangeResponse>()
             .await
     }
+
+    pub async fn key_frequency_for_range(
+        &self,
+        start: u64,
+        end: u64,
+        step: u64,
+    ) -> anyhow::Result<RangeResponse> {
+        QueryBuilder::new(&self.client, &self.base_url)
+            .query(format!(
+                "sum by(user, key) (increase(key_presses_total[{step}s]))"
+            ))
+            .range(start, end, step)
+            .send::<RangeResponse>()
+            .await
+    }
 }

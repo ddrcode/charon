@@ -5,13 +5,15 @@ pub enum StatType {
     #[default]
     Wpm,
     TotalKeyPress,
+    KeyFrequency,
 }
 
 impl StatType {
     pub fn next(&self) -> StatType {
         match self {
             StatType::Wpm => Self::TotalKeyPress,
-            StatType::TotalKeyPress => Self::Wpm,
+            StatType::TotalKeyPress => Self::KeyFrequency,
+            StatType::KeyFrequency => Self::Wpm,
         }
     }
 }
@@ -21,6 +23,7 @@ impl fmt::Display for StatType {
         let name = match self {
             StatType::Wpm => "WPM",
             StatType::TotalKeyPress => "Key Presses",
+            StatType::KeyFrequency => "Key Frequency",
         };
         write!(f, "{name}")
     }

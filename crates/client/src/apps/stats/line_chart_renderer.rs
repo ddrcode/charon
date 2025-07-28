@@ -13,13 +13,19 @@ use super::{StatType, State};
 
 pub struct LineChartRenderer<'a> {
     state: &'a State,
-    period_name: Cow<'static, str>,
+    title: Cow<'static, str>,
+    data: Cow<'a, Vec<Vec<(f64, f64)>>>,
 }
 
 impl<'a> LineChartRenderer<'a> {
-    pub fn new(state: &'a State, period_name: Cow<'static, str>) -> Self {
-        Self { state, period_name }
+    pub fn new(state: &'a State, title: Cow<'static, str>) -> Self {
+        let data: Cow<'a, Vec<Vec<(f64, f64)>>> = match state.data {
+            super::StatData::TimeSeries(ref ts) => Cow::Borrowed(ts),
+            _ => Cow::Owned(Vec::new()),
+        };
+        Self { state, title, data }
     }
+
     fn x_axis_labels(&self) -> Vec<&str> {
         use super::StatsPeriod::*;
         match self.state.period {
@@ -39,8 +45,7 @@ impl<'a> LineChartRenderer<'a> {
     }
 
     fn compute_y_max(&self) -> f64 {
-        self.state
-            .data
+        self.data
             .iter()
             .flatten()
             .map(|(_, val)| val)
@@ -63,12 +68,10 @@ impl<'a> LineChartRenderer<'a> {
     }
 
     pub fn render(&self, f: &mut Frame, rect: Rect) {
-        let title = self.state.stat_type.to_string();
-        let len = self.state.data.iter().map(|d| d.len()).max().unwrap_or(0);
+        let len = self.data.iter().map(|d| d.len()).max().unwrap_or(0);
         let max = self.compute_y_max();
 
         let datasets = self
-            .state
             .data
             .iter()
             .enumerate()
@@ -99,7 +102,7 @@ impl<'a> LineChartRenderer<'a> {
         let chart = Chart::new(datasets)
             .block(
                 Block::new()
-                    .title(format!("{title} ({})", self.period_name).bold())
+                    .title(self.title.bold())
                     .title_alignment(Alignment::Center),
             )
             .x_axis(x_axis)
