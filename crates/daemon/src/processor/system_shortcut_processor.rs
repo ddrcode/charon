@@ -38,7 +38,6 @@ impl SystemShortcutProcessor {
             return self.state.mode().await == Mode::PassThrough;
         }
 
-        self.send_telemetry(parent_id);
         self.reset_hid(parent_id);
         false
     }
@@ -68,18 +67,6 @@ impl SystemShortcutProcessor {
                 Ok(_) => info!("Magic packet sent"),
                 Err(e) => error!("Error while sendimg magic packet: {e}"),
             }
-        }
-    }
-
-    fn send_telemetry(&mut self, parent_id: Uuid) {
-        let config = self.state.config();
-        if config.enable_telemetry {
-            let event = Event::with_source_id(
-                self.state.id.clone(),
-                DomainEvent::ReportConsumed(),
-                parent_id,
-            );
-            self.events.push(event);
         }
     }
 

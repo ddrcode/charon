@@ -1,12 +1,14 @@
-use std::{collections::HashSet, path::PathBuf};
+use std::collections::HashSet;
 
 use charon_lib::event::{DomainEvent, Event, Mode};
 use tokio::{io::unix::AsyncFd, task::JoinHandle};
 
 use crate::{
+    adapter::EvdevInputSource,
     devices::evdev::find_input_device,
     domain::{ActorState, traits::Actor},
     error::CharonError,
+    port::AsyncInputSource,
 };
 use evdev::{Device, EventSummary, InputEvent};
 use tracing::{debug, error, warn};
@@ -23,7 +25,7 @@ pub struct KeyScanner {
     state: ActorState,
 
     /// System input device (/dev/input)
-    device: AsyncFd<Device>,
+    input: Box<dyn AsyncInputSource>,
 
     /// Keyboard name added to every key event. Uses alias (if defined in config file)
     /// or device name as in /dev/input/by-id/
@@ -39,43 +41,41 @@ pub struct KeyScanner {
 }
 
 impl KeyScanner {
-    pub fn new(state: ActorState, device: AsyncFd<Device>, keyboard_name: String) -> Self {
+    pub fn new(state: ActorState, input: Box<dyn AsyncInputSource>, keyboard_name: String) -> Self {
         KeyScanner {
             state,
-            device,
+            input,
             keyboard_name,
             should_handle_grab: None,
             keyboard_state: HashSet::new(),
         }
     }
 
-    async fn handle_device_events(&mut self, key_events: Vec<InputEvent>) {
-        for event in key_events {
-            let payload = match event.destructure() {
-                // meaning of value: 0 - key release, 1 - key press, 2 - key repeat
-                EventSummary::Key(_, key, value) => match value {
-                    1 | 2 => {
-                        self.keyboard_state.insert(key.code());
-                        DomainEvent::KeyPress(key, self.keyboard_name.clone())
-                    }
-                    0 => {
-                        self.keyboard_state.remove(&key.code());
-                        DomainEvent::KeyRelease(key, self.keyboard_name.clone())
-                    }
-                    other => {
-                        warn!("Unhandled key event value: {}", other);
-                        continue;
-                    }
-                },
-                EventSummary::Synchronization(..) | EventSummary::Misc(..) => continue,
-                e => {
-                    warn!("Unhandled device event: {:?}", e);
-                    continue;
+    async fn handle_device_event(&mut self, key_event: InputEvent) {
+        let payload = match key_event.destructure() {
+            // meaning of value: 0 - key release, 1 - key press, 2 - key repeat
+            EventSummary::Key(_, key, value) => match value {
+                1 | 2 => {
+                    self.keyboard_state.insert(key.code());
+                    DomainEvent::KeyPress(key, self.keyboard_name.clone())
                 }
-            };
+                0 => {
+                    self.keyboard_state.remove(&key.code());
+                    DomainEvent::KeyRelease(key, self.keyboard_name.clone())
+                }
+                other => {
+                    warn!("Unhandled key event value: {}", other);
+                    return;
+                }
+            },
+            EventSummary::Synchronization(..) | EventSummary::Misc(..) => return,
+            e => {
+                warn!("Unhandled device event: {:?}", e);
+                return;
+            }
+        };
 
-            self.send(payload).await;
-        }
+        self.send(payload).await;
     }
 
     async fn handle_event(&mut self, event: &Event) {
@@ -109,8 +109,8 @@ impl KeyScanner {
     }
 
     fn grab(&mut self) {
-        if !self.device.get_ref().is_grabbed() {
-            if let Err(e) = self.device.get_mut().grab() {
+        if !self.input.is_grabbed() {
+            if let Err(e) = self.input.grab() {
                 error!("Couldn't grab the device: {}", e);
             }
         }
@@ -118,8 +118,8 @@ impl KeyScanner {
 
     fn ungrab(&mut self) {
         // use nix::sys::termios::{FlushArg, SetArg, tcflush, tcgetattr, tcsetattr};
-        if self.device.get_ref().is_grabbed() {
-            if let Err(e) = self.device.get_mut().ungrab() {
+        if self.input.is_grabbed() {
+            if let Err(e) = self.input.ungrab() {
                 error!("Couldn't ungrab the device: {}", e);
             }
             // if let Err(err) = tcflush(std::io::stdin(), FlushArg::TCIFLUSH.into()) {
@@ -147,12 +147,13 @@ impl Actor for KeyScanner {
     }
 
     fn spawn(state: ActorState, keyboard_name: String) -> Result<JoinHandle<()>, CharonError> {
-        let input = &state.config().keyboard;
-        let device_path = find_input_device(input)
+        let keyboard = &state.config().keyboard;
+        let device_path = find_input_device(keyboard)
             .ok_or_else(|| CharonError::KeyboardNotFound(keyboard_name.clone()))?;
         let device = Device::open(device_path)?;
         let async_dev = AsyncFd::new(device)?;
-        let mut scanner = KeyScanner::new(state, async_dev, keyboard_name);
+        let input = EvdevInputSource::new(async_dev);
+        let mut scanner = KeyScanner::new(state, Box::new(input), keyboard_name);
         let handle = tokio::task::spawn(async move {
             scanner.run().await;
         });
@@ -176,13 +177,8 @@ impl Actor for KeyScanner {
             Some(event) = self.state.receiver.recv() => {
                 self.handle_event(&event).await;
             }
-            ready = self.device.readable_mut() => {
-                let events = {
-                    let mut guard = ready.unwrap();
-                    let device = guard.get_mut().get_mut();
-                    device.fetch_events().unwrap().collect::<Vec<_>>()
-                };
-                self.handle_device_events(events).await;
+            Some(event) = self.input.next_event() => {
+                self.handle_device_event(event).await;
 
                 // grab/ungrab only when all keys are released
                 if self.should_handle_grab.is_some() && self.keyboard_state.is_empty() {
@@ -192,5 +188,92 @@ impl Actor for KeyScanner {
                 }
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::Arc;
+
+    use crate::{
+        adapter::evdev_input_source_mock::EvdevInputSourceMock, config::CharonConfig,
+        util::test::macros::*,
+    };
+
+    use super::*;
+    use evdev::KeyCode;
+    use tokio::{
+        self,
+        sync::{
+            RwLock,
+            mpsc::{self, Sender},
+        },
+    };
+
+    fn create_scanner(
+        scanner_tx: Sender<Event>,
+        input: EvdevInputSourceMock,
+    ) -> (KeyScanner, Sender<Event>) {
+        let (broker_tx, scanner_rx) = mpsc::channel::<Event>(16);
+        let state = ActorState::new(
+            "test-scanner".into(),
+            Arc::new(RwLock::new(Mode::PassThrough)),
+            scanner_tx,
+            scanner_rx,
+            CharonConfig::default(),
+        );
+        let scanner = KeyScanner::new(state, Box::new(input), "test-keyboard".into());
+        (scanner, broker_tx)
+    }
+
+    #[tokio::test]
+    async fn test_delayed_ungrab_after_key_release() {
+        let input = EvdevInputSourceMock::default();
+        let state = input.state().clone();
+        let (scanner_tx, mut broker_rx) = mpsc::channel::<Event>(16);
+        let (mut scanner, broker_tx) = create_scanner(scanner_tx, input);
+        scanner.init().await;
+
+        with_lock!(state, |lock| {
+            assert!(lock.grabbed, "Device must be grabbed after init");
+            assert_eq!(lock.grab_calls, 1);
+        });
+
+        {
+            state.lock().await.simulate_key_press(KeyCode::KEY_A);
+        }
+
+        scanner.tick().await;
+
+        broker_tx
+            .send(Event::new(
+                "test-broker".into(),
+                DomainEvent::ModeChange(Mode::InApp),
+            ))
+            .await
+            .unwrap();
+
+        scanner.tick().await;
+        assert_event_matches!(broker_rx, DomainEvent::KeyPress(KeyCode::KEY_A, ..));
+
+        with_lock!(state, |lock| {
+            assert!(
+                lock.grabbed,
+                "Device should remain grabbed until all keys are released"
+            );
+            assert_eq!(lock.ungrab_calls, 0);
+        });
+
+        {
+            state.lock().await.simulate_key_release(KeyCode::KEY_A);
+        }
+
+        scanner.tick().await;
+        assert_event_matches!(broker_rx, DomainEvent::KeyRelease(KeyCode::KEY_A, ..));
+
+        with_lock!(state, |lock| {
+            assert!(!lock.grabbed);
+            assert_eq!(lock.ungrab_calls, 1);
+        });
     }
 }

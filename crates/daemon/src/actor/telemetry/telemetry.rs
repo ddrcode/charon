@@ -1,8 +1,8 @@
-use std::{collections::HashMap, time::Duration};
-
 use charon_lib::event::{DomainEvent, Event};
+use lru_time_cache::LruCache;
+use std::time::Duration;
 use tokio::{select, task::JoinHandle};
-use tracing::{error, info, warn};
+use tracing::{info, warn};
 use uuid::Uuid;
 
 use crate::{
@@ -13,7 +13,7 @@ use crate::{
 
 pub struct Telemetry {
     state: ActorState,
-    events: HashMap<Uuid, u64>,
+    events: LruCache<Uuid, u64>,
     metrics: MetricsManager,
 }
 
@@ -21,7 +21,7 @@ impl Telemetry {
     pub fn new(state: ActorState, metrics: MetricsManager) -> Self {
         Self {
             state,
-            events: HashMap::with_capacity(1024),
+            events: LruCache::with_expiry_duration_and_capacity(Duration::from_secs(10), 1024),
             metrics,
         }
     }
@@ -34,11 +34,6 @@ impl Telemetry {
             }
             DomainEvent::KeyRelease(..) => {
                 self.events.insert(event.id, event.timestamp);
-            }
-            DomainEvent::ReportConsumed() => {
-                if let Some(ref source_id) = event.source_event_id {
-                    self.events.remove(source_id);
-                }
             }
             DomainEvent::ReportSent() => {
                 if let Some(ref source_id) = event.source_event_id {
