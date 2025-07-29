@@ -8,7 +8,7 @@ use tokio::{
     },
     task::JoinHandle,
 };
-use tracing::{debug, info};
+use tracing::{debug, error, info};
 
 use crate::{
     actor::{KeyScanner, Pipeline},
@@ -55,7 +55,9 @@ impl Daemon {
 
     pub async fn shutdown(&mut self) {
         for handle in self.tasks.drain(..) {
-            handle.await.unwrap();
+            if let Err(err) = handle.await {
+                error!("Error while sutting down an actor: {err}");
+            }
         }
     }
 
@@ -69,14 +71,16 @@ impl Daemon {
         let (pt_tx, pt_rx) = mpsc::channel::<Event>(128);
         self.broker.add_subscriber(pt_tx, name.clone(), topics);
         let state = ActorState::new(
-            name,
+            name.clone(),
             self.mode.clone(),
             self.event_tx.clone(),
             pt_rx,
             config,
         );
-        let task = T::spawn(state, init);
-        self.tasks.push(task);
+        match T::spawn(state, init) {
+            Ok(task) => self.tasks.push(task),
+            Err(err) => error!("Couldn't spawn an actor {name} due to error: {err}"),
+        }
         self
     }
 

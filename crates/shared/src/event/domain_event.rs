@@ -23,7 +23,6 @@ pub enum DomainEvent {
 
     // telemetry events
     ReportSent(),
-    ReportConsumed(),
 }
 
 impl DomainEvent {

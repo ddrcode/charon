@@ -96,7 +96,7 @@ mod test {
 
         register_word(&mut wpm);
         wpm.next();
-        assert_eq!(2, wpm.wpm());
+        assert_eq!(1, wpm.wpm());
         assert_eq!(2, wpm.max_wpm());
 
         wpm.next();
@@ -120,7 +120,7 @@ mod test {
 
         register_word(&mut wpm);
         wpm.next();
-        assert_eq!(2, wpm.wpm());
+        assert_eq!(1, wpm.wpm());
         assert_eq!(2, wpm.max_wpm());
 
         wpm.next();

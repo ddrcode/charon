@@ -1,6 +1,6 @@
 use std::{fmt, str::FromStr};
 
-use crate::error::KOSError;
+use crate::error::CharonError;
 
 use super::{HidKeyCode, Modifiers};
 
@@ -17,12 +17,12 @@ impl KeyShortcut {
 }
 
 impl FromStr for KeyShortcut {
-    type Err = KOSError;
+    type Err = CharonError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let parts: Vec<&str> = s.split('+').collect();
         if parts.is_empty() {
-            return Err(KOSError::InvalidKeyShortcut(s.into()));
+            return Err(CharonError::InvalidKeyShortcut(s.into()));
         }
 
         let mut modifiers = Modifiers::default();
@@ -35,7 +35,7 @@ impl FromStr for KeyShortcut {
                     "shift" => modifiers.add(Modifiers::LEFT_SHIFT),
                     "alt" => modifiers.add(Modifiers::LEFT_ALT),
                     "meta" | "cmd" | "super" => modifiers.add(Modifiers::LEFT_META),
-                    _ => return Err(KOSError::InvalidKeyShortcut(s.into())),
+                    _ => return Err(CharonError::InvalidKeyShortcut(s.into())),
                 }
             }
         }

@@ -1,6 +1,6 @@
-use std::{collections::HashMap, time::Duration};
-
 use charon_lib::event::{DomainEvent, Event};
+use lru_time_cache::LruCache;
+use std::time::Duration;
 use tokio::{select, task::JoinHandle};
 use tracing::{info, warn};
 use uuid::Uuid;
@@ -8,20 +8,21 @@ use uuid::Uuid;
 use crate::{
     actor::telemetry::MetricsManager,
     domain::{ActorState, traits::Actor},
+    error::CharonError,
 };
 
 pub struct Telemetry {
     state: ActorState,
-    events: HashMap<Uuid, u64>,
+    events: LruCache<Uuid, u64>,
     metrics: MetricsManager,
 }
 
 impl Telemetry {
-    pub fn new(state: ActorState) -> Self {
+    pub fn new(state: ActorState, metrics: MetricsManager) -> Self {
         Self {
             state,
-            events: HashMap::with_capacity(1024),
-            metrics: MetricsManager::new().unwrap(),
+            events: LruCache::with_expiry_duration_and_capacity(Duration::from_secs(10), 1024),
+            metrics,
         }
     }
 
@@ -34,12 +35,9 @@ impl Telemetry {
             DomainEvent::KeyRelease(..) => {
                 self.events.insert(event.id, event.timestamp);
             }
-            DomainEvent::ReportConsumed() => {
-                self.events.remove(&event.source_event_id.unwrap());
-            }
             DomainEvent::ReportSent() => {
-                if let Some(source_id) = event.source_event_id {
-                    if let Some(timestamp) = self.events.remove(&source_id) {
+                if let Some(ref source_id) = event.source_event_id {
+                    if let Some(timestamp) = self.events.remove(source_id) {
                         if let Some(diff) = event.timestamp.checked_sub(timestamp) {
                             self.metrics.register_key_to_report_time(diff);
                         }
@@ -68,9 +66,10 @@ impl Actor for Telemetry {
         "Telemetry"
     }
 
-    fn spawn(state: ActorState, (): ()) -> JoinHandle<()> {
-        let mut telemetry = Telemetry::new(state);
-        tokio::spawn(async move { telemetry.run().await })
+    fn spawn(state: ActorState, (): ()) -> Result<JoinHandle<()>, CharonError> {
+        let metrics = MetricsManager::new()?;
+        let mut telemetry = Telemetry::new(state, metrics);
+        Ok(tokio::spawn(async move { telemetry.run().await }))
     }
 
     async fn run(&mut self) {
