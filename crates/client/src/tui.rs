@@ -16,6 +16,6 @@ pub fn suspend_tui(terminal: &mut Terminal<CrosstermBackend<Stdout>>) -> anyhow:
 pub fn resume_tui(terminal: &mut Terminal<CrosstermBackend<Stdout>>) -> anyhow::Result<()> {
     enable_raw_mode()?;
     execute!(terminal.backend_mut(), EnterAlternateScreen)?;
-    terminal.show_cursor()?;
+    terminal.hide_cursor()?;
     Ok(())
 }

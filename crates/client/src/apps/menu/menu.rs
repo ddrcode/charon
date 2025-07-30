@@ -64,8 +64,9 @@ impl UiApp for Menu {
     async fn update(&mut self, msg: &AppMsg) -> Option<Command> {
         match msg {
             AppMsg::Backend(DomainEvent::KeyRelease(key, _)) => match *key {
-                KeyCode::KEY_Q => Some(Command::Exit),
                 KeyCode::KEY_E => Some(Command::RunApp("editor")),
+                KeyCode::KEY_P => Some(Command::RunApp("password")),
+                KeyCode::KEY_Q => Some(Command::Exit),
                 KeyCode::KEY_S => Some(Command::RunApp("stats")),
                 _ => None,
             },
