@@ -1,3 +1,6 @@
+use charon_lib::event::{DomainEvent, Event, Mode};
+use tokio::sync::mpsc::Sender;
+
 #[macro_use]
 pub(crate) mod macros {
 
@@ -23,4 +26,14 @@ pub(crate) mod macros {
     }
 
     pub(crate) use {assert_event_matches, with_lock};
+}
+
+pub async fn switch_mode(sender: &Sender<Event>, mode: Mode) {
+    sender
+        .send(Event::new(
+            "test-broker".into(),
+            DomainEvent::ModeChange(mode),
+        ))
+        .await
+        .expect("Message should be sent")
 }

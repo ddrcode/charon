@@ -191,11 +191,18 @@ impl Actor for KeyScanner {
     }
 }
 
+// -------------------------------------------------------------------
+// TESTS
+
 #[cfg(test)]
 mod tests {
     use std::sync::Arc;
 
-    use crate::{adapter::mock::EventDeviceMock, config::CharonConfig, util::test::macros::*};
+    use crate::{
+        adapter::mock::EventDeviceMock,
+        config::CharonConfig,
+        util::test::{macros::*, switch_mode},
+    };
 
     use super::*;
     use evdev::KeyCode;
@@ -232,8 +239,9 @@ mod tests {
         let (mut scanner, broker_tx) = create_scanner(scanner_tx, input);
         scanner.init().await;
 
+        // Initial state - Charon is in pass-through mode, so device is grabbed (on init)
         with_lock!(state, |lock| {
-            assert!(lock.grabbed, "Device must be grabbed after init");
+            assert!(lock.grabbed, "Device should be grabbed after init");
             assert_eq!(lock.grab_calls, 1);
         });
 
@@ -243,14 +251,9 @@ mod tests {
 
         scanner.tick().await;
 
-        broker_tx
-            .send(Event::new(
-                "test-broker".into(),
-                DomainEvent::ModeChange(Mode::InApp),
-            ))
-            .await
-            .unwrap();
-
+        // Mode is switched to in-app, but device remains grabbed until all keys
+        // are released
+        switch_mode(&broker_tx, Mode::InApp).await;
         scanner.tick().await;
         assert_event_matches!(broker_rx, DomainEvent::KeyPress(KeyCode::KEY_A, ..));
 
@@ -262,6 +265,7 @@ mod tests {
             assert_eq!(lock.ungrab_calls, 0);
         });
 
+        // Releasing the key should materialize the ungrab request
         {
             state.lock().await.simulate_key_release(KeyCode::KEY_A);
         }
@@ -272,6 +276,26 @@ mod tests {
         with_lock!(state, |lock| {
             assert!(!lock.grabbed);
             assert_eq!(lock.ungrab_calls, 1);
+        });
+
+        // Grabbing / ungrabbing shouldn't be called on 2nd switch to the same mode
+        switch_mode(&broker_tx, Mode::InApp).await;
+        scanner.tick().await;
+
+        with_lock!(state, |lock| {
+            assert!(!lock.grabbed);
+            assert_eq!(lock.ungrab_calls, 1);
+        });
+
+        // Finally, grabbing (when no key events pending) should happen
+        // immediately on mode change
+        switch_mode(&broker_tx, Mode::PassThrough).await;
+        scanner.tick().await;
+
+        with_lock!(state, |lock| {
+            assert!(lock.grabbed);
+            assert_eq!(lock.ungrab_calls, 1);
+            assert_eq!(lock.grab_calls, 2);
         });
     }
 }
