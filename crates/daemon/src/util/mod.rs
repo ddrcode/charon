@@ -1,3 +1,4 @@
+pub mod evdev;
 pub mod system;
 
 #[cfg(test)]

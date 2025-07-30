@@ -1,3 +1,5 @@
-mod async_input_source;
+mod event_device;
+mod hid_device;
 
-pub use async_input_source::AsyncInputSource;
+pub use event_device::EventDevice;
+pub use hid_device::HIDDevice;

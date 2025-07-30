@@ -67,6 +67,7 @@ impl Daemon {
         init: T::Init,
         topics: &'static [Topic],
         config: CharonConfig,
+        processors: Vec<Box<dyn Processor + Send + Sync>>,
     ) -> &mut Self {
         let (pt_tx, pt_rx) = mpsc::channel::<Event>(128);
         self.broker.add_subscriber(pt_tx, name.clone(), topics);
@@ -76,6 +77,7 @@ impl Daemon {
             self.event_tx.clone(),
             pt_rx,
             config,
+            processors,
         );
         match T::spawn(state, init) {
             Ok(task) => self.tasks.push(task),
@@ -85,7 +87,13 @@ impl Daemon {
     }
 
     pub fn add_actor<T: Actor<Init = ()>>(&mut self, topics: &'static [Topic]) -> &mut Self {
-        self.register_actor::<T>(T::name().into(), (), topics, self.config.clone())
+        self.register_actor::<T>(
+            T::name().into(),
+            (),
+            topics,
+            self.config.clone(),
+            Vec::new(),
+        )
     }
 
     pub fn add_actor_conditionally<T: Actor<Init = ()>>(
@@ -107,6 +115,7 @@ impl Daemon {
                 name,
                 topics,
                 config,
+                Vec::new(),
             );
         }
         self
@@ -117,7 +126,29 @@ impl Daemon {
         init: T::Init,
         topics: &'static [Topic],
     ) -> &mut Self {
-        self.register_actor::<T>(T::name().into(), init, topics, self.config.clone())
+        self.register_actor::<T>(
+            T::name().into(),
+            init,
+            topics,
+            self.config.clone(),
+            Vec::new(),
+        )
+    }
+
+    pub fn add_actor_with_processors<T: Actor<Init = ()>>(
+        &mut self,
+        topics: &'static [Topic],
+        factories: &[ProcessorCtor],
+    ) -> &mut Self {
+        let state = ProcessorState::new(T::name().into(), self.mode.clone(), self.config.clone());
+        let processors: Vec<_> = factories.iter().map(|f| f(state.clone())).collect();
+        self.register_actor::<T>(
+            T::name().into(),
+            (),
+            topics,
+            self.config.clone(),
+            processors,
+        )
     }
 
     pub fn add_pipeline(
@@ -128,7 +159,7 @@ impl Daemon {
     ) -> &mut Self {
         let state = ProcessorState::new(name.into(), self.mode.clone(), self.config.clone());
         let processors: Vec<_> = factories.iter().map(|f| f(state.clone())).collect();
-        self.register_actor::<Pipeline>(name.into(), processors, topics, self.config.clone());
+        self.register_actor::<Pipeline>(name.into(), (), topics, self.config.clone(), processors);
         self
     }
 

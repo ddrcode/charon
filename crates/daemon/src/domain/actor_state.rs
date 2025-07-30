@@ -6,7 +6,7 @@ use tokio::sync::{
     mpsc::{Receiver, Sender},
 };
 
-use crate::config::CharonConfig;
+use crate::{config::CharonConfig, domain::traits::Processor};
 
 pub struct ActorState {
     pub(crate) id: Cow<'static, str>,
@@ -15,6 +15,7 @@ pub struct ActorState {
     pub(crate) receiver: Receiver<Event>,
     mode: Arc<RwLock<Mode>>,
     config: CharonConfig,
+    processors: Vec<Box<dyn Processor + Send + Sync>>,
 }
 
 impl ActorState {
@@ -24,6 +25,7 @@ impl ActorState {
         sender: Sender<Event>,
         receiver: Receiver<Event>,
         config: CharonConfig,
+        processors: Vec<Box<dyn Processor + Send + Sync>>,
     ) -> Self {
         Self {
             id,
@@ -32,6 +34,7 @@ impl ActorState {
             sender,
             receiver,
             config,
+            processors,
         }
     }
 
@@ -49,5 +52,15 @@ impl ActorState {
 
     pub fn clone_mode(&self) -> Arc<RwLock<Mode>> {
         self.mode.clone()
+    }
+
+    pub fn has_processors(&self) -> bool {
+        !self.processors.is_empty()
+    }
+
+    pub fn iter_processors(
+        &mut self,
+    ) -> impl Iterator<Item = &mut Box<dyn Processor + Send + Sync>> {
+        self.processors.iter_mut()
     }
 }

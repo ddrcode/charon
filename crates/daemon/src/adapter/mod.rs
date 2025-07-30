@@ -1,6 +1,8 @@
-mod evdev_input_source;
+mod event_device_unix;
+mod hid_device_unix;
 
 #[cfg(test)]
-pub mod evdev_input_source_mock;
+pub mod mock;
 
-pub use evdev_input_source::EvdevInputSource;
+pub use event_device_unix::EventDeviceUnix;
+pub use hid_device_unix::HIDDeviceUnix;

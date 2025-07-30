@@ -5,17 +5,17 @@ use tokio::{
     time::{Duration, sleep},
 };
 
-use crate::port::AsyncInputSource;
+use crate::port::EventDevice;
 
 #[derive(Default)]
-pub struct MockState {
+pub struct EventDeviceState {
     pub grabbed: bool,
     pub grab_calls: u16,
     pub ungrab_calls: u16,
     pub events: VecDeque<InputEvent>,
 }
 
-impl MockState {
+impl EventDeviceState {
     pub fn simulate_key_press(&mut self, key_code: KeyCode) {
         let event = InputEvent::new_now(EventType::KEY.0, key_code.code(), 1);
         self.events.push_back(event);
@@ -28,18 +28,18 @@ impl MockState {
 }
 
 #[derive(Default)]
-pub struct EvdevInputSourceMock {
-    pub state: Arc<Mutex<MockState>>,
+pub struct EventDeviceMock {
+    pub state: Arc<Mutex<EventDeviceState>>,
 }
 
-impl EvdevInputSourceMock {
-    pub fn state(&self) -> &Arc<Mutex<MockState>> {
+impl EventDeviceMock {
+    pub fn state(&self) -> &Arc<Mutex<EventDeviceState>> {
         &self.state
     }
 }
 
 #[async_trait::async_trait]
-impl AsyncInputSource for EvdevInputSourceMock {
+impl EventDevice for EventDeviceMock {
     async fn next_event(&mut self) -> Option<InputEvent> {
         sleep(Duration::from_millis(1)).await;
         let mut lock = self.state.lock().await;
