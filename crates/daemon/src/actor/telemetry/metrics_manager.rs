@@ -66,26 +66,26 @@ impl MetricsManager {
             .set(wpm.into());
     }
 
-    pub async fn start_server(&self) {
-        // use warp::{Filter, http::StatusCode};
-        // let metrics_route = warp::path("metrics").map(|| {
-        //     let mut buffer = Vec::new();
-        //     let encoder = TextEncoder::new();
-        //     let metrics = prometheus::gather();
-        //     encoder.encode(&metrics, &mut buffer).unwrap();
-        //     warp::http::Response::builder()
-        //         .header("Content-Type", encoder.format_type())
-        //         .body(buffer)
-        // });
-        //
-        // warp::serve(metrics_route).run(([127, 0, 0, 1], 9095)).await;
-    }
-
-    pub async fn stop_server(&self) {
-        // if let Some(tx) = self.shutdown_trigger.lock().unwrap().take() {
-        //     let _ = tx.send(()); // Signal shutdown
-        // }
-    }
+    // pub async fn start_server(&self) {
+    // use warp::{Filter, http::StatusCode};
+    // let metrics_route = warp::path("metrics").map(|| {
+    //     let mut buffer = Vec::new();
+    //     let encoder = TextEncoder::new();
+    //     let metrics = prometheus::gather();
+    //     encoder.encode(&metrics, &mut buffer).unwrap();
+    //     warp::http::Response::builder()
+    //         .header("Content-Type", encoder.format_type())
+    //         .body(buffer)
+    // });
+    //
+    // warp::serve(metrics_route).run(([127, 0, 0, 1], 9095)).await;
+    // }
+    //
+    // pub async fn stop_server(&self) {
+    // if let Some(tx) = self.shutdown_trigger.lock().unwrap().take() {
+    //     let _ = tx.send(()); // Signal shutdown
+    // }
+    // }
 
     pub async fn push(&self) -> JoinHandle<()> {
         let reg = self.registry.gather();

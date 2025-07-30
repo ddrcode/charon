@@ -101,12 +101,4 @@ impl Actor for Telemetry {
     fn state_mut(&mut self) -> &mut ActorState {
         &mut self.state
     }
-
-    async fn init(&mut self) {
-        self.metrics.start_server().await;
-    }
-
-    async fn shutdown(&mut self) {
-        self.metrics.stop_server().await;
-    }
 }

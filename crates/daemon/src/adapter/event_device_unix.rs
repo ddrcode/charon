@@ -3,14 +3,14 @@ use std::collections::VecDeque;
 use evdev::{Device, InputEvent};
 use tokio::io::unix::AsyncFd;
 
-use crate::port::AsyncInputSource;
+use crate::port::EventDevice;
 
-pub struct EvdevInputSource {
+pub struct EventDeviceUnix {
     device: AsyncFd<Device>,
     pending: VecDeque<InputEvent>,
 }
 
-impl EvdevInputSource {
+impl EventDeviceUnix {
     pub fn new(device: AsyncFd<Device>) -> Self {
         Self {
             device,
@@ -20,7 +20,7 @@ impl EvdevInputSource {
 }
 
 #[async_trait::async_trait]
-impl AsyncInputSource for EvdevInputSource {
+impl EventDevice for EventDeviceUnix {
     async fn next_event(&mut self) -> Option<InputEvent> {
         loop {
             if let Some(ev) = self.pending.pop_front() {

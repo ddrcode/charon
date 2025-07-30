@@ -35,6 +35,28 @@ pub trait Actor {
         }
     }
 
+    async fn process(&mut self, payload: DomainEvent) {
+        self.process_raw(Event::new(self.id(), payload)).await;
+    }
+
+    async fn process_raw(&mut self, event: Event) {
+        let mut events = vec![event];
+
+        for proc in &mut self.state_mut().iter_processors() {
+            let mut next_events = Vec::new();
+            for event in events {
+                let mut out = proc.process(event).await;
+                next_events.append(&mut out);
+            }
+            events = next_events;
+        }
+
+        for mut ev in events {
+            ev.sender = self.id();
+            self.send_raw(ev).await;
+        }
+    }
+
     async fn recv(&mut self) -> Option<Event> {
         if self.state().alive == false {
             return None;
