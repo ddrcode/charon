@@ -1,8 +1,10 @@
 mod charonsay;
 mod editor;
 pub mod menu;
+mod password;
 mod stats;
 
 pub use charonsay::Charonsay;
 pub use editor::Editor;
+pub use password::Password;
 pub use stats::Stats;

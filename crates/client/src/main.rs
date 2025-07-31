@@ -16,7 +16,7 @@ use tracing_subscriber::EnvFilter;
 
 use crate::{
     apps::{
-        Charonsay, Editor, Stats,
+        Charonsay, Editor, Password, Stats,
         menu::{Menu, MenuItem},
     },
     client::CharonClient,
@@ -27,6 +27,7 @@ use crate::{
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    color_eyre::install().unwrap();
     init_logging();
 
     let sock = UnixStream::connect("/tmp/charon.sock").await.unwrap();
@@ -39,6 +40,7 @@ async fn main() -> anyhow::Result<()> {
         Menu::new_box(ctx.clone(), menu_items()),
         Editor::new_box(ctx.clone()),
         Stats::new_box(ctx.clone()),
+        Password::new_box(ctx.clone()),
     ]
     .into_iter()
     .map(|app| (app.id(), app))

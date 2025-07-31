@@ -1,33 +1,24 @@
 use std::sync::Arc;
 
-use charon_lib::event::{DomainEvent, Mode};
-use ratatui::Frame;
+use charon_lib::event::DomainEvent;
 use tokio::task::spawn_blocking;
+use tracing::error;
 
-use crate::{
-    components::notification,
-    domain::{AppMsg, Command, Context, traits::UiApp},
+use crate::domain::{
+    AppPhase, Command, Context,
+    traits::{ExternalApp, UiApp},
 };
-
-#[derive(Debug, PartialEq)]
-enum EditorState {
-    Started,
-    EditorRunning,
-    EditorClosed,
-    Sending,
-    Done,
-}
 
 pub struct Editor {
     _ctx: Arc<Context>,
-    state: EditorState,
+    phase: AppPhase,
 }
 
 impl Editor {
     pub fn new(ctx: Arc<Context>) -> Self {
         Self {
             _ctx: ctx,
-            state: EditorState::Started,
+            phase: AppPhase::default(),
         }
     }
 
@@ -35,8 +26,7 @@ impl Editor {
         Box::new(Editor::new(ctx))
     }
 
-    async fn run(&mut self) -> anyhow::Result<String> {
-        self.state = EditorState::EditorRunning;
+    async fn edit(&mut self) -> anyhow::Result<String> {
         use tempfile::NamedTempFile;
 
         let tmp = NamedTempFile::new()?;
@@ -56,45 +46,27 @@ impl Editor {
 }
 
 #[async_trait::async_trait]
-impl UiApp for Editor {
+impl ExternalApp for Editor {
     fn id(&self) -> &'static str {
         "editor"
     }
 
-    async fn update(&mut self, msg: &AppMsg) -> Option<Command> {
-        let cmd = match msg {
-            AppMsg::Activate => {
-                self.state = EditorState::Started;
-                Command::SuspendTUI
-            }
-            AppMsg::TimerTick(_) if self.state != EditorState::Done => match self.state {
-                EditorState::Started => {
-                    let path = self.run().await.unwrap();
-                    self.state = EditorState::EditorClosed;
-                    Command::SendEvent(DomainEvent::SendFile(path, true))
-                }
-                EditorState::EditorClosed => {
-                    self.state = EditorState::Sending;
-                    Command::ResumeTUI
-                }
-                _ => return None,
-            },
-            AppMsg::Backend(DomainEvent::TextSent) => {
-                self.state = EditorState::Done;
-                Command::SendEvent(DomainEvent::ModeChange(Mode::PassThrough))
-            }
-            _ => return None,
-        };
-        Some(cmd)
+    fn phase(&self) -> AppPhase {
+        self.phase
     }
 
-    fn render(&self, f: &mut Frame) {
-        if self.state == EditorState::Sending {
-            notification(
-                f,
-                "Please wait".into(),
-                "Sending text...\nPress <[magic key]> to interrupt".into(),
-            );
-        }
+    fn set_phase(&mut self, phase: AppPhase) {
+        self.phase = phase;
+    }
+
+    async fn run(&mut self) -> Option<Command> {
+        let cmd = match self.edit().await {
+            Ok(path) => Command::SendEvent(DomainEvent::SendFile(path, true)),
+            Err(err) => {
+                error!("Error running editor: {err}");
+                return None;
+            }
+        };
+        Some(cmd)
     }
 }

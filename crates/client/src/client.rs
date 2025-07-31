@@ -1,9 +1,5 @@
 use async_recursion::async_recursion;
 use charon_lib::event::{DomainEvent, Event};
-use crossterm::{
-    execute,
-    terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
-};
 use ratatui::{Terminal, backend::CrosstermBackend};
 use std::{
     io::{self, Stdout},
@@ -34,11 +30,7 @@ pub struct CharonClient {
 
 impl CharonClient {
     pub fn new(app_mngr: AppManager, stream: UnixStream) -> Self {
-        enable_raw_mode().unwrap();
-        let mut stdout = io::stdout();
-        execute!(stdout, EnterAlternateScreen).unwrap();
-        let backend = CrosstermBackend::new(stdout);
-        let terminal = Terminal::new(backend).unwrap();
+        let terminal = ratatui::init();
 
         let (reader, writer) = stream.into_split();
         let writer = BufWriter::new(writer);
@@ -87,8 +79,7 @@ impl CharonClient {
             }
         }
 
-        disable_raw_mode()?;
-        execute!(self.terminal.backend_mut(), LeaveAlternateScreen)?;
+        ratatui::restore();
         info!("Client quitting");
         Ok(())
     }
@@ -102,28 +93,30 @@ impl CharonClient {
     async fn update_with_msg(&mut self, msg: &AppMsg) {
         let cmd = self.app_mngr.update(msg).await;
         if let Some(cmd) = cmd {
-            self.handle_command(&cmd).await;
+            if let Err(err) = self.handle_command(&cmd).await {
+                error!("Error while handling command: {err}");
+            }
         }
     }
 
-    async fn handle_command(&mut self, command: &Command) {
+    async fn handle_command(&mut self, command: &Command) -> anyhow::Result<()> {
         match command {
-            Command::Render => self.redraw().unwrap(),
-            Command::SendEvent(event) => self.send(event).await.unwrap(),
+            Command::Render => self.redraw()?,
+            Command::SendEvent(event) => self.send(event).await?,
             Command::SuspendTUI => {
-                suspend_tui(&mut self.terminal).unwrap();
+                suspend_tui(&mut self.terminal)?;
             }
             Command::ResumeTUI => {
-                resume_tui(&mut self.terminal).unwrap();
-                self.terminal.clear().unwrap();
-                self.redraw().unwrap();
+                resume_tui(&mut self.terminal)?;
+                self.terminal.clear()?;
+                self.redraw()?;
             }
             Command::RunApp(app) => {
                 if self.app_mngr.has_app(app) {
                     self.update_with_msg(&AppMsg::Deactivate).await;
                     self.app_mngr.set_active(app);
                     self.update_with_msg(&AppMsg::Activate).await;
-                    self.redraw().unwrap();
+                    self.redraw()?;
                 } else {
                     error!("Couldn't find app: {app}");
                 }
@@ -133,6 +126,7 @@ impl CharonClient {
             //     warn!("Unhandled command: {:?}", c)
             // }
         }
+        Ok(())
     }
 
     async fn send(&mut self, payload: &DomainEvent) -> anyhow::Result<()> {
