@@ -27,6 +27,7 @@ use crate::{
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    color_eyre::install().unwrap();
     init_logging();
 
     let sock = UnixStream::connect("/tmp/charon.sock").await.unwrap();

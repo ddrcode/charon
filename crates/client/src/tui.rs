@@ -1,21 +1,24 @@
-use std::io::Stdout;
-
-use crossterm::{
-    execute,
-    terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
+use ratatui::{
+    Terminal,
+    crossterm::{
+        ExecutableCommand,
+        terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
+    },
+    prelude::CrosstermBackend,
 };
-use ratatui::{Terminal, prelude::CrosstermBackend};
+use std::io::{Stdout, stdout};
 
 pub fn suspend_tui(terminal: &mut Terminal<CrosstermBackend<Stdout>>) -> anyhow::Result<()> {
+    stdout().execute(LeaveAlternateScreen)?;
     disable_raw_mode()?;
-    execute!(terminal.backend_mut(), LeaveAlternateScreen)?;
-    terminal.show_cursor()?; // Or hide, if you prefer
+    terminal.show_cursor()?;
     Ok(())
 }
 
 pub fn resume_tui(terminal: &mut Terminal<CrosstermBackend<Stdout>>) -> anyhow::Result<()> {
+    stdout().execute(EnterAlternateScreen)?;
     enable_raw_mode()?;
-    execute!(terminal.backend_mut(), EnterAlternateScreen)?;
+    terminal.clear()?;
     terminal.hide_cursor()?;
     Ok(())
 }

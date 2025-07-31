@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
-use charon_lib::event::{DomainEvent, Mode};
-use ratatui::Frame;
+use charon_lib::event::DomainEvent;
 use tokio::{
     fs::{OpenOptions, read_to_string},
     io::AsyncWriteExt,
@@ -9,35 +8,25 @@ use tokio::{
 };
 use tracing::error;
 
-use crate::{
-    components::notification,
-    domain::{AppMsg, Command, Context, traits::UiApp},
+use crate::domain::{
+    AppPhase, Command, Context,
+    traits::{ExternalApp, UiApp},
 };
-
-#[derive(Debug, PartialEq)]
-enum AppState {
-    Started,
-    Running,
-    Closed,
-    Sending,
-    Done,
-}
 
 pub struct Password {
     ctx: Arc<Context>,
-    state: AppState,
+    phase: AppPhase,
 }
 
 impl Password {
     pub fn new_box(ctx: Arc<Context>) -> Box<dyn UiApp + Send + Sync> {
         Box::new(Password {
             ctx,
-            state: AppState::Started,
+            phase: AppPhase::default(),
         })
     }
 
-    async fn run(&mut self) -> anyhow::Result<String> {
-        self.state = AppState::Running;
+    async fn run_external(&mut self) -> anyhow::Result<String> {
         spawn_blocking(|| std::process::Command::new("passepartui").status()).await??;
         let str = read_to_string(&self.ctx.config.clipboard_cache_file).await?;
         Ok(str)
@@ -56,54 +45,38 @@ impl Password {
 }
 
 #[async_trait::async_trait]
-impl UiApp for Password {
+impl ExternalApp for Password {
     fn id(&self) -> &'static str {
         "password"
     }
 
-    async fn update(&mut self, msg: &AppMsg) -> Option<Command> {
-        let cmd = match msg {
-            AppMsg::Activate => {
-                self.state = AppState::Started;
-                Command::SuspendTUI
+    fn phase(&self) -> AppPhase {
+        self.phase
+    }
+
+    fn set_phase(&mut self, phase: AppPhase) {
+        self.phase = phase;
+    }
+
+    async fn run(&mut self) -> Option<Command> {
+        let cmd = match self.run_external().await {
+            Ok(pwd) => {
+                if pwd.is_empty() {
+                    return None;
+                }
+                Command::SendEvent(DomainEvent::SendText(pwd))
             }
-            AppMsg::TimerTick(_) if self.state != AppState::Done => match self.state {
-                AppState::Started => {
-                    let cmd = match self.run().await {
-                        Ok(pwd) => Command::SendEvent(DomainEvent::SendText(pwd)),
-                        Err(err) => {
-                            error!("Error getting password: {err}");
-                            Command::RunApp("menu")
-                        }
-                    };
-                    self.state = AppState::Closed;
-                    cmd
-                }
-                AppState::Closed => {
-                    self.state = AppState::Sending;
-                    Command::ResumeTUI
-                }
-                _ => return None,
-            },
-            AppMsg::Backend(DomainEvent::TextSent) => {
-                if let Err(e) = self.clear_cache().await {
-                    error!("Failed clearing cache file: {e}");
-                }
-                self.state = AppState::Done;
-                Command::SendEvent(DomainEvent::ModeChange(Mode::PassThrough))
+            Err(err) => {
+                error!("Error getting password: {err}");
+                return None;
             }
-            _ => return None,
         };
         Some(cmd)
     }
 
-    fn render(&self, f: &mut Frame) {
-        if self.state == AppState::Sending {
-            notification(
-                f,
-                "Please wait".into(),
-                "Sending text...\nPress <[magic key]> to interrupt".into(),
-            );
+    async fn on_finish(&mut self) {
+        if let Err(e) = self.clear_cache().await {
+            error!("Failed clearing cache file: {e}");
         }
     }
 }

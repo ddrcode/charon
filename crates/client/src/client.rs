@@ -1,9 +1,5 @@
 use async_recursion::async_recursion;
 use charon_lib::event::{DomainEvent, Event};
-use crossterm::{
-    execute,
-    terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
-};
 use ratatui::{Terminal, backend::CrosstermBackend};
 use std::{
     io::{self, Stdout},
@@ -34,11 +30,7 @@ pub struct CharonClient {
 
 impl CharonClient {
     pub fn new(app_mngr: AppManager, stream: UnixStream) -> Self {
-        enable_raw_mode().unwrap();
-        let mut stdout = io::stdout();
-        execute!(stdout, EnterAlternateScreen).unwrap();
-        let backend = CrosstermBackend::new(stdout);
-        let terminal = Terminal::new(backend).unwrap();
+        let terminal = ratatui::init();
 
         let (reader, writer) = stream.into_split();
         let writer = BufWriter::new(writer);
@@ -87,8 +79,7 @@ impl CharonClient {
             }
         }
 
-        disable_raw_mode()?;
-        execute!(self.terminal.backend_mut(), LeaveAlternateScreen)?;
+        ratatui::restore();
         info!("Client quitting");
         Ok(())
     }
