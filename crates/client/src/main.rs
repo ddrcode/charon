@@ -10,7 +10,7 @@ pub mod util;
 
 use std::{collections::HashMap, sync::Arc};
 
-use tokio::net::UnixStream;
+use tracing::error;
 use tracing_appender::rolling;
 use tracing_subscriber::EnvFilter;
 
@@ -29,8 +29,7 @@ use crate::{
 async fn main() -> eyre::Result<()> {
     init_logging();
 
-    let sock = UnixStream::connect("/tmp/charon.sock").await.unwrap();
-    let ctx = Arc::new(Context {
+    let ctx = &Arc::new(Context {
         config: AppConfig::default(),
     });
 
@@ -45,12 +44,16 @@ async fn main() -> eyre::Result<()> {
     .map(|app| (app.id(), app))
     .collect();
 
-    let app_mngr = AppManager::new(apps, "menu");
+    std::panic::set_hook(Box::new(move |_panic_info| {
+        if let Ok(mut t) = crate::tui::Tui::new() {
+            if let Err(r) = t.exit() {
+                error!("Unable to exit Terminal: {:?}", r);
+            }
+        }
+    }));
 
-    // let mut charon = CharonClient::new(app_mngr, sock);
-    // charon.run().await?;
-    //
-    let mut app = App::new(app_mngr)?;
+    let app_mngr = AppManager::new(apps, "menu");
+    let mut app = App::new(app_mngr, ctx.clone())?;
     app.run().await?;
 
     Ok(())

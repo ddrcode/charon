@@ -1,21 +1,28 @@
-use charon_lib::event::Event as DaemonEvent;
+use std::sync::Arc;
+
+use charon_lib::event::{DomainEvent, Event as DaemonEvent};
 use crossterm::event::{KeyCode, KeyEvent, KeyEventKind, KeyEventState, KeyModifiers};
+use eyre::OptionExt;
 use ratatui::layout::Rect;
 use tokio::{
-    io::{AsyncBufReadExt, BufReader, BufWriter},
-    net::{UnixStream, unix::OwnedReadHalf},
+    io::{AsyncBufReadExt, AsyncWriteExt, BufReader, BufWriter},
+    net::{
+        UnixStream,
+        unix::{OwnedReadHalf, OwnedWriteHalf},
+    },
     select,
     sync::mpsc,
 };
 use tracing::{debug, info, warn};
 
 use crate::{
-    domain::{AppEvent, Command},
+    domain::{AppEvent, Command, Context},
     root::AppManager,
     tui::{Event as TuiEvent, Tui},
 };
 
 pub struct App {
+    ctx: Arc<Context>,
     app_mngr: AppManager,
     should_quit: bool,
     should_suspend: bool,
@@ -23,13 +30,15 @@ pub struct App {
     app_event_rx: mpsc::UnboundedReceiver<AppEvent>,
     command_tx: mpsc::UnboundedSender<Command>,
     command_rx: mpsc::UnboundedReceiver<Command>,
+    sock_writer: Option<BufWriter<OwnedWriteHalf>>,
 }
 
 impl App {
-    pub fn new(app_mngr: AppManager) -> eyre::Result<Self> {
+    pub fn new(app_mngr: AppManager, ctx: Arc<Context>) -> eyre::Result<Self> {
         let (app_event_tx, app_event_rx) = mpsc::unbounded_channel();
         let (command_tx, command_rx) = mpsc::unbounded_channel();
         Ok(Self {
+            ctx,
             app_mngr,
             should_quit: false,
             should_suspend: false,
@@ -37,6 +46,7 @@ impl App {
             app_event_rx,
             command_tx,
             command_rx,
+            sock_writer: None,
         })
     }
 
@@ -47,16 +57,14 @@ impl App {
             .frame_rate(30.0);
         tui.enter()?;
 
-        let sock = UnixStream::connect("/tmp/charon.sock").await?;
+        let sock = UnixStream::connect(&self.ctx.config.daemon_socket).await?;
         let (reader, writer) = sock.into_split();
-        let _writer = BufWriter::new(writer);
+        self.sock_writer = Some(BufWriter::new(writer));
         let mut reader = BufReader::new(reader);
 
         let command_tx = self.command_tx.clone();
         loop {
             self.tick(&mut tui, &mut reader).await?;
-            // self.handle_tui_events(&mut tui).await?;
-            // self.handle_actions(&mut tui)?;
             if self.should_suspend {
                 tui.suspend()?;
                 command_tx.send(Command::ResumeApp)?;
@@ -112,14 +120,17 @@ impl App {
             TuiEvent::Tick => app_event_tx.send(AppEvent::Tick)?,
             TuiEvent::Render => command_tx.send(Command::Render)?,
             TuiEvent::Resize(x, y) => app_event_tx.send(AppEvent::Resize(x, y))?,
-            TuiEvent::Key(key) => self.handle_key_event(key)?,
+            TuiEvent::Key(key) => app_event_tx.send(AppEvent::Key(key))?,
             _ => {}
         }
         Ok(())
     }
 
     async fn handle_app_event(&mut self, event: AppEvent, tui: &mut Tui) -> eyre::Result<()> {
-        if !matches!(event, AppEvent::Tick) {
+        if !matches!(
+            event,
+            AppEvent::Tick | AppEvent::Backend(DomainEvent::CurrentStats(..))
+        ) {
             debug!("{event:?}");
         }
         match event {
@@ -144,7 +155,15 @@ impl App {
             Command::ResumeApp => self.should_suspend = false,
             Command::ClearScreen => tui.terminal.clear()?,
             Command::Render => self.render(tui)?,
-            cmd => warn!("Unmatched command: {cmd}"),
+            Command::SendEvent(event) => self.send_to_daemon(&event).await?,
+            Command::Exit => self.should_quit = true,
+            Command::RunApp(app) => {
+                if self.app_mngr.has_app(app) {
+                    self.app_mngr.set_active(app);
+                    self.app_event_tx.send(AppEvent::Activate)?;
+                }
+            }
+            cmd => warn!("Unhandled command: {cmd}"),
         }
         Ok(())
     }
@@ -177,6 +196,19 @@ impl App {
     fn handle_resize(&mut self, tui: &mut Tui, w: u16, h: u16) -> eyre::Result<()> {
         tui.resize(Rect::new(0, 0, w, h))?;
         self.render(tui)?;
+        Ok(())
+    }
+
+    async fn send_to_daemon(&mut self, payload: &DomainEvent) -> eyre::Result<()> {
+        let writer = self
+            .sock_writer
+            .as_mut()
+            .ok_or_eyre("sock_writer not initialized")?;
+        let event = DaemonEvent::new("client".into(), payload.clone());
+        let json = serde_json::to_string(&event)?;
+        writer.write_all(json.as_bytes()).await?;
+        writer.write_all(b"\n").await?;
+        writer.flush().await?;
         Ok(())
     }
 }

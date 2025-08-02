@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
-use charon_lib::event::DomainEvent;
-use evdev::KeyCode;
+use crossterm::event::{KeyCode, KeyModifiers};
 use ratatui::{
     layout::{Constraint, Direction, Layout},
     prelude::*,
@@ -63,13 +62,16 @@ impl UiApp for Menu {
 
     async fn update(&mut self, msg: &AppEvent) -> Option<Command> {
         match msg {
-            AppEvent::Backend(DomainEvent::KeyRelease(key, _)) => match *key {
-                KeyCode::KEY_E => Some(Command::RunApp("editor")),
-                KeyCode::KEY_P => Some(Command::RunApp("password")),
-                KeyCode::KEY_F10 => Some(Command::Exit),
-                KeyCode::KEY_S => Some(Command::RunApp("stats")),
-                _ => None,
-            },
+            AppEvent::Key(key) if key.is_press() && key.modifiers == KeyModifiers::NONE => {
+                let cmd = match key.code {
+                    KeyCode::Char('e') => Command::RunApp("editor"),
+                    KeyCode::Char('p') => Command::RunApp("pasword"),
+                    KeyCode::Char('q') => Command::Exit,
+                    KeyCode::Char('s') => Command::RunApp("stats"),
+                    _ => return None,
+                };
+                Some(cmd)
+            }
             _ => None,
         }
     }
