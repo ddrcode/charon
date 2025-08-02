@@ -3,7 +3,7 @@ use ratatui::Frame;
 
 use crate::{
     components::notification,
-    domain::{AppMsg, AppPhase, Command},
+    domain::{AppEvent, AppPhase, Command},
 };
 
 use super::UiApp;
@@ -30,14 +30,14 @@ where
         self.id()
     }
 
-    async fn update(&mut self, msg: &AppMsg) -> Option<Command> {
+    async fn update(&mut self, msg: &AppEvent) -> Option<Command> {
         let cmd = match msg {
-            AppMsg::Activate => {
+            AppEvent::Activate => {
                 self.set_phase(AppPhase::Started);
                 self.on_start().await;
                 Command::SuspendTUI
             }
-            AppMsg::TimerTick(_) => match self.phase() {
+            AppEvent::TimerTick(_) => match self.phase() {
                 AppPhase::Started => {
                     self.set_phase(AppPhase::Running);
                     let cmd = self.run().await;
@@ -65,7 +65,7 @@ where
                 }
                 _ => return None,
             },
-            AppMsg::Backend(DomainEvent::TextSent) => {
+            AppEvent::Backend(DomainEvent::TextSent) => {
                 self.on_finish().await;
                 self.set_phase(AppPhase::Done);
                 Command::SendEvent(DomainEvent::ModeChange(Mode::PassThrough))

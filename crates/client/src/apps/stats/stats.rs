@@ -12,7 +12,7 @@ use tracing::warn;
 use super::{LineChartRenderer, StatData, State, StatsPeriod};
 use crate::{
     apps::stats::{KeyHeatmapRenderer, StatType},
-    domain::{AppMsg, Command, Context, traits::UiApp},
+    domain::{AppEvent, Command, Context, traits::UiApp},
     repository::metrics::{MetricsRepository, RangeResponse},
 };
 
@@ -119,14 +119,14 @@ impl UiApp for Stats {
         "stats"
     }
 
-    async fn update(&mut self, msg: &AppMsg) -> Option<Command> {
+    async fn update(&mut self, msg: &AppEvent) -> Option<Command> {
         match msg {
-            AppMsg::Activate => {
+            AppEvent::Activate => {
                 self.state.resolution = 25;
                 self.state.reset_with_period(StatsPeriod::Day);
                 self.update_data().await
             }
-            AppMsg::Backend(DomainEvent::KeyRelease(key, _)) => match *key {
+            AppEvent::Backend(DomainEvent::KeyRelease(key, _)) => match *key {
                 KeyCode::KEY_ESC => Some(Command::RunApp("menu")),
                 KeyCode::KEY_LEFT => self.update_after(|state| state.prev()).await,
                 KeyCode::KEY_RIGHT => self.update_after(|state| state.next()).await,

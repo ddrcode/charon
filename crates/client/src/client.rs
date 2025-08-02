@@ -17,7 +17,6 @@ use tracing::{error, info, warn};
 use crate::{
     domain::{AppMsg, Command},
     root::AppManager,
-    tui::{resume_tui, suspend_tui},
 };
 
 pub struct CharonClient {
@@ -104,10 +103,10 @@ impl CharonClient {
             Command::Render => self.redraw()?,
             Command::SendEvent(event) => self.send(event).await?,
             Command::SuspendTUI => {
-                suspend_tui(&mut self.terminal)?;
+                // suspend_tui(&mut self.terminal)?;
             }
             Command::ResumeTUI => {
-                resume_tui(&mut self.terminal)?;
+                // resume_tui(&mut self.terminal)?;
                 self.terminal.clear()?;
                 self.redraw()?;
             }

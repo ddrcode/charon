@@ -4,7 +4,7 @@ use charon_lib::event::{DomainEvent, Mode};
 use ratatui::Frame;
 use tracing::{error, info};
 
-use crate::domain::{AppMsg, Command, traits::UiApp};
+use crate::domain::{AppEvent, Command, traits::UiApp};
 
 pub struct AppManager {
     apps: HashMap<&'static str, Box<dyn UiApp + Send + Sync>>,
@@ -33,17 +33,17 @@ impl AppManager {
         }
     }
 
-    pub async fn update(&mut self, msg: &AppMsg) -> Option<Command> {
+    pub async fn update(&mut self, msg: &AppEvent) -> Option<Command> {
         match msg {
-            AppMsg::Backend(DomainEvent::ModeChange(mode)) => {
+            AppEvent::Backend(DomainEvent::ModeChange(mode)) => {
                 self.active_id = Self::mode_screen(mode);
                 Some(Command::Render)
             }
-            AppMsg::Backend(DomainEvent::Sleep) => {
+            AppEvent::Backend(DomainEvent::Sleep) => {
                 self.is_awake = false;
                 return None;
             }
-            AppMsg::Backend(DomainEvent::WakeUp) => {
+            AppEvent::Backend(DomainEvent::WakeUp) => {
                 self.is_awake = true;
                 return None;
             }

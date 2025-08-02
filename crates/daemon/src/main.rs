@@ -35,7 +35,7 @@ async fn main() -> Result<(), anyhow::Error> {
         .add_actor::<Typist>(&[T::System, T::TextInput])
         .add_actor::<KeyWriter>(&[T::System, T::KeyOutput])
         .add_actor::<TypingStats>(&[T::System, T::KeyInput])
-        .add_actor::<IPCServer>(&[T::System, T::KeyInput, T::Stats, T::Monitoring])
+        .add_actor::<IPCServer>(&[T::System, T::Stats, T::Monitoring])
         .add_pipeline(
             "PassThroughPipeline",
             &[T::System, T::KeyInput],

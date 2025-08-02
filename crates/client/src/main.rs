@@ -1,5 +1,5 @@
+pub mod app;
 pub mod apps;
-pub mod client;
 pub mod components;
 pub mod config;
 pub mod domain;
@@ -15,19 +15,18 @@ use tracing_appender::rolling;
 use tracing_subscriber::EnvFilter;
 
 use crate::{
+    app::App,
     apps::{
         Charonsay, Editor, Password, Stats,
         menu::{Menu, MenuItem},
     },
-    client::CharonClient,
     config::AppConfig,
     domain::{Context, traits::UiApp},
     root::AppManager,
 };
 
 #[tokio::main]
-async fn main() -> anyhow::Result<()> {
-    color_eyre::install().unwrap();
+async fn main() -> eyre::Result<()> {
     init_logging();
 
     let sock = UnixStream::connect("/tmp/charon.sock").await.unwrap();
@@ -48,8 +47,12 @@ async fn main() -> anyhow::Result<()> {
 
     let app_mngr = AppManager::new(apps, "menu");
 
-    let mut charon = CharonClient::new(app_mngr, sock);
-    charon.run().await?;
+    // let mut charon = CharonClient::new(app_mngr, sock);
+    // charon.run().await?;
+    //
+    let mut app = App::new(app_mngr)?;
+    app.run().await?;
+
     Ok(())
 }
 

@@ -12,7 +12,7 @@ use ratatui::{
 use crate::{
     apps::menu::menu_item::MenuItem,
     components::centered_area,
-    domain::{AppMsg, Command, Context, traits::UiApp},
+    domain::{AppEvent, Command, Context, traits::UiApp},
 };
 
 pub struct Menu {
@@ -61,9 +61,9 @@ impl UiApp for Menu {
         "menu"
     }
 
-    async fn update(&mut self, msg: &AppMsg) -> Option<Command> {
+    async fn update(&mut self, msg: &AppEvent) -> Option<Command> {
         match msg {
-            AppMsg::Backend(DomainEvent::KeyRelease(key, _)) => match *key {
+            AppEvent::Backend(DomainEvent::KeyRelease(key, _)) => match *key {
                 KeyCode::KEY_E => Some(Command::RunApp("editor")),
                 KeyCode::KEY_P => Some(Command::RunApp("password")),
                 KeyCode::KEY_F10 => Some(Command::Exit),

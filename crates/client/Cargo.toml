@@ -23,4 +23,8 @@ tracing-subscriber = { workspace = true, features = ["env-filter"] }
 async-recursion = "1.1.1"
 reqwest = { version = "0.12.22", features = ["json"] }
 chrono = "0.4.41"
-color-eyre = "0.6.5"
+crossterm = { version = "0.29.0", features = ["serde", "event-stream"] }
+tokio-util = "0.7.15"
+signal-hook = "0.3.18"
+strum = { version = "0.27.2", features = ["derive"] }
+eyre = { version = "0.6.12", default-features = false, features = ["auto-install", "track-caller"] }

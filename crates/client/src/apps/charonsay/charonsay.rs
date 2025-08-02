@@ -14,7 +14,7 @@ use crate::{
         WisdomCategory,
         ascii_art::{BOAT, CERBERUS, GOAT, LOGO},
     },
-    domain::{AppMsg, Command, Context, traits::UiApp},
+    domain::{AppEvent, Command, Context, traits::UiApp},
     repository::WisdomDb,
     util::string::unify_line_length,
 };
@@ -58,13 +58,13 @@ impl Charonsay {
         }
     }
 
-    fn decide_transition(&self, msg: &AppMsg) -> Transition {
+    fn decide_transition(&self, msg: &AppEvent) -> Transition {
         let state = &self.state;
 
         match msg {
-            AppMsg::Activate => Transition::ToSplash,
+            AppEvent::Activate => Transition::ToSplash,
 
-            AppMsg::Backend(DomainEvent::KeyPress(..)) => {
+            AppEvent::Backend(DomainEvent::KeyPress(..)) => {
                 if state.view == WisdomCategory::Idle {
                     return Transition::ToSplash;
                 }
@@ -72,7 +72,7 @@ impl Charonsay {
                 Transition::Stay
             }
 
-            AppMsg::Backend(DomainEvent::CurrentStats(stats)) => {
+            AppEvent::Backend(DomainEvent::CurrentStats(stats)) => {
                 if stats.wpm >= self.ctx.config.fast_typing_treshold {
                     return Transition::ToSpeed;
                 } else if state.view == WisdomCategory::Speed {
@@ -81,7 +81,7 @@ impl Charonsay {
                 Transition::Stay
             }
 
-            AppMsg::TimerTick(dur) => {
+            AppEvent::TimerTick(dur) => {
                 if state.time_to_idle <= *dur {
                     if state.view != WisdomCategory::Idle {
                         return Transition::ToIdle;
@@ -108,17 +108,17 @@ impl UiApp for Charonsay {
         "charonsay"
     }
 
-    async fn update(&mut self, msg: &AppMsg) -> Option<Command> {
+    async fn update(&mut self, msg: &AppEvent) -> Option<Command> {
         let transition = self.decide_transition(msg);
         let config = &self.ctx.config;
         let state = &mut self.state;
         let mut should_render = false;
 
         match msg {
-            AppMsg::Backend(DomainEvent::KeyPress(..)) => {
+            AppEvent::Backend(DomainEvent::KeyPress(..)) => {
                 state.time_to_idle = config.idle_time;
             }
-            AppMsg::Backend(DomainEvent::CurrentStats(stats)) => {
+            AppEvent::Backend(DomainEvent::CurrentStats(stats)) => {
                 if state.stats != *stats {
                     state.stats = stats.clone();
                     should_render = true;
@@ -149,7 +149,7 @@ impl UiApp for Charonsay {
                 state.time_to_next = config.wisdom_duration;
             }
             Transition::Stay => {
-                if let AppMsg::TimerTick(dur) = msg {
+                if let AppEvent::TimerTick(dur) = msg {
                     state.time_to_next = state.time_to_next.saturating_sub(*dur);
                     state.time_to_idle = state.time_to_idle.saturating_sub(*dur);
                 }
