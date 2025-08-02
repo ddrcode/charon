@@ -1,47 +1,32 @@
-use std::sync::Arc;
+use std::{path::PathBuf, sync::Arc};
 
-use charon_lib::event::DomainEvent;
-use tokio::task::spawn_blocking;
-use tracing::error;
+use charon_lib::event::{DomainEvent, Mode};
+use tempfile::NamedTempFile;
 
 use crate::domain::{
-    AppPhase, Command, Context,
+    AppEvent, Command, Context,
     traits::{ExternalApp, UiApp},
 };
 
 pub struct Editor {
-    _ctx: Arc<Context>,
-    phase: AppPhase,
+    path: PathBuf,
+    should_exit: bool,
 }
 
 impl Editor {
-    pub fn new(ctx: Arc<Context>) -> Self {
+    pub fn new() -> Self {
         Self {
-            _ctx: ctx,
-            phase: AppPhase::default(),
+            path: PathBuf::new(),
+            should_exit: false,
         }
     }
 
-    pub fn new_box(ctx: Arc<Context>) -> Box<dyn UiApp + Send + Sync> {
-        Box::new(Editor::new(ctx))
+    pub fn new_box(_ctx: Arc<Context>) -> Box<dyn UiApp + Send + Sync> {
+        Box::new(Editor::new())
     }
 
-    async fn edit(&mut self) -> anyhow::Result<String> {
-        use tempfile::NamedTempFile;
-
-        let tmp = NamedTempFile::new()?;
-        let path = tmp.into_temp_path().keep()?; // closes handle, keeps file alive
-        let path_for_child = path.to_path_buf();
-
-        spawn_blocking(move || {
-            std::process::Command::new("nvim")
-                .arg(&path_for_child)
-                .status()
-        })
-        .await??;
-
-        let path = path.to_string_lossy().to_string();
-        Ok(path)
+    fn path_to_string(&self) -> String {
+        self.path.to_string_lossy().to_string()
     }
 }
 
@@ -51,22 +36,39 @@ impl ExternalApp for Editor {
         "editor"
     }
 
-    fn phase(&self) -> AppPhase {
-        self.phase
+    fn should_exit(&self) -> bool {
+        self.should_exit
     }
 
-    fn set_phase(&mut self, phase: AppPhase) {
-        self.phase = phase;
+    fn path_to_app(&self) -> String {
+        String::from("nvim")
     }
 
-    async fn run(&mut self) -> Option<Command> {
-        let cmd = match self.edit().await {
-            Ok(path) => Command::SendEvent(DomainEvent::SendFile(path, true)),
-            Err(err) => {
-                error!("Error running editor: {err}");
-                return None;
-            }
-        };
-        Some(cmd)
+    fn app_args(&self) -> Vec<String> {
+        vec![String::from("+star"), self.path_to_string()]
+    }
+
+    async fn on_start(&mut self) -> eyre::Result<()> {
+        self.should_exit = false;
+        let tmp = NamedTempFile::new()?;
+        self.path = tmp.into_temp_path().keep()?; // closes handle, keeps file alive
+        Ok(())
+    }
+
+    async fn process_result(&mut self) -> Option<Command> {
+        Some(Command::SendEvent(DomainEvent::SendFile(
+            self.path_to_string(),
+            true,
+        )))
+    }
+
+    async fn handle_event(&mut self, event: &AppEvent) -> Option<Command> {
+        if matches!(event, AppEvent::Backend(DomainEvent::TextSent)) {
+            self.should_exit = true;
+            return Some(Command::SendEvent(DomainEvent::ModeChange(
+                Mode::PassThrough,
+            )));
+        }
+        None
     }
 }

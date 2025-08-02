@@ -4,7 +4,8 @@ use strum::Display;
 #[derive(Debug, Clone, PartialEq, Display)]
 #[non_exhaustive]
 pub enum Command {
-    Exit,
+    Quit,
+    ExitApp,
     Render,
     RunApp(&'static str),
     SendEvent(DomainEvent),
@@ -13,4 +14,5 @@ pub enum Command {
     SuspendTUI,
     ResumeTUI,
     ClearScreen,
+    RunExternal(String, Vec<String>),
 }

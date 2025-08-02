@@ -65,8 +65,8 @@ impl UiApp for Menu {
             AppEvent::Key(key) if key.is_press() && key.modifiers == KeyModifiers::NONE => {
                 let cmd = match key.code {
                     KeyCode::Char('e') => Command::RunApp("editor"),
-                    KeyCode::Char('p') => Command::RunApp("pasword"),
-                    KeyCode::Char('q') => Command::Exit,
+                    KeyCode::Char('p') => Command::RunApp("password"),
+                    KeyCode::Char('q') => Command::Quit,
                     KeyCode::Char('s') => Command::RunApp("stats"),
                     _ => return None,
                 };

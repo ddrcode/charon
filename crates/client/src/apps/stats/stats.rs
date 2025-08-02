@@ -127,7 +127,7 @@ impl UiApp for Stats {
             }
             AppEvent::Key(key) if key.is_press() && key.modifiers == KeyModifiers::NONE => {
                 match key.code {
-                    KeyCode::Esc => Some(Command::RunApp("menu")),
+                    KeyCode::Esc => Some(Command::ExitApp),
                     KeyCode::Left => self.update_after(|state| state.prev()).await,
                     KeyCode::Right => self.update_after(|state| state.next()).await,
                     KeyCode::Up => {

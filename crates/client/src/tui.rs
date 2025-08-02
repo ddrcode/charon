@@ -23,7 +23,7 @@ use tokio::{
     time::interval,
 };
 use tokio_util::sync::CancellationToken;
-use tracing::error;
+use tracing::{error, info};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum Event {
@@ -177,6 +177,7 @@ impl Tui {
             crossterm::execute!(stdout(), EnableBracketedPaste)?;
         }
         self.start();
+        info!("TUI Started");
         Ok(())
     }
 
@@ -193,6 +194,7 @@ impl Tui {
             crossterm::execute!(stdout(), LeaveAlternateScreen, cursor::Show)?;
             crossterm::terminal::disable_raw_mode()?;
         }
+        info!("TUI Exitted");
         Ok(())
     }
 

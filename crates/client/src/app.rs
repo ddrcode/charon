@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
 use charon_lib::event::{DomainEvent, Event as DaemonEvent};
-use crossterm::event::{KeyCode, KeyEvent, KeyEventKind, KeyEventState, KeyModifiers};
 use eyre::OptionExt;
 use ratatui::layout::Rect;
 use tokio::{
@@ -12,8 +11,9 @@ use tokio::{
     },
     select,
     sync::mpsc,
+    task::spawn_blocking,
 };
-use tracing::{debug, info, warn};
+use tracing::{debug, warn};
 
 use crate::{
     domain::{AppEvent, Command, Context},
@@ -151,33 +151,21 @@ impl App {
 
     async fn handle_command(&mut self, command: Command, tui: &mut Tui) -> eyre::Result<()> {
         match command {
+            Command::SuspendTUI => tui.exit()?,
+            Command::ResumeTUI => {
+                tui.enter()?;
+                tui.terminal.clear()?;
+            }
             Command::SuspendApp => self.should_suspend = true,
             Command::ResumeApp => self.should_suspend = false,
             Command::ClearScreen => tui.terminal.clear()?,
             Command::Render => self.render(tui)?,
             Command::SendEvent(event) => self.send_to_daemon(&event).await?,
-            Command::Exit => self.should_quit = true,
-            Command::RunApp(app) => {
-                if self.app_mngr.has_app(app) {
-                    self.app_mngr.set_active(app);
-                    self.app_event_tx.send(AppEvent::Activate)?;
-                }
-            }
-            cmd => warn!("Unhandled command: {cmd}"),
+            Command::Quit => self.should_quit = true,
+            Command::ExitApp => self.switch_app("menu")?,
+            Command::RunApp(app) => self.switch_app(app)?,
+            Command::RunExternal(path, args) => self.run_external(path, args, tui).await?,
         }
-        Ok(())
-    }
-
-    fn handle_key_event(&mut self, ke: KeyEvent) -> eyre::Result<()> {
-        let app_event_tx = self.app_event_tx.clone();
-
-        if ke.kind == KeyEventKind::Press {
-            match (ke.code, ke.modifiers) {
-                (KeyCode::Char('q'), KeyModifiers::NONE) => app_event_tx.send(AppEvent::Quit)?,
-                _ => {}
-            }
-        }
-
         Ok(())
     }
 
@@ -199,6 +187,14 @@ impl App {
         Ok(())
     }
 
+    fn switch_app(&mut self, name: &'static str) -> eyre::Result<()> {
+        if self.app_mngr.has_app(name) {
+            self.app_mngr.set_active(name);
+            self.app_event_tx.send(AppEvent::Activate)?;
+        }
+        Ok(())
+    }
+
     async fn send_to_daemon(&mut self, payload: &DomainEvent) -> eyre::Result<()> {
         let writer = self
             .sock_writer
@@ -209,6 +205,20 @@ impl App {
         writer.write_all(json.as_bytes()).await?;
         writer.write_all(b"\n").await?;
         writer.flush().await?;
+        Ok(())
+    }
+
+    async fn run_external(
+        &mut self,
+        path: String,
+        args: Vec<String>,
+        tui: &mut Tui,
+    ) -> eyre::Result<()> {
+        tui.exit()?;
+        spawn_blocking(move || std::process::Command::new(path).args(args).status()).await??;
+        tui.enter()?;
+        tui.terminal.clear()?;
+        self.app_event_tx.send(AppEvent::ReturnFromExternal)?;
         Ok(())
     }
 }
