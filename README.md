@@ -1,14 +1,14 @@
 # Charon
 **The ghost between your keyboard and your machine.**
 
-#### Or — if you don’t like poetry:
+Or - if you don’t like poetry:
 > A USB keyboard pass-through device built on Raspberry Pi, capable of intercepting input to run
 > local apps (like a password manager or editor) and injecting the results as keystrokes.
 
-#### Or — if you wear a tie and a blue shirt:
+Or - if you wear a tie and a blue shirt:
 > A stealth personal assistant disguised as a keyboard.
 
----
+
 
 ## Current Features
 
@@ -21,34 +21,34 @@
 - **Power Management** — Automatically dims the screen and lowers CPU usage when idle.
 - **Password Manager** — Securely pick and type out passwords—no copy-paste involved.
 
----
 
-##  "But I already have a programmable keyboard (QMK, ZMK, etc)..."
 
-Perfect. Charon is *not* a replacement for QMK — it's an extension.
+##  "*But I already have a programmable keyboard (QMK, ZMK, etc)...*"
+
+Perfect. Charon is *not* a replacement for QMK - it's an extension.
 
 Think of it as giving your QMK keyboard:
-- A **brain**,
-- A **screen**, and
-- A **full Linux stack**.
+- A brain,
+- A screen, and
+- A full Linux stack.
 
-With Charon:
+With Charon you can:
 - Run any Linux app, interact with it, and send results to the host as keystrokes.
 - Plug in multiple keyboards: type on one, trigger macros on the other.
 - Get real telemetry (e.g., *how often did you press ESC last Tuesday?*).
 - Do anything that needs more power, storage, display, or OS features than microcontroller-based solutions allow.
 
----
 
-## "But I don’t have a programmable keyboard..."
 
-Even better — because **you don’t need one**.
+## "*But I don’t have a programmable keyboard...*"
+
+Perfect — because you don’t need one.
 
 Charon isn't about just remapping keys or adding layers. It's about bringing *apps* and a *screen* to *any* keyboard, programmable or not.
 
----
 
-## Is It Stable?
+
+## "*Is It Stable?*"
 
 Yes.
 Despite the prototype being held together with `.unwrap()` and goodwill, it hasn’t crashed once.
@@ -56,14 +56,14 @@ Despite the prototype being held together with `.unwrap()` and goodwill, it hasn
 > “If the ghost drops your keystrokes into the Styx, we’ll fish them out and patch it.”
 
 More pragmatically:
-- I now use Charon **100% of the time**.
+- I now use Charon 100% of the time.
 - The daemon reliably forwards keystrokes with **sub-millisecond latency**.
 - The client is still limited to a few basic apps, but it’s growing fast.
 
 It’s not "production-grade" or certified for aerospace use (yet), but it’s definitely *towel-grade*:
 It doesn’t panic.
 
----
+
 
 ## Planned Features
 
@@ -73,14 +73,14 @@ It doesn’t panic.
 - Unicode character injection (platform-specific)
 - Mouse pass-through
 - QMK Raw HID support
+- Users / profiles
 
----
+
 
 ##  Known Limitations
 
-- **No wake-from-sleep**:
-  It can't currently wake the host via keystrokes.
-  **Workaround**: It *can* send a Wake-on-LAN magic packet.
+- No wake-from-sleep: It can't currently wake the host from a deep sleep via keystrokes.
+  **Workaround**: It *can* send a Wake-on-LAN magic packet (just press F8).
 
 
 
@@ -100,7 +100,7 @@ Charon is still in its early stages, but it’s built to grow. If you:
 
 - love tinkering with Linux input devices,
 - enjoy Rust’s type system more than some people enjoy vacation,
-- or have ideas about how to make keyboards even cooler…
+- or have ideas about how to make keyboards even cooler...
 
 You’re very welcome to get involved.
 
