@@ -64,21 +64,16 @@ impl Charonsay {
         match msg {
             AppEvent::Activate => Transition::ToSplash,
 
-            AppEvent::Key(..) => {
-                if state.view == WisdomCategory::Idle {
-                    return Transition::ToSplash;
-                }
-
-                Transition::Stay
-            }
-
             AppEvent::Backend(DomainEvent::CurrentStats(stats)) => {
-                if stats.wpm >= self.ctx.config.fast_typing_treshold {
-                    return Transition::ToSpeed;
-                } else if state.view == WisdomCategory::Speed {
-                    return Transition::ToCharonsay;
+                let treshold = self.ctx.config.fast_typing_treshold;
+                match state.view {
+                    WisdomCategory::Idle if stats.wpm > 0 => Transition::ToSplash,
+                    WisdomCategory::Speed if stats.wpm < treshold => Transition::ToCharonsay,
+                    cat if stats.wpm >= treshold && cat != WisdomCategory::Speed => {
+                        Transition::ToSpeed
+                    }
+                    _ => Transition::Stay,
                 }
-                Transition::Stay
             }
 
             AppEvent::Tick(dur) => {
