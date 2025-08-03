@@ -9,6 +9,9 @@ pub struct AppConfig {
     pub fast_typing_treshold: u16,
 
     pub clipboard_cache_file: PathBuf,
+
+    pub password_app: &'static str,
+    pub editor_app: &'static str,
 }
 
 impl Default for AppConfig {
@@ -24,6 +27,9 @@ impl Default for AppConfig {
             fast_typing_treshold: 40,
 
             clipboard_cache_file: clip_cache,
+
+            password_app: "passepartui",
+            editor_app: "nvim",
         }
     }
 }

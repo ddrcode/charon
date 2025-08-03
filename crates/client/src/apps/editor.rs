@@ -1,4 +1,4 @@
-use std::{path::PathBuf, sync::Arc};
+use std::{borrow::Cow, path::PathBuf, sync::Arc};
 
 use charon_lib::event::{DomainEvent, Mode};
 use tempfile::NamedTempFile;
@@ -9,20 +9,22 @@ use crate::domain::{
 };
 
 pub struct Editor {
+    ctx: Arc<Context>,
     path: PathBuf,
     should_exit: bool,
 }
 
 impl Editor {
-    pub fn new() -> Self {
+    pub fn new(ctx: Arc<Context>) -> Self {
         Self {
+            ctx,
             path: PathBuf::new(),
             should_exit: false,
         }
     }
 
-    pub fn new_box(_ctx: Arc<Context>) -> Box<dyn UiApp + Send + Sync> {
-        Box::new(Editor::new())
+    pub fn new_box(ctx: Arc<Context>) -> Box<dyn UiApp + Send + Sync> {
+        Box::new(Editor::new(ctx))
     }
 
     fn path_to_string(&self) -> String {
@@ -40,8 +42,8 @@ impl ExternalApp for Editor {
         self.should_exit
     }
 
-    fn path_to_app(&self) -> String {
-        String::from("nvim")
+    fn path_to_app(&self) -> Cow<'static, str> {
+        self.ctx.config.editor_app.into()
     }
 
     fn app_args(&self) -> Vec<String> {
@@ -55,7 +57,7 @@ impl ExternalApp for Editor {
         Ok(())
     }
 
-    async fn process_result(&mut self, _output: &std::process::Output) -> Option<Command> {
+    async fn process_result(&mut self) -> Option<Command> {
         Some(Command::SendEvent(DomainEvent::SendFile(
             self.path_to_string(),
             true,

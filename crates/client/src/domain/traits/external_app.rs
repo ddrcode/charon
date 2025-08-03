@@ -1,3 +1,5 @@
+use std::{borrow::Cow, process::ExitStatus};
+
 use ratatui::Frame;
 use tracing::error;
 
@@ -11,16 +13,16 @@ use super::UiApp;
 #[async_trait::async_trait]
 pub trait ExternalApp {
     fn id(&self) -> &'static str;
-    fn path_to_app(&self) -> String;
+    fn path_to_app(&self) -> Cow<'static, str>;
     fn app_args(&self) -> Vec<String> {
         Vec::new()
     }
 
-    async fn process_result(&mut self, output: &std::process::Output) -> Option<Command>;
+    async fn process_result(&mut self) -> Option<Command>;
     async fn on_start(&mut self) -> eyre::Result<()> {
         Ok(())
     }
-    async fn on_error(&mut self) -> Option<Command> {
+    async fn on_error(&mut self, _status: Option<&ExitStatus>) -> Option<Command> {
         Some(Command::ExitApp)
     }
     async fn handle_event(&mut self, _event: &AppEvent) -> Option<Command> {
@@ -49,9 +51,9 @@ where
                     Some(Command::RunExternal(self.path_to_app(), self.app_args()))
                 }
             }
-            AppEvent::ReturnFromExternal(output) => match output {
-                Some(out) => return self.process_result(out).await,
-                None => self.on_error().await,
+            AppEvent::ReturnFromExternal(status) => match status {
+                Some(s) if s.success() => return self.process_result().await,
+                _ => self.on_error(status.as_ref()).await,
             },
             _ => None,
         };

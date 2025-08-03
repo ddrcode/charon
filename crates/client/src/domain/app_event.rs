@@ -13,5 +13,5 @@ pub enum AppEvent {
     Backend(DomainEvent),
     Quit,
     Resize(u16, u16),
-    ReturnFromExternal(Option<std::process::Output>),
+    ReturnFromExternal(Option<std::process::ExitStatus>),
 }

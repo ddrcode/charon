@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use charon_lib::event::DomainEvent;
 use strum::Display;
 
@@ -14,5 +16,5 @@ pub enum Command {
     SuspendTUI,
     ResumeTUI,
     ClearScreen,
-    RunExternal(String, Vec<String>),
+    RunExternal(Cow<'static, str>, Vec<String>),
 }
