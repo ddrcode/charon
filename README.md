@@ -8,6 +8,11 @@ Or - if you don’t like poetry:
 Or - if you wear a tie and a blue shirt:
 > A stealth personal assistant disguised as a keyboard.
 
+Or - if this parapgraph is already too long for you:
+
+<img width="578" alt="Charon" src="https://github.com/user-attachments/assets/63099e00-4ce6-4a08-a5d6-9f160f672aa9" />
+
+
 
 
 ## Current Features
