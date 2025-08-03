@@ -1,30 +1,88 @@
 # Charon
-The ghost between your keyboard and your machine.
+**The ghost between your keyboard and your machine.**
 
-## Current features
-- Pass-through mode - sends your key events directly to the host
-- In-App mode – brings menu to the screen and allows interaction
-- Vim-everywhere - type in the editor of your choice and send text as keystrokes to the host
-- Charonsay – see wisdoms from the Styx-side while typing
-- Telemetry – "proper" telemetry (Prometheus-based) holding stats about every keystroke
-- Stats screen / charts – see the stats, i.e. avg/max WPM in the last year
-- Power management - disables the screen and reduces CPU when inactive
+#### Or — if you don’t like poetry:
+> A USB keyboard pass-through device built on Raspberry Pi, capable of intercepting input to run
+> local apps (like a password manager or editor) and injecting the results as keystrokes.
 
-## Limitations
-- It can't wake up the host from sleep by sending key presses. Current workaround - it can send WoL magic packet.
+#### Or — if you wear a tie and a blue shirt:
+> A stealth personal assistant disguised as a keyboard.
 
-## Is it stable?
+---
 
-Yes. So far it hasn’t crashed — despite the prototype being held together with `.unwrap()` and good intentions. That’s how solid the architecture is (and how solid Rust is). If the ghost drops your keystrokes into the Styx, we’ll fish them out and patch it.
+## Current Features
+
+- **Pass-through Mode** — Forwards keystrokes directly to the host with negligible latency.
+- **In-App Mode** — Acts as an interceptor: brings up a menu on screen for user interaction.
+- **Vim-everywhere** — Launch a local editor, type your text, and inject it as keystrokes to the host.
+- **Charonsay** — Enjoy cryptic wisdom from the other side of the Styx as you type.
+- **Telemetry** — Captures rich per-keystroke stats, because *every ESC press matters*.
+- **Stats Screen / Charts** — Visualize metrics like average/max WPM over the past year.
+- **Power Management** — Automatically dims the screen and lowers CPU usage when idle.
+- **Password Manager** — Securely pick and type out passwords—no copy-paste involved.
+
+---
+
+##  "But I already have a programmable keyboard (QMK, ZMK, etc)..."
+
+Perfect. Charon is *not* a replacement for QMK — it's an extension.
+
+Think of it as giving your QMK keyboard:
+- A **brain**,
+- A **screen**, and
+- A **full Linux stack**.
+
+With Charon:
+- Run any Linux app, interact with it, and send results to the host as keystrokes.
+- Plug in multiple keyboards: type on one, trigger macros on the other.
+- Get real telemetry (e.g., *how often did you press ESC last Tuesday?*).
+- Do anything that needs more power, storage, display, or OS features than microcontroller-based solutions allow.
+
+---
+
+## "But I don’t have a programmable keyboard..."
+
+Even better — because **you don’t need one**.
+
+Charon isn't about just remapping keys or adding layers. It's about bringing *apps* and a *screen* to *any* keyboard, programmable or not.
+
+---
+
+## Is It Stable?
+
+Yes.
+Despite the prototype being held together with `.unwrap()` and goodwill, it hasn’t crashed once.
+
+> “If the ghost drops your keystrokes into the Styx, we’ll fish them out and patch it.”
+
+More pragmatically:
+- I now use Charon **100% of the time**.
+- The daemon reliably forwards keystrokes with **sub-millisecond latency**.
+- The client is still limited to a few basic apps, but it’s growing fast.
+
+It’s not "production-grade" or certified for aerospace use (yet), but it’s definitely *towel-grade*:
+It doesn’t panic.
+
+---
+
+## Planned Features
+
+- Per-keyboard settings and stats
+- Multi-keyboard support (e.g. one for typing, another for macros)
+- Support for multiple keyboard layouts
+- Unicode character injection (platform-specific)
+- Mouse pass-through
+- QMK Raw HID support
+
+---
+
+##  Known Limitations
+
+- **No wake-from-sleep**:
+  It can't currently wake the host via keystrokes.
+  **Workaround**: It *can* send a Wake-on-LAN magic packet.
 
 
-## Planned features
-
-- Keyboard-specific settings and statistics
-- Multi-keyboard: i.e. use one keyboard for typing and the other one for macros
-- Multiple layouts
-- Sending Unicode characters (OS-specific)
-- Mouse Pass-through
 
 ## Screenshots
 
@@ -36,6 +94,18 @@ Yes. So far it hasn’t crashed — despite the prototype being held together wi
 <img width="666" alt="menu" src="https://github.com/user-attachments/assets/d9bea87b-6ed7-4a6d-bc6c-a8f14bf83a4b" />
 
 
+## Want to Contribute?
+
+Charon is still in its early stages, but it’s built to grow. If you:
+
+- love tinkering with Linux input devices,
+- enjoy Rust’s type system more than some people enjoy vacation,
+- or have ideas about how to make keyboards even cooler…
+
+You’re very welcome to get involved.
+
+Open issues, suggest features, or just come say hi in Discussions.
+No pressure, no CLA, just curiosity and a bit of ghostly magic.
 
 ## Testing your devices
 
@@ -45,4 +115,32 @@ Use `evtest <input_file>`
 
 [rikka-chunibyo/HIDPi](https://github.com/rikka-chunibyo/HIDPi)
 Without this project I would have never properly configured RP5 as HID gadget. Thank you!
+
+[passepartui](https://github.com/kardwen/passepartui)
+The default password manager used by Charon (although it can be integrated with any other one tool).
+
+
+## Bonus: Pancakes from the Underworld
+
+Charon doesn’t just ferry your keystrokes. Here’s what fuels him:
+
+**Ghostly Pancakes**
+
+Ingredients:
+- 1 cup all-purpose flour
+- 1 tbsp sugar
+- 1 tsp baking powder
+- 1/2 tsp baking soda
+- 1 pinch of salt
+- 1 cup buttermilk
+- 1 egg
+- 2 tbsp melted butter
+
+Instructions:
+1.	In a bowl, whisk together dry ingredients.
+2.	In another bowl, beat the egg, then add buttermilk and melted butter.
+3.	Combine wet and dry. Do not overmix — lumps are from the Styx.
+4.	Cook on a hot greased griddle until bubbles form; flip and cook the other side.
+5.	Serve with maple syrup. Or with Charon’s tears of joy.
+
 

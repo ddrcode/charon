@@ -1,3 +1,14 @@
+/// This file is take "as-is" from Ratatui's component template.
+/// Here is the
+/// [specific version](https://github.com/ratatui/templates/blob/df2db86b0103e9ec66498f5523fa3fa40733b66b/component-generated/src/tui.rs)
+/// that has been copied.
+/// The only modification made here is code added to support meta key:
+/// ```
+/// crossterm::execute!(
+///     stdout(),
+///     PushKeyboardEnhancementFlags(KeyboardEnhancementFlags::DISAMBIGUATE_ESCAPE_CODES)
+/// )?;
+/// ```
 use std::{
     io::{Stdout, stdout},
     ops::{Deref, DerefMut},

@@ -1,3 +1,6 @@
+/// Inspired by and partly copied from Ratatui's Component template,
+/// although heavily modified and expanded.
+/// Here is the [original version](https://github.com/ratatui/templates/blob/df2db86b0103e9ec66498f5523fa3fa40733b66b/component-generated/src/app.rs)
 use std::sync::Arc;
 
 use charon_lib::event::{DomainEvent, Event as DaemonEvent};
