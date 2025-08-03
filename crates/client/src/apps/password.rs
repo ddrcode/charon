@@ -1,35 +1,32 @@
 use std::sync::Arc;
 
-use charon_lib::event::DomainEvent;
+use charon_lib::event::{DomainEvent, Mode};
 use tokio::{
     fs::{OpenOptions, read_to_string},
     io::AsyncWriteExt,
-    task::spawn_blocking,
 };
 use tracing::error;
 
 use crate::domain::{
-    AppPhase, Command, Context,
+    AppEvent, Command, Context,
     traits::{ExternalApp, UiApp},
 };
 
 pub struct Password {
     ctx: Arc<Context>,
-    phase: AppPhase,
+    should_exit: bool,
 }
 
 impl Password {
     pub fn new_box(ctx: Arc<Context>) -> Box<dyn UiApp + Send + Sync> {
         Box::new(Password {
             ctx,
-            phase: AppPhase::default(),
+            should_exit: false,
         })
     }
 
-    async fn run_external(&mut self) -> anyhow::Result<String> {
-        spawn_blocking(|| std::process::Command::new("passepartui").status()).await??;
-        let str = read_to_string(&self.ctx.config.clipboard_cache_file).await?;
-        Ok(str)
+    async fn read_password(&self) -> std::io::Result<String> {
+        read_to_string(&self.ctx.config.clipboard_cache_file).await
     }
 
     async fn clear_cache(&self) -> std::io::Result<()> {
@@ -50,33 +47,37 @@ impl ExternalApp for Password {
         "password"
     }
 
-    fn phase(&self) -> AppPhase {
-        self.phase
+    fn path_to_app(&self) -> String {
+        String::from("passepartui")
     }
 
-    fn set_phase(&mut self, phase: AppPhase) {
-        self.phase = phase;
+    async fn on_start(&mut self) -> eyre::Result<()> {
+        self.should_exit = false;
+        self.clear_cache().await?;
+        Ok(())
     }
 
-    async fn run(&mut self) -> Option<Command> {
-        let cmd = match self.run_external().await {
-            Ok(pwd) => {
-                if pwd.is_empty() {
-                    return None;
-                }
-                Command::SendEvent(DomainEvent::SendText(pwd))
-            }
-            Err(err) => {
-                error!("Error getting password: {err}");
-                return None;
-            }
+    async fn process_result(&mut self, _out: &std::process::Output) -> Option<Command> {
+        let Ok(pwd) = self.read_password().await else {
+            self.should_exit = true;
+            error!("Couldn't read password");
+            return None;
         };
-        Some(cmd)
+
+        Some(Command::SendEvent(DomainEvent::SendText(pwd)))
     }
 
-    async fn on_finish(&mut self) {
-        if let Err(e) = self.clear_cache().await {
-            error!("Failed clearing cache file: {e}");
+    async fn handle_event(&mut self, event: &AppEvent) -> Option<Command> {
+        if matches!(event, AppEvent::Backend(DomainEvent::TextSent)) {
+            self.should_exit = true;
+            return Some(Command::SendEvent(DomainEvent::ModeChange(
+                Mode::PassThrough,
+            )));
         }
+        None
+    }
+
+    fn should_exit(&self) -> bool {
+        self.should_exit
     }
 }

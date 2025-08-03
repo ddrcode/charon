@@ -1,7 +1,6 @@
 use std::{borrow::Cow, collections::HashMap, sync::Arc};
 
-use charon_lib::event::DomainEvent;
-use evdev::KeyCode;
+use crossterm::event::{KeyCode, KeyModifiers};
 use ratatui::{
     Frame,
     layout::{Constraint, Direction, Layout},
@@ -12,7 +11,7 @@ use tracing::warn;
 use super::{LineChartRenderer, StatData, State, StatsPeriod};
 use crate::{
     apps::stats::{KeyHeatmapRenderer, StatType},
-    domain::{AppMsg, Command, Context, traits::UiApp},
+    domain::{AppEvent, Command, Context, traits::UiApp},
     repository::metrics::{MetricsRepository, RangeResponse},
 };
 
@@ -119,31 +118,33 @@ impl UiApp for Stats {
         "stats"
     }
 
-    async fn update(&mut self, msg: &AppMsg) -> Option<Command> {
+    async fn update(&mut self, msg: &AppEvent) -> Option<Command> {
         match msg {
-            AppMsg::Activate => {
+            AppEvent::Activate => {
                 self.state.resolution = 25;
                 self.state.reset_with_period(StatsPeriod::Day);
                 self.update_data().await
             }
-            AppMsg::Backend(DomainEvent::KeyRelease(key, _)) => match *key {
-                KeyCode::KEY_ESC => Some(Command::RunApp("menu")),
-                KeyCode::KEY_LEFT => self.update_after(|state| state.prev()).await,
-                KeyCode::KEY_RIGHT => self.update_after(|state| state.next()).await,
-                KeyCode::KEY_UP => {
-                    self.update_after(|state| state.reset_with_period(state.period.next()))
-                        .await
+            AppEvent::Key(key) if key.is_press() && key.modifiers == KeyModifiers::NONE => {
+                match key.code {
+                    KeyCode::Esc => Some(Command::ExitApp),
+                    KeyCode::Left => self.update_after(|state| state.prev()).await,
+                    KeyCode::Right => self.update_after(|state| state.next()).await,
+                    KeyCode::Up => {
+                        self.update_after(|state| state.reset_with_period(state.period.next()))
+                            .await
+                    }
+                    KeyCode::Down => {
+                        self.update_after(|state| state.reset_with_period(state.period.prev()))
+                            .await
+                    }
+                    KeyCode::Char(' ') => {
+                        self.update_after(|state| state.reset_with_type(state.stat_type.next()))
+                            .await
+                    }
+                    _ => None,
                 }
-                KeyCode::KEY_DOWN => {
-                    self.update_after(|state| state.reset_with_period(state.period.prev()))
-                        .await
-                }
-                KeyCode::KEY_SPACE => {
-                    self.update_after(|state| state.reset_with_type(state.stat_type.next()))
-                        .await
-                }
-                _ => None,
-            },
+            }
             _ => None,
         }
     }

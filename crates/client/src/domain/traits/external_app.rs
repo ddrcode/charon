@@ -1,9 +1,9 @@
-use charon_lib::event::{DomainEvent, Mode};
 use ratatui::Frame;
+use tracing::error;
 
 use crate::{
     components::notification,
-    domain::{AppMsg, AppPhase, Command},
+    domain::{AppEvent, Command},
 };
 
 use super::UiApp;
@@ -11,14 +11,23 @@ use super::UiApp;
 #[async_trait::async_trait]
 pub trait ExternalApp {
     fn id(&self) -> &'static str;
-    async fn run(&mut self) -> Option<Command>;
+    fn path_to_app(&self) -> String;
+    fn app_args(&self) -> Vec<String> {
+        Vec::new()
+    }
 
-    async fn on_start(&mut self) {}
-    async fn on_finish(&mut self) {}
-    async fn on_error(&mut self) {}
+    async fn process_result(&mut self, output: &std::process::Output) -> Option<Command>;
+    async fn on_start(&mut self) -> eyre::Result<()> {
+        Ok(())
+    }
+    async fn on_error(&mut self) -> Option<Command> {
+        Some(Command::ExitApp)
+    }
+    async fn handle_event(&mut self, _event: &AppEvent) -> Option<Command> {
+        None
+    }
 
-    fn phase(&self) -> AppPhase;
-    fn set_phase(&mut self, state: AppPhase);
+    fn should_exit(&self) -> bool;
 }
 
 #[async_trait::async_trait]
@@ -30,58 +39,38 @@ where
         self.id()
     }
 
-    async fn update(&mut self, msg: &AppMsg) -> Option<Command> {
+    async fn update(&mut self, msg: &AppEvent) -> Option<Command> {
         let cmd = match msg {
-            AppMsg::Activate => {
-                self.set_phase(AppPhase::Started);
-                self.on_start().await;
-                Command::SuspendTUI
+            AppEvent::Activate => {
+                if let Err(err) = self.on_start().await {
+                    error!("Couldn't activate external app: {err}");
+                    Some(Command::ExitApp)
+                } else {
+                    Some(Command::RunExternal(self.path_to_app(), self.app_args()))
+                }
             }
-            AppMsg::TimerTick(_) => match self.phase() {
-                AppPhase::Started => {
-                    self.set_phase(AppPhase::Running);
-                    let cmd = self.run().await;
-                    if let Some(c) = &cmd
-                        && matches!(c, Command::SendEvent(..))
-                    {
-                        self.set_phase(AppPhase::Closed);
-                    } else {
-                        self.set_phase(AppPhase::Closing);
-                    }
-                    return cmd;
-                }
-                AppPhase::Closed => {
-                    self.set_phase(AppPhase::Sending);
-                    Command::ResumeTUI
-                }
-                AppPhase::Closing => {
-                    self.set_phase(AppPhase::Finishing);
-                    Command::ResumeTUI
-                }
-                AppPhase::Finishing => {
-                    self.on_finish().await;
-                    self.set_phase(AppPhase::Done);
-                    Command::RunApp("menu")
-                }
-                _ => return None,
+            AppEvent::ReturnFromExternal(output) => match output {
+                Some(out) => return self.process_result(out).await,
+                None => self.on_error().await,
             },
-            AppMsg::Backend(DomainEvent::TextSent) => {
-                self.on_finish().await;
-                self.set_phase(AppPhase::Done);
-                Command::SendEvent(DomainEvent::ModeChange(Mode::PassThrough))
-            }
-            _ => return None,
+            _ => None,
         };
-        Some(cmd)
+
+        if self.should_exit() {
+            return Some(Command::ExitApp);
+        }
+
+        if cmd.is_some() {
+            return cmd;
+        }
+        self.handle_event(msg).await
     }
 
     fn render(&self, f: &mut Frame) {
-        if self.phase() == AppPhase::Sending {
-            notification(
-                f,
-                "Please wait".into(),
-                "Sending text...\nPress <[magic key]> to interrupt".into(),
-            );
-        }
+        notification(
+            f,
+            "Please wait".into(),
+            "Sending text...\nPress <[magic key]> to interrupt".into(),
+        );
     }
 }

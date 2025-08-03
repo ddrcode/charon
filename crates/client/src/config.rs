@@ -1,6 +1,8 @@
 use std::{path::PathBuf, time::Duration};
 
 pub struct AppConfig {
+    pub daemon_socket: PathBuf,
+
     pub idle_time: Duration,
     pub wisdom_duration: Duration,
     pub splash_duration: Duration,
@@ -15,10 +17,11 @@ impl Default for AppConfig {
         clip_cache.push("charon/clipboard-cache");
 
         Self {
+            daemon_socket: PathBuf::from("/tmp/charon.sock"),
             idle_time: Duration::from_secs(300),
             wisdom_duration: Duration::from_secs(60),
             splash_duration: Duration::from_secs(180),
-            fast_typing_treshold: 35,
+            fast_typing_treshold: 40,
 
             clipboard_cache_file: clip_cache,
         }
