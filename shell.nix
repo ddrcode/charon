@@ -9,6 +9,7 @@ pkgs.mkShell {
     treefmt
     openssl
     pkg-config
+    cargo-machete
   ];
 
   # inputsFrom = [ pkgs.hello pkgs.gnutar ];

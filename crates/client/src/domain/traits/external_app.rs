@@ -16,9 +16,12 @@ pub trait ExternalApp {
         Vec::new()
     }
 
-    async fn process_result(&mut self) -> Option<Command>;
+    async fn process_result(&mut self, output: &std::process::Output) -> Option<Command>;
     async fn on_start(&mut self) -> eyre::Result<()> {
         Ok(())
+    }
+    async fn on_error(&mut self) -> Option<Command> {
+        Some(Command::ExitApp)
     }
     async fn handle_event(&mut self, _event: &AppEvent) -> Option<Command> {
         None
@@ -46,7 +49,10 @@ where
                     Some(Command::RunExternal(self.path_to_app(), self.app_args()))
                 }
             }
-            AppEvent::ReturnFromExternal => self.process_result().await,
+            AppEvent::ReturnFromExternal(output) => match output {
+                Some(out) => return self.process_result(out).await,
+                None => self.on_error().await,
+            },
             _ => None,
         };
 

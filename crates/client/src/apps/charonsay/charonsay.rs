@@ -64,7 +64,7 @@ impl Charonsay {
         match msg {
             AppEvent::Activate => Transition::ToSplash,
 
-            AppEvent::Backend(DomainEvent::KeyPress(..)) => {
+            AppEvent::Key(..) => {
                 if state.view == WisdomCategory::Idle {
                     return Transition::ToSplash;
                 }
@@ -81,7 +81,7 @@ impl Charonsay {
                 Transition::Stay
             }
 
-            AppEvent::TimerTick(dur) => {
+            AppEvent::Tick(dur) => {
                 if state.time_to_idle <= *dur {
                     if state.view != WisdomCategory::Idle {
                         return Transition::ToIdle;
@@ -149,7 +149,7 @@ impl UiApp for Charonsay {
                 state.time_to_next = config.wisdom_duration;
             }
             Transition::Stay => {
-                if let AppEvent::TimerTick(dur) = msg {
+                if let AppEvent::Tick(dur) = msg {
                     state.time_to_next = state.time_to_next.saturating_sub(*dur);
                     state.time_to_idle = state.time_to_idle.saturating_sub(*dur);
                 }

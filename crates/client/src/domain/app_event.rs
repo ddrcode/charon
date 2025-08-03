@@ -8,11 +8,10 @@ use strum::Display;
 #[non_exhaustive]
 pub enum AppEvent {
     Activate,
-    Tick,
-    TimerTick(Duration),
+    Tick(Duration),
     Key(KeyEvent),
     Backend(DomainEvent),
     Quit,
     Resize(u16, u16),
-    ReturnFromExternal,
+    ReturnFromExternal(Option<std::process::Output>),
 }

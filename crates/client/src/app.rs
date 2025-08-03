@@ -12,8 +12,9 @@ use tokio::{
     select,
     sync::mpsc,
     task::spawn_blocking,
+    time::Instant,
 };
-use tracing::{debug, warn};
+use tracing::{debug, error, warn};
 
 use crate::{
     domain::{AppEvent, Command, Context},
@@ -31,6 +32,7 @@ pub struct App {
     command_tx: mpsc::UnboundedSender<Command>,
     command_rx: mpsc::UnboundedReceiver<Command>,
     sock_writer: Option<BufWriter<OwnedWriteHalf>>,
+    prev_tick: Instant,
 }
 
 impl App {
@@ -47,14 +49,15 @@ impl App {
             command_tx,
             command_rx,
             sock_writer: None,
+            prev_tick: Instant::now(),
         })
     }
 
     pub async fn run(&mut self) -> eyre::Result<()> {
         let mut tui = Tui::new()?
             // .mouse(true) // uncomment this line to enable mouse support
-            .tick_rate(4.0)
-            .frame_rate(30.0);
+            .tick_rate(2.0)
+            .frame_rate(1.0);
         tui.enter()?;
 
         let sock = UnixStream::connect(&self.ctx.config.daemon_socket).await?;
@@ -117,7 +120,7 @@ impl App {
         let command_tx = self.command_tx.clone();
         match event {
             TuiEvent::Quit => app_event_tx.send(AppEvent::Quit)?,
-            TuiEvent::Tick => app_event_tx.send(AppEvent::Tick)?,
+            TuiEvent::Tick => self.handle_tick()?,
             TuiEvent::Render => command_tx.send(Command::Render)?,
             TuiEvent::Resize(x, y) => app_event_tx.send(AppEvent::Resize(x, y))?,
             TuiEvent::Key(key) => app_event_tx.send(AppEvent::Key(key))?,
@@ -129,17 +132,13 @@ impl App {
     async fn handle_app_event(&mut self, event: AppEvent, tui: &mut Tui) -> eyre::Result<()> {
         if !matches!(
             event,
-            AppEvent::Tick | AppEvent::Backend(DomainEvent::CurrentStats(..))
+            AppEvent::Tick(..) | AppEvent::Backend(DomainEvent::CurrentStats(..))
         ) {
             debug!("{event:?}");
         }
         match event {
-            AppEvent::Tick => {
-                // self.last_tick_key_events.drain(..);
-            }
             AppEvent::Quit => self.should_quit = true,
             AppEvent::Resize(w, h) => self.handle_resize(tui, w, h)?,
-            // Action::Render => self.render(tui)?,
             _ => {}
         }
 
@@ -187,6 +186,14 @@ impl App {
         Ok(())
     }
 
+    fn handle_tick(&mut self) -> eyre::Result<()> {
+        let now = Instant::now();
+        let delta = now - self.prev_tick;
+        self.prev_tick = now;
+        self.app_event_tx.send(AppEvent::Tick(delta))?;
+        Ok(())
+    }
+
     fn switch_app(&mut self, name: &'static str) -> eyre::Result<()> {
         if self.app_mngr.has_app(name) {
             self.app_mngr.set_active(name);
@@ -215,10 +222,27 @@ impl App {
         tui: &mut Tui,
     ) -> eyre::Result<()> {
         tui.exit()?;
-        spawn_blocking(move || std::process::Command::new(path).args(args).status()).await??;
+        let output = spawn_blocking(move || {
+            std::process::Command::new(path)
+                .args(args)
+                .stdout(std::process::Stdio::piped())
+                .stderr(std::process::Stdio::piped())
+                .output()
+        })
+        .await?;
+
         tui.enter()?;
         tui.terminal.clear()?;
-        self.app_event_tx.send(AppEvent::ReturnFromExternal)?;
+
+        let output = output
+            .inspect_err(|err| {
+                error!("Error executing external app: {err}");
+            })
+            .ok();
+
+        self.app_event_tx
+            .send(AppEvent::ReturnFromExternal(output))?;
+
         Ok(())
     }
 }

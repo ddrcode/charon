@@ -57,7 +57,7 @@ impl ExternalApp for Password {
         Ok(())
     }
 
-    async fn process_result(&mut self) -> Option<Command> {
+    async fn process_result(&mut self, _out: &std::process::Output) -> Option<Command> {
         let Ok(pwd) = self.read_password().await else {
             self.should_exit = true;
             error!("Couldn't read password");

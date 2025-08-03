@@ -55,7 +55,7 @@ impl ExternalApp for Editor {
         Ok(())
     }
 
-    async fn process_result(&mut self) -> Option<Command> {
+    async fn process_result(&mut self, _output: &std::process::Output) -> Option<Command> {
         Some(Command::SendEvent(DomainEvent::SendFile(
             self.path_to_string(),
             true,

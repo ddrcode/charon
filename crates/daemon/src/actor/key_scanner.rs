@@ -117,17 +117,10 @@ impl KeyScanner {
     }
 
     fn ungrab(&mut self) {
-        // use nix::sys::termios::{FlushArg, SetArg, tcflush, tcgetattr, tcsetattr};
-        if self.input.is_grabbed() {
-            if let Err(e) = self.input.ungrab() {
-                error!("Couldn't ungrab the device: {}", e);
-            }
-            // if let Err(err) = tcflush(std::io::stdin(), FlushArg::TCIFLUSH.into()) {
-            //     error!("Error while flushing terminal: {err}");
-            // }
-            // if let Ok(termios) = tcgetattr(std::io::stdin()) {
-            //     let _ = tcsetattr(std::io::stdin(), SetArg::TCSANOW, &termios);
-            // }
+        if self.input.is_grabbed()
+            && let Err(e) = self.input.ungrab()
+        {
+            error!("Couldn't ungrab the device: {}", e);
         }
     }
 }
