@@ -3,12 +3,12 @@ b: b
 c: c
 
 1: 1
-´!´: Shift+1
+'!': Shift+1
 ¡: Alt+1
 ¹: Alt+Shift+1
 
 2: 2
-@: Shift+2
+'@': Shift+2
 ²: Alt+2
 
 ³: Alt+3
@@ -20,6 +20,4 @@ c: c
 ‘: Alt+9
 ’: Alt+0
 ¥: Alt+-
-×: Alt++
-
 

@@ -1,26 +1,18 @@
-alt:
-  1: ≠
-  2: ²
-  3: ³
-  4: ¢
-  5: €
-  6: ½
-  7: §
-  8: ·
-  9: «
-  0: »
-  "-": –
-  =: ¸
+ą: Alt+A
+ć: Alt+C
+ę: Alt+E
+ł: Alt+L
+ń: Alt+N
+ó: Alt+O
+ś: Alt+S
+ź: Alt+X
 
-shiftalt:
-  1: ¡
-  2: ¿
-  3: £
-  4: ¼
-  5: ‰
-  6: ∧
-  7: ≈
-  8: ¾
-  9: ±
-  0: °
-  "-": —
+Ą: Shift+Alt+A
+Ć: Shift+Alt+C
+Ę: Shift+Alt+E
+Ł: Shift+Alt+L
+Ń: Shift+Alt+N
+Ó: Shift+Alt+O
+Ś: Shift+Alt+S
+Ź: Shift+Alt+X
+Ż: Shift+Alt+Z
