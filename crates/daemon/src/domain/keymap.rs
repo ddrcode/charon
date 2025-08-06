@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use crate::domain::HidReport;
 
+#[derive(Debug, Clone)]
 pub struct Keymap {
     pub name: String,
     pub base: Option<String>,

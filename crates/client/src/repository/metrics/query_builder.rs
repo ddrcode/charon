@@ -34,7 +34,7 @@ impl<'a> QueryBuilder<'a> {
         self
     }
 
-    pub async fn send<T: serde::de::DeserializeOwned>(self) -> anyhow::Result<T> {
+    pub async fn send<T: serde::de::DeserializeOwned>(self) -> eyre::Result<T> {
         let req = self
             .client
             .get(format!("{}/query_range", self.base_url))

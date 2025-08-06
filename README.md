@@ -25,6 +25,7 @@ Or - if this parapgraph is already too long for you:
 - **Stats Screen / Charts** - Visualize metrics like average/max WPM over the past year.
 - **Power Management** - Automatically dims the screen and lowers CPU usage when idle.
 - **Password Manager** - Securely pick and type out passwords—no copy-paste involved.
+- **Keymaps** - keystrokes writer supports multiple layouts/keymaps
 
 
 
@@ -74,7 +75,6 @@ It doesn’t panic.
 
 - Per-keyboard settings and stats
 - Multi-keyboard support (e.g. one for typing, another for macros)
-- Support for multiple keyboard layouts
 - Unicode character injection (platform-specific)
 - Mouse pass-through
 - QMK Raw HID support

@@ -9,8 +9,8 @@ pub mod port;
 pub mod processor;
 pub mod util;
 
-use anyhow;
 use charon_lib::event::Topic as T;
+use eyre;
 use std::{fs::read_to_string, path::PathBuf};
 use tokio::{self, signal::unix};
 use tracing::{debug, info, warn};
@@ -26,12 +26,13 @@ use crate::{
 };
 
 #[tokio::main]
-async fn main() -> Result<(), anyhow::Error> {
+async fn main() -> eyre::Result<()> {
     init_logging();
 
     let config = get_config().expect("Failed loading config file");
+    info!("Loading keymap");
     let keymap = KeymapLoaderYaml::new(&config.keymaps_dir)
-        .load_keymap(&config.keymap)
+        .load_keymap(&config.host_keymap)
         .await?;
 
     let mut daemon = Daemon::new();
@@ -76,7 +77,7 @@ async fn main() -> Result<(), anyhow::Error> {
     Ok(())
 }
 
-fn get_config() -> Result<CharonConfig, anyhow::Error> {
+fn get_config() -> eyre::Result<CharonConfig> {
     let mut path = PathBuf::new();
     path.push(std::env::var("XDG_CONFIG_HOME")?);
     path.push("charon/charon.toml");

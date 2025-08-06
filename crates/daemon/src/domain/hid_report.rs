@@ -1,4 +1,4 @@
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone, Copy)]
 #[repr(transparent)]
 pub struct HidReport([u8; 8]);
 

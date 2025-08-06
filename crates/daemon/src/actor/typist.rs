@@ -1,4 +1,5 @@
 use charon_lib::event::{DomainEvent, Event, Mode};
+use deunicode::{deunicode, deunicode_char};
 use tokio::{
     fs::{read_to_string, remove_file},
     task::JoinHandle,
@@ -38,8 +39,22 @@ impl Typist {
         }
     }
 
+    fn to_ascii_report(&self, c: char) -> Option<&HidReport> {
+        if let Some(decoded) = deunicode_char(c)
+            && decoded.len() == 1
+        {
+            return self.keymap.report(
+                decoded
+                    .chars()
+                    .next()
+                    .expect("Expected string with only one character"),
+            );
+        }
+        None
+    }
+
     pub async fn send_char(&mut self, c: char) {
-        if let Some(report) = self.keymap.report(c) {
+        if let Some(report) = self.keymap.report(c).or_else(|| self.to_ascii_report(c)) {
             self.send(DomainEvent::HidReport(report.into())).await;
             tokio::time::sleep(self.speed).await;
             self.send(DomainEvent::HidReport(HidReport::default().into()))

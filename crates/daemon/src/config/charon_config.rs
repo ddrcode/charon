@@ -2,13 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
 use super::{InputConfig, defaults};
-use crate::{
-    config::{
-        defaults::{default_keymap, default_keymaps_dir},
-        keyboard::KeyboardConfig,
-    },
-    domain::KeyShortcut,
-};
+use crate::{config::keyboard::KeyboardConfig, domain::KeyShortcut};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CharonConfig {
@@ -72,8 +66,8 @@ pub struct CharonConfig {
     #[serde(default = "defaults::default_keymaps_dir")]
     pub keymaps_dir: String,
 
-    #[serde(default = "defaults::default_keymap")]
-    pub keymap: String,
+    #[serde(default = "defaults::default_host_keymap")]
+    pub host_keymap: String,
 }
 
 impl CharonConfig {
@@ -126,8 +120,8 @@ impl Default for CharonConfig {
             stats_save_interval: defaults::default_stats_save_interval(),
             stats_wpm_slot_duration: defaults::default_stats_wpm_slot_duration(),
             stats_wpm_slot_count: defaults::default_stats_wpm_slot_count(),
-            keymaps_dir: default_keymaps_dir(),
-            keymap: default_keymap(),
+            keymaps_dir: defaults::default_keymaps_dir(),
+            host_keymap: defaults::default_host_keymap(),
         }
     }
 }

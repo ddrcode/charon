@@ -1,4 +1,3 @@
-name: pl
 base: en_us
 
 mappings:
@@ -11,6 +10,7 @@ mappings:
     ó: Alt+O
     ś: Alt+S
     ź: Alt+X
+    ż: Alt+Z
 
     Ą: Shift+Alt+A
     Ć: Shift+Alt+C

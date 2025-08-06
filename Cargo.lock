@@ -48,12 +48,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "anyhow"
-version = "1.0.98"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e16d2d3311acee920a9eb8d33b8cbc1787ce4a264e85f964c2404b969bdcd487"
-
-[[package]]
 name = "async-recursion"
 version = "1.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -192,7 +186,6 @@ dependencies = [
 name = "charon-tui"
 version = "0.1.0"
 dependencies = [
- "anyhow",
  "async-recursion",
  "async-trait",
  "charon-lib",
@@ -219,11 +212,11 @@ dependencies = [
 name = "charond"
 version = "0.1.0"
 dependencies = [
- "anyhow",
  "async-trait",
  "charon-lib",
  "deunicode",
  "evdev",
+ "eyre",
  "futures",
  "lru_time_cache",
  "prometheus",

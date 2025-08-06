@@ -54,6 +54,6 @@ pub fn default_keymaps_dir() -> String {
     String::from("data/keymaps")
 }
 
-pub fn default_keymap() -> String {
+pub fn default_host_keymap() -> String {
     String::from("en_us")
 }

@@ -22,7 +22,7 @@ impl MetricsRepository {
         start: u64,
         end: u64,
         step: u64,
-    ) -> anyhow::Result<RangeResponse> {
+    ) -> eyre::Result<RangeResponse> {
         // "{}/query_range?query=avg_over_time(wpm[{step}s])&start={start}&end={end}&step={step}s",
         QueryBuilder::new(&self.client, &self.base_url)
             .query("wpm")
@@ -36,7 +36,7 @@ impl MetricsRepository {
         start: u64,
         end: u64,
         step: u64,
-    ) -> anyhow::Result<RangeResponse> {
+    ) -> eyre::Result<RangeResponse> {
         QueryBuilder::new(&self.client, &self.base_url)
             .query(format!("max_over_time(wpm[{step}s])"))
             .range(start, end, step)
@@ -49,7 +49,7 @@ impl MetricsRepository {
         start: u64,
         end: u64,
         step: u64,
-    ) -> anyhow::Result<RangeResponse> {
+    ) -> eyre::Result<RangeResponse> {
         QueryBuilder::new(&self.client, &self.base_url)
             .query(format!(
                 "sum by(user) (increase(key_presses_total[{step}s]))"
@@ -64,7 +64,7 @@ impl MetricsRepository {
         start: u64,
         end: u64,
         step: u64,
-    ) -> anyhow::Result<RangeResponse> {
+    ) -> eyre::Result<RangeResponse> {
         QueryBuilder::new(&self.client, &self.base_url)
             .query(format!(
                 "sum by(user, key) (increase(key_presses_total[{step}s]))"

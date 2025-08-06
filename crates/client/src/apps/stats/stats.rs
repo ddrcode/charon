@@ -57,7 +57,7 @@ impl Stats {
         format!("{} ({})", self.state.stat_type, self.period_name())
     }
 
-    fn normalize_vec(&mut self, data: anyhow::Result<RangeResponse>) -> Option<Vec<(f64, f64)>> {
+    fn normalize_vec(&mut self, data: eyre::Result<RangeResponse>) -> Option<Vec<(f64, f64)>> {
         let (start, end, _) = self.state.start_end_step();
         match data {
             Ok(data) => Some(data.normalize_with_zeros(start..end, self.state.resolution)),
@@ -68,7 +68,7 @@ impl Stats {
         }
     }
 
-    fn normalize_map(&mut self, data: anyhow::Result<RangeResponse>) -> HashMap<String, f64> {
+    fn normalize_map(&mut self, data: eyre::Result<RangeResponse>) -> HashMap<String, f64> {
         match data {
             Ok(data) => data.normalize_frequencies(),
             Err(err) => {
