@@ -17,7 +17,7 @@ use tracing::{debug, info, warn};
 use tracing_subscriber::FmtSubscriber;
 
 use crate::{
-    actor::{KeyWriter, PowerManager, Telemetry, TypingStats, Typist, ipc_server::IPCServer},
+    actor::{KeyWriter, PowerManager, QMK, Telemetry, TypingStats, Typist, ipc_server::IPCServer},
     adapter::KeymapLoaderYaml,
     config::CharonConfig,
     daemon::Daemon,
@@ -55,7 +55,8 @@ async fn main() -> eyre::Result<()> {
         .add_actor_conditionally::<Telemetry>(
             config.enable_telemetry,
             &[T::System, T::Telemetry, T::KeyInput, T::Stats],
-        );
+        )
+        .add_actor_conditionally::<QMK>(true, &[T::System]);
 
     let mut sigterm = unix::signal(unix::SignalKind::terminate())?;
 

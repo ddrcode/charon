@@ -2,7 +2,7 @@ use evdev::KeyCode;
 use serde::{Deserialize, Serialize};
 
 use super::{Mode, Topic};
-use crate::stats::CurrentStats;
+use crate::{event::QMKEvent, stats::CurrentStats};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[non_exhaustive]
@@ -23,6 +23,9 @@ pub enum DomainEvent {
 
     // telemetry events
     ReportSent(),
+
+    // QMK
+    QMKEvent(QMKEvent),
 }
 
 impl DomainEvent {
