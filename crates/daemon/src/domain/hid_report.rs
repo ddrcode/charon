@@ -1,3 +1,4 @@
+#[derive(Debug, Default)]
 #[repr(transparent)]
 pub struct HidReport([u8; 8]);
 
@@ -8,5 +9,17 @@ impl HidReport {
 
     pub fn to_bytes(&self) -> [u8; 8] {
         self.0
+    }
+}
+
+impl From<&HidReport> for [u8; 8] {
+    fn from(report: &HidReport) -> Self {
+        report.to_bytes()
+    }
+}
+
+impl From<HidReport> for [u8; 8] {
+    fn from(report: HidReport) -> Self {
+        report.to_bytes()
     }
 }

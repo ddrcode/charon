@@ -7,15 +7,12 @@ use tracing::{debug, warn};
 use uuid::Uuid;
 
 use crate::{
-    adapter::KeymapLoaderYaml,
-    domain::{ActorState, HidKeyCode, KeyboardState, Keymap, traits::Actor},
+    domain::{ActorState, HidReport, Keymap, traits::Actor},
     error::CharonError,
-    port::KeymapLoader,
 };
 
 pub struct Typist {
     state: ActorState,
-    report: KeyboardState,
     speed: tokio::time::Duration,
     keymap: Keymap,
 }
@@ -24,7 +21,6 @@ impl Typist {
     pub fn new(state: ActorState, interval: u8, keymap: Keymap) -> Self {
         Self {
             state,
-            report: KeyboardState::new(),
             speed: tokio::time::Duration::from_millis(interval.into()),
             keymap,
         }
@@ -43,27 +39,14 @@ impl Typist {
     }
 
     pub async fn send_char(&mut self, c: char) {
-        let report = self.keymap.report(c);
-    }
-    pub async fn send_char2(&mut self, c: char) {
-        let seq = match HidKeyCode::seq_from_char(c) {
-            Ok(val) => val,
-            Err(_) => {
-                warn!("Couldn't produce sequence for char {c}");
-                return;
-            }
-        };
-        for key in seq.iter() {
-            self.report.update_on_press(*key);
-            self.send(DomainEvent::HidReport(self.report.to_report()))
+        if let Some(report) = self.keymap.report(c) {
+            self.send(DomainEvent::HidReport(report.into())).await;
+            tokio::time::sleep(self.speed).await;
+            self.send(DomainEvent::HidReport(HidReport::default().into()))
                 .await;
             tokio::time::sleep(self.speed).await;
-        }
-        for key in seq.iter().rev() {
-            self.report.update_on_release(*key);
-            self.send(DomainEvent::HidReport(self.report.to_report()))
-                .await;
-            tokio::time::sleep(self.speed).await;
+        } else {
+            warn!("Couldn't find key mapping for char {c}");
         }
     }
 
