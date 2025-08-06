@@ -1,0 +1,23 @@
+base: en_us
+
+mappings:
+
+    ą: Alt+A
+    ć: Alt+C
+    ę: Alt+E
+    ł: Alt+L
+    ń: Alt+N
+    ó: Alt+O
+    ś: Alt+S
+    ź: Alt+X
+    ż: Alt+Z
+
+    Ą: Shift+Alt+A
+    Ć: Shift+Alt+C
+    Ę: Shift+Alt+E
+    Ł: Shift+Alt+L
+    Ń: Shift+Alt+N
+    Ó: Shift+Alt+O
+    Ś: Shift+Alt+S
+    Ź: Shift+Alt+X
+    Ż: Shift+Alt+Z

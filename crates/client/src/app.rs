@@ -1,9 +1,10 @@
 /// Inspired by and partly copied from Ratatui's Component template,
 /// although heavily modified and expanded.
 /// Here is the [original version](https://github.com/ratatui/templates/blob/df2db86b0103e9ec66498f5523fa3fa40733b66b/component-generated/src/app.rs)
-use std::sync::Arc;
+use std::{borrow::Cow, sync::Arc};
 
 use charon_lib::event::{DomainEvent, Event as DaemonEvent};
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use eyre::OptionExt;
 use ratatui::layout::Rect;
 use tokio::{
@@ -17,7 +18,7 @@ use tokio::{
     task::spawn_blocking,
     time::Instant,
 };
-use tracing::{debug, error, warn};
+use tracing::{debug, error, info, warn};
 
 use crate::{
     domain::{AppEvent, Command, Context},
@@ -68,13 +69,12 @@ impl App {
         self.sock_writer = Some(BufWriter::new(writer));
         let mut reader = BufReader::new(reader);
 
-        let command_tx = self.command_tx.clone();
         loop {
             self.tick(&mut tui, &mut reader).await?;
             if self.should_suspend {
                 tui.suspend()?;
-                command_tx.send(Command::ResumeApp)?;
-                command_tx.send(Command::ClearScreen)?;
+                self.command_tx.send(Command::ResumeApp)?;
+                self.command_tx.send(Command::ClearScreen)?;
                 // tui.mouse(true);
                 tui.enter()?;
             } else if self.should_quit {
@@ -97,16 +97,20 @@ impl App {
     ) -> eyre::Result<()> {
         let mut line = String::new();
         select! {
-            Some(event) = tui.next_event() => {
+            event = tui.next_event() => {
+                let event = event.ok_or_eyre("TUI event channel closed")?;
                 self.handle_tui_event(event).await?;
             }
-            Some(action) = self.app_event_rx.recv() => {
-                self.handle_app_event(action, tui).await?;
+            event = self.app_event_rx.recv() => {
+                let event = event.ok_or_eyre("App event channel closed")?;
+                self.handle_app_event(event, tui).await?;
             }
-            Some(command) = self.command_rx.recv() => {
+            command = self.command_rx.recv() => {
+                let command = command.ok_or_eyre("Command event channel closed")?;
                 self.handle_command(command, tui).await?;
             }
-            Ok(bytes) = reader.read_line(&mut line) => {
+            line_res = reader.read_line(&mut line) => {
+                let bytes = line_res?;
                 self.handle_daemon_event(bytes, line).await?;
             }
         }
@@ -126,7 +130,7 @@ impl App {
             TuiEvent::Tick => self.handle_tick()?,
             TuiEvent::Render => command_tx.send(Command::Render)?,
             TuiEvent::Resize(x, y) => app_event_tx.send(AppEvent::Resize(x, y))?,
-            TuiEvent::Key(key) => app_event_tx.send(AppEvent::Key(key))?,
+            TuiEvent::Key(key) => self.handle_key_event(key)?,
             _ => {}
         }
         Ok(())
@@ -197,6 +201,21 @@ impl App {
         Ok(())
     }
 
+    fn handle_key_event(&mut self, key: KeyEvent) -> eyre::Result<()> {
+        match (key.code, key.modifiers) {
+            (KeyCode::Char('c'), KeyModifiers::CONTROL) => {
+                info!("Quitting on Ctrl+C");
+                self.should_quit = true;
+            }
+            (KeyCode::Char('z'), KeyModifiers::CONTROL) => {
+                info!("Suspending");
+                self.should_suspend = true;
+            }
+            _ => self.app_event_tx.send(AppEvent::Key(key))?,
+        }
+        Ok(())
+    }
+
     fn switch_app(&mut self, name: &'static str) -> eyre::Result<()> {
         if self.app_mngr.has_app(name) {
             self.app_mngr.set_active(name);
@@ -220,31 +239,29 @@ impl App {
 
     async fn run_external(
         &mut self,
-        path: String,
+        path: Cow<'static, str>,
         args: Vec<String>,
         tui: &mut Tui,
     ) -> eyre::Result<()> {
         tui.exit()?;
-        let output = spawn_blocking(move || {
-            std::process::Command::new(path)
+        let status = spawn_blocking(move || {
+            std::process::Command::new(path.into_owned())
                 .args(args)
-                .stdout(std::process::Stdio::piped())
-                .stderr(std::process::Stdio::piped())
-                .output()
+                .status()
         })
         .await?;
 
         tui.enter()?;
         tui.terminal.clear()?;
 
-        let output = output
+        let status = status
             .inspect_err(|err| {
                 error!("Error executing external app: {err}");
             })
             .ok();
 
         self.app_event_tx
-            .send(AppEvent::ReturnFromExternal(output))?;
+            .send(AppEvent::ReturnFromExternal(status))?;
 
         Ok(())
     }

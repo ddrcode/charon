@@ -1,6 +1,6 @@
 use std::{fmt, str::FromStr};
 
-use crate::error::CharonError;
+use crate::{domain::HidReport, error::CharonError};
 
 use super::{HidKeyCode, Modifiers};
 
@@ -64,5 +64,14 @@ impl From<&KeyShortcut> for u64 {
 impl From<KeyShortcut> for u64 {
     fn from(key: KeyShortcut) -> Self {
         u64::from(&key)
+    }
+}
+
+impl From<&KeyShortcut> for HidReport {
+    fn from(key: &KeyShortcut) -> Self {
+        let mut bytes = [0u8; 8];
+        bytes[0] = key.modifiers.into();
+        bytes[2] = key.key.into();
+        HidReport::new(bytes)
     }
 }

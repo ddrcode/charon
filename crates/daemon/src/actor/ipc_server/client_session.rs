@@ -70,7 +70,7 @@ impl ClientSession {
         event.payload != DomainEvent::Exit
     }
 
-    pub async fn send(&mut self, event: Event) -> anyhow::Result<()> {
+    pub async fn send(&mut self, event: Event) -> eyre::Result<()> {
         let stream = &mut self.stream;
         let payload = serde_json::to_string(&event)?;
         stream.write_all(payload.as_bytes()).await?;

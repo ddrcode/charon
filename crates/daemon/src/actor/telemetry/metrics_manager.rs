@@ -91,9 +91,9 @@ impl MetricsManager {
         let reg = self.registry.gather();
 
         spawn_blocking(move || {
-            match push_metrics("charon", labels! {}, "http://localhost:9091", reg, None) {
-                Ok(_) => debug!("Metrics sent"),
-                Err(err) => error!("Error while pushing metrics: {err}"),
+            if let Err(err) = push_metrics("charon", labels! {}, "http://localhost:9091", reg, None)
+            {
+                error!("Error while pushing metrics: {err}");
             }
         })
     }

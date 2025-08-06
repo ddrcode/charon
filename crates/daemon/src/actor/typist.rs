@@ -1,4 +1,5 @@
 use charon_lib::event::{DomainEvent, Event, Mode};
+use deunicode::{deunicode, deunicode_char};
 use tokio::{
     fs::{read_to_string, remove_file},
     task::JoinHandle,
@@ -7,22 +8,22 @@ use tracing::{debug, warn};
 use uuid::Uuid;
 
 use crate::{
-    domain::{ActorState, HidKeyCode, KeyboardState, traits::Actor},
+    domain::{ActorState, HidReport, Keymap, traits::Actor},
     error::CharonError,
 };
 
 pub struct Typist {
     state: ActorState,
-    report: KeyboardState,
     speed: tokio::time::Duration,
+    keymap: Keymap,
 }
 
 impl Typist {
-    pub fn new(state: ActorState, interval: u8) -> Self {
+    pub fn new(state: ActorState, interval: u8, keymap: Keymap) -> Self {
         Self {
             state,
-            report: KeyboardState::new(),
             speed: tokio::time::Duration::from_millis(interval.into()),
+            keymap,
         }
     }
 
@@ -38,25 +39,29 @@ impl Typist {
         }
     }
 
-    pub async fn send_char(&mut self, c: char) {
-        let seq = match HidKeyCode::seq_from_char(c) {
-            Ok(val) => val,
-            Err(_) => {
-                warn!("Couldn't produce sequence for char {c}");
-                return;
-            }
-        };
-        for key in seq.iter() {
-            self.report.update_on_press(*key);
-            self.send(DomainEvent::HidReport(self.report.to_report()))
-                .await;
-            tokio::time::sleep(self.speed).await;
+    fn to_ascii_report(&self, c: char) -> Option<&HidReport> {
+        if let Some(decoded) = deunicode_char(c)
+            && decoded.len() == 1
+        {
+            return self.keymap.report(
+                decoded
+                    .chars()
+                    .next()
+                    .expect("Expected string with only one character"),
+            );
         }
-        for key in seq.iter().rev() {
-            self.report.update_on_release(*key);
-            self.send(DomainEvent::HidReport(self.report.to_report()))
+        None
+    }
+
+    pub async fn send_char(&mut self, c: char) {
+        if let Some(report) = self.keymap.report(c).or_else(|| self.to_ascii_report(c)) {
+            self.send(DomainEvent::HidReport(report.into())).await;
+            tokio::time::sleep(self.speed).await;
+            self.send(DomainEvent::HidReport(HidReport::default().into()))
                 .await;
             tokio::time::sleep(self.speed).await;
+        } else {
+            warn!("Couldn't find key mapping for char {c}");
         }
     }
 
@@ -92,15 +97,15 @@ impl Typist {
 
 #[async_trait::async_trait]
 impl Actor for Typist {
-    type Init = ();
+    type Init = Keymap;
 
     fn name() -> &'static str {
         "Typist"
     }
 
-    fn spawn(state: ActorState, (): ()) -> Result<JoinHandle<()>, CharonError> {
+    fn spawn(state: ActorState, keymap: Keymap) -> Result<JoinHandle<()>, CharonError> {
         let speed = state.config().typing_interval;
-        let mut writer = Typist::new(state, speed);
+        let mut writer = Typist::new(state, speed, keymap);
         Ok(tokio::spawn(async move { writer.run().await }))
     }
 

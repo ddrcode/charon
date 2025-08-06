@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{borrow::Cow, sync::Arc};
 
 use charon_lib::event::{DomainEvent, Mode};
 use tokio::{
@@ -47,8 +47,8 @@ impl ExternalApp for Password {
         "password"
     }
 
-    fn path_to_app(&self) -> String {
-        String::from("passepartui")
+    fn path_to_app(&self) -> Cow<'static, str> {
+        self.ctx.config.password_app.into()
     }
 
     async fn on_start(&mut self) -> eyre::Result<()> {
@@ -57,7 +57,7 @@ impl ExternalApp for Password {
         Ok(())
     }
 
-    async fn process_result(&mut self, _out: &std::process::Output) -> Option<Command> {
+    async fn process_result(&mut self) -> Option<Command> {
         let Ok(pwd) = self.read_password().await else {
             self.should_exit = true;
             error!("Couldn't read password");

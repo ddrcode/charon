@@ -1,0 +1,25 @@
+base: en_us
+mappings:
+    "@": Shift+Apostrophe
+    '"': Shift+2
+    £: Shift+3
+    €: Shift+Alt+4
+    "#": Backslash
+    "~": Shift+Backslash
+    "\\": NonUsBackslash
+    "|": Shift+NonUsBackslash
+
+os_variants:
+
+    -
+        os: ["macos"]
+        mappings:
+            "§": Grave
+            "±": Shift+Grave
+
+    -
+        os: ["win", "linux"]
+        mappings:
+            "¬": Shift+Grave
+
+

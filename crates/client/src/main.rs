@@ -44,17 +44,14 @@ async fn main() -> eyre::Result<()> {
     .map(|app| (app.id(), app))
     .collect();
 
-    std::panic::set_hook(Box::new(move |_panic_info| {
-        if let Ok(mut t) = crate::tui::Tui::new() {
-            if let Err(r) = t.exit() {
-                error!("Unable to exit Terminal: {:?}", r);
-            }
-        }
-    }));
+    setup_panic_handler();
 
     let app_mngr = AppManager::new(apps, "menu");
     let mut app = App::new(app_mngr, ctx.clone())?;
-    app.run().await?;
+    if let Err(err) = app.run().await {
+        error!("Application failed with {err}");
+        return Err(err);
+    }
 
     Ok(())
 }
@@ -89,4 +86,16 @@ fn init_logging() {
         )
         .with_ansi(false)
         .init();
+}
+
+fn setup_panic_handler() {
+    let default_panic_hook = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |panic_info| {
+        if let Ok(mut tui) = crate::tui::Tui::new()
+            && let Err(err) = tui.exit()
+        {
+            error!("Failed to exit TUI cleanly: {:?}", err);
+        }
+        default_panic_hook(panic_info);
+    }));
 }

@@ -31,4 +31,7 @@ pub enum CharonError {
 
     #[error("Prometheus error: {0}")]
     PrometheusError(#[from] prometheus::Error),
+
+    #[error("Yaml parsing error: {0}")]
+    YamlError(#[from] serde_yaml_bw::Error),
 }

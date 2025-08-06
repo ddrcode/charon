@@ -59,6 +59,7 @@ pub enum HidKeyCode {
     KEY_LEFTBRACE = 0x2F,
     KEY_RIGHTBRACE = 0x30,
     KEY_BACKSLASH = 0x31,
+    KEY_NON_US_BACKSLASH = 0x64,
     KEY_SEMICOLON = 0x33,
     KEY_APOSTROPHE = 0x34,
     KEY_GRAVE = 0x35,
@@ -141,72 +142,6 @@ impl HidKeyCode {
             return 1 << (self.code() - 0xE0);
         }
         0
-    }
-
-    pub fn seq_from_char(c: char) -> Result<Vec<Self>, CharonError> {
-        use HidKeyCode::*;
-        let mut seq = Vec::with_capacity(4);
-        let mut c = c;
-        let mut needs_shift = c.is_ascii_uppercase();
-
-        if needs_shift {
-            c.make_ascii_lowercase();
-        } else {
-            let new_c = match c {
-                '!' => '1',
-                '@' => '2',
-                '#' => '3',
-                '$' => '4',
-                '%' => '5',
-                '^' => '6',
-                '&' => '7',
-                '*' => '8',
-                '(' => '9',
-                ')' => '0',
-                '_' => '-',
-                '+' => '=',
-                '{' => '[',
-                '}' => ']',
-                '|' => '\\',
-                ':' => ';',
-                '"' => '\'',
-                '<' => ',',
-                '>' => '.',
-                '?' => '/',
-                '~' => '`',
-                _ => c,
-            };
-            needs_shift = new_c != c;
-            c = new_c;
-        }
-
-        if needs_shift {
-            seq.push(KEY_LEFTSHIFT);
-        }
-
-        let key_code = match c {
-            'a'..='z' => HidKeyCode::try_from((c as u8) - b'a' + KEY_A.code())?,
-            '1'..='9' => HidKeyCode::try_from((c as u8) - b'1' + KEY_1.code())?,
-            '0' => KEY_0,
-            ' ' => KEY_SPACE,
-            '\n' => KEY_ENTER,
-            '\t' => KEY_TAB,
-            '`' => KEY_GRAVE,
-            '-' => KEY_MINUS,
-            '=' => KEY_EQUAL,
-            '[' => KEY_LEFTBRACE,
-            ']' => KEY_RIGHTBRACE,
-            '\\' => KEY_BACKSLASH,
-            ';' => KEY_SEMICOLON,
-            '\'' => KEY_APOSTROPHE,
-            ',' => KEY_COMMA,
-            '.' => KEY_DOT,
-            '/' => KEY_SLASH,
-            _ => return Err(CharonError::UnsupportedCharacter(c)),
-        };
-
-        seq.push(key_code);
-        Ok(seq)
     }
 }
 
@@ -520,6 +455,7 @@ impl fmt::Display for HidKeyCode {
             KEY_LEFTBRACE => "[",
             KEY_RIGHTBRACE => "]",
             KEY_BACKSLASH => "\\",
+            KEY_NON_US_BACKSLASH => "\\",
             KEY_SEMICOLON => ";",
             KEY_APOSTROPHE => "'",
             KEY_GRAVE => "`",
@@ -636,9 +572,13 @@ impl FromStr for HidKeyCode {
             "[" => KEY_LEFTBRACE,
             "]" => KEY_RIGHTBRACE,
             "\\" => KEY_BACKSLASH,
+            "BACKSLASH" => KEY_BACKSLASH,
+            "NONUSBACKSLASH" => KEY_NON_US_BACKSLASH,
             ";" => KEY_SEMICOLON,
             "'" => KEY_APOSTROPHE,
+            "APOSTROPHE" => KEY_APOSTROPHE,
             "`" => KEY_GRAVE,
+            "GRAVE" => KEY_GRAVE,
             "," => KEY_COMMA,
             "." => KEY_DOT,
             "/" => KEY_SLASH,

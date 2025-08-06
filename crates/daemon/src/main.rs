@@ -9,8 +9,8 @@ pub mod port;
 pub mod processor;
 pub mod util;
 
-use anyhow;
 use charon_lib::event::Topic as T;
+use eyre;
 use std::{fs::read_to_string, path::PathBuf};
 use tokio::{self, signal::unix};
 use tracing::{debug, info, warn};
@@ -18,22 +18,29 @@ use tracing_subscriber::FmtSubscriber;
 
 use crate::{
     actor::{KeyWriter, PowerManager, Telemetry, TypingStats, Typist, ipc_server::IPCServer},
+    adapter::KeymapLoaderYaml,
     config::CharonConfig,
     daemon::Daemon,
+    port::KeymapLoader,
     processor::{KeyEventProcessor, SystemShortcutProcessor},
 };
 
 #[tokio::main]
-async fn main() -> Result<(), anyhow::Error> {
+async fn main() -> eyre::Result<()> {
     init_logging();
 
     let config = get_config().expect("Failed loading config file");
+    info!("Loading keymap");
+    let keymap = KeymapLoaderYaml::new(&config.keymaps_dir)
+        .load_keymap(&config.host_keymap)
+        .await?;
+
     let mut daemon = Daemon::new();
     daemon
         .with_config(config.clone())
         .add_scanners(&[T::System])
-        .add_actor::<Typist>(&[T::System, T::TextInput])
         .add_actor::<KeyWriter>(&[T::System, T::KeyOutput])
+        .add_actor_with_init::<Typist>(keymap, &[T::System, T::TextInput])
         .add_actor::<TypingStats>(&[T::System, T::KeyInput])
         .add_actor::<IPCServer>(&[T::System, T::Stats, T::Monitoring])
         .add_pipeline(
@@ -70,7 +77,7 @@ async fn main() -> Result<(), anyhow::Error> {
     Ok(())
 }
 
-fn get_config() -> Result<CharonConfig, anyhow::Error> {
+fn get_config() -> eyre::Result<CharonConfig> {
     let mut path = PathBuf::new();
     path.push(std::env::var("XDG_CONFIG_HOME")?);
     path.push("charon/charon.toml");

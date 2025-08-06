@@ -48,12 +48,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "anyhow"
-version = "1.0.98"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e16d2d3311acee920a9eb8d33b8cbc1787ce4a264e85f964c2404b969bdcd487"
-
-[[package]]
 name = "async-recursion"
 version = "1.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -192,7 +186,6 @@ dependencies = [
 name = "charon-tui"
 version = "0.1.0"
 dependencies = [
- "anyhow",
  "async-recursion",
  "async-trait",
  "charon-lib",
@@ -219,15 +212,17 @@ dependencies = [
 name = "charond"
 version = "0.1.0"
 dependencies = [
- "anyhow",
  "async-trait",
  "charon-lib",
+ "deunicode",
  "evdev",
+ "eyre",
  "futures",
  "lru_time_cache",
  "prometheus",
  "serde",
  "serde_json",
+ "serde_yaml_bw",
  "thiserror 2.0.12",
  "tokio",
  "toml",
@@ -414,6 +409,12 @@ dependencies = [
  "quote",
  "syn",
 ]
+
+[[package]]
+name = "deunicode"
+version = "1.6.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "abd57806937c9cc163efc8ea3910e00a62e2aeb0b8119f1793a978088f8f6b04"
 
 [[package]]
 name = "displaydoc"
@@ -1734,6 +1735,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "serde_yaml_bw"
+version = "2.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "11309a97d567d5ad04b61ec22e33a15f77c689273acca34efd72aa4181207480"
+dependencies = [
+ "base64",
+ "indexmap",
+ "itoa",
+ "ryu",
+ "serde",
+ "unsafe-libyaml",
+]
+
+[[package]]
 name = "sharded-slab"
 version = "0.1.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2289,6 +2304,12 @@ name = "unicode-width"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1fc81956842c57dac11422a97c3b8195a1ff727f06e85c84ed2e8aa277c9a0fd"
+
+[[package]]
+name = "unsafe-libyaml"
+version = "0.2.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "673aac59facbab8a9007c7f6108d11f63b603f7cabff99fabf650fea5c32b861"
 
 [[package]]
 name = "untrusted"

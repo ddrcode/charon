@@ -11,7 +11,7 @@ pub const LOGO: &'static str = "
 
 ";
 
-// source: https://ascii.co.uk/art
+// source: https://ascii.co.uk/art/charon
 pub const _CHARON: &'static str = r#"
                                     _._
                                   _/,__\,
@@ -35,6 +35,7 @@ e,e / //  /___/|           |/     \/\        \\
    ~~~~~~~~  b'ger /  ~~~~~~~~~~~~~~~~~~~~~~~~~~~  ~~ ~~~~\\~~~~
         ~~~~~~~~~~~~~~    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~    //"#;
 
+// source: https://ascii.co.uk/art/cerberus
 pub const CERBERUS: &'static str = r"
             /\_/\____,
   ,___/\_/\ \  ~     /
@@ -50,6 +51,7 @@ pub const CERBERUS: &'static str = r"
 (,-(,(,(,/      \,),),)
 ";
 
+// source: https://ascii.co.uk/art
 pub const GOAT: &'static str = r"
              ,,~~--___---,
             /            .~,
@@ -61,6 +63,7 @@ pub const GOAT: &'static str = r"
 
 ";
 
+// source: https://ascii.co.uk/art
 pub const BOAT: &'static str = r"
             (\
               \_O

@@ -62,6 +62,12 @@ pub struct CharonConfig {
 
     #[serde(default = "defaults::default_stats_wpm_slot_count")]
     pub stats_wpm_slot_count: usize,
+
+    #[serde(default = "defaults::default_keymaps_dir")]
+    pub keymaps_dir: String,
+
+    #[serde(default = "defaults::default_host_keymap")]
+    pub host_keymap: String,
 }
 
 impl CharonConfig {
@@ -114,6 +120,8 @@ impl Default for CharonConfig {
             stats_save_interval: defaults::default_stats_save_interval(),
             stats_wpm_slot_duration: defaults::default_stats_wpm_slot_duration(),
             stats_wpm_slot_count: defaults::default_stats_wpm_slot_count(),
+            keymaps_dir: defaults::default_keymaps_dir(),
+            host_keymap: defaults::default_host_keymap(),
         }
     }
 }
