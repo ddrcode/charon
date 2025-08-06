@@ -7,22 +7,26 @@ use tracing::{debug, warn};
 use uuid::Uuid;
 
 use crate::{
-    domain::{ActorState, HidKeyCode, KeyboardState, traits::Actor},
+    adapter::KeymapLoaderYaml,
+    domain::{ActorState, HidKeyCode, KeyboardState, Keymap, traits::Actor},
     error::CharonError,
+    port::KeymapLoader,
 };
 
 pub struct Typist {
     state: ActorState,
     report: KeyboardState,
     speed: tokio::time::Duration,
+    keymap: Keymap,
 }
 
 impl Typist {
-    pub fn new(state: ActorState, interval: u8) -> Self {
+    pub fn new(state: ActorState, interval: u8, keymap: Keymap) -> Self {
         Self {
             state,
             report: KeyboardState::new(),
             speed: tokio::time::Duration::from_millis(interval.into()),
+            keymap,
         }
     }
 
@@ -39,6 +43,9 @@ impl Typist {
     }
 
     pub async fn send_char(&mut self, c: char) {
+        let report = self.keymap.report(c);
+    }
+    pub async fn send_char2(&mut self, c: char) {
         let seq = match HidKeyCode::seq_from_char(c) {
             Ok(val) => val,
             Err(_) => {
@@ -92,15 +99,15 @@ impl Typist {
 
 #[async_trait::async_trait]
 impl Actor for Typist {
-    type Init = ();
+    type Init = Keymap;
 
     fn name() -> &'static str {
         "Typist"
     }
 
-    fn spawn(state: ActorState, (): ()) -> Result<JoinHandle<()>, CharonError> {
+    fn spawn(state: ActorState, keymap: Keymap) -> Result<JoinHandle<()>, CharonError> {
         let speed = state.config().typing_interval;
-        let mut writer = Typist::new(state, speed);
+        let mut writer = Typist::new(state, speed, keymap);
         Ok(tokio::spawn(async move { writer.run().await }))
     }
 

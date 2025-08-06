@@ -49,3 +49,11 @@ pub fn default_stats_wpm_slot_duration() -> u64 {
 pub fn default_stats_wpm_slot_count() -> usize {
     10
 }
+
+pub fn default_keymaps_dir() -> String {
+    String::from("data/keymaps")
+}
+
+pub fn default_keymap() -> String {
+    String::from("en_us")
+}

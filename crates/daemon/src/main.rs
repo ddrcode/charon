@@ -18,8 +18,10 @@ use tracing_subscriber::FmtSubscriber;
 
 use crate::{
     actor::{KeyWriter, PowerManager, Telemetry, TypingStats, Typist, ipc_server::IPCServer},
+    adapter::KeymapLoaderYaml,
     config::CharonConfig,
     daemon::Daemon,
+    port::KeymapLoader,
     processor::{KeyEventProcessor, SystemShortcutProcessor},
 };
 
@@ -28,12 +30,16 @@ async fn main() -> Result<(), anyhow::Error> {
     init_logging();
 
     let config = get_config().expect("Failed loading config file");
+    let keymap = KeymapLoaderYaml::new(&config.keymaps_dir)
+        .load_keymap(&config.keymap)
+        .await?;
+
     let mut daemon = Daemon::new();
     daemon
         .with_config(config.clone())
         .add_scanners(&[T::System])
-        .add_actor::<Typist>(&[T::System, T::TextInput])
         .add_actor::<KeyWriter>(&[T::System, T::KeyOutput])
+        .add_actor_with_init::<Typist>(keymap, &[T::System, T::TextInput])
         .add_actor::<TypingStats>(&[T::System, T::KeyInput])
         .add_actor::<IPCServer>(&[T::System, T::Stats, T::Monitoring])
         .add_pipeline(
