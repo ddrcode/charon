@@ -13,7 +13,7 @@ part of Charon's logic.
   (`enbale_telemetry` option), but when enabled, Prometheus must be configured
 
 - `qmk`: important only when Charon works with a QMK-powered programmable keyboard
-  and only when `Raw HID`[Raw HID](https://docs.qmk.fm/features/rawhid) is enabled on the keyboard
+  and only when [Raw HID](https://docs.qmk.fm/features/rawhid) is enabled on the keyboard
   side. When enabled, Charon can react to events like layer change and collect more
   telemetry, directly from the keyboard (bypassing OS layer).
 
