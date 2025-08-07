@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum QMKEvent {
     LayerChange(u8),
+    KeyEvent(u16, bool),
 }
 
 // impl TryFrom<[u8; 32]> for QMKEvent {

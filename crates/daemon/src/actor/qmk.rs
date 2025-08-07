@@ -32,7 +32,8 @@ impl QMK {
 
     async fn handle_qmk_message(&mut self, msg: [u8; 32]) {
         let qmk_event = match msg[0] {
-            1 => QMKEvent::LayerChange(msg[1]),
+            2 => QMKEvent::LayerChange(msg[1]),
+            3 => QMKEvent::KeyEvent(u16::from_le_bytes([msg[1], msg[2]]), msg[3] == 1),
             n => {
                 warn!("Unrecognized message id: {n}");
                 return;

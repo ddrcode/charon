@@ -10,6 +10,7 @@ pkgs.mkShell {
     openssl
     pkg-config
     cargo-machete
+    nodejs_20
   ];
 
   # inputsFrom = [ pkgs.hello pkgs.gnutar ];
