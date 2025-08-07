@@ -4,7 +4,12 @@ This document explains how to make maximum of QMK-powered keyboard from
 Charon perspective. It all assumes that [Raw HID](https://docs.qmk.fm/features/rawhid)
 is enabled on the keyboard, so Charon can extract additional information from it.
 
-## Protocol
+## Development 
+
+If you want to expand current features, either or QMK or Charon side, this section explain how
+the integration is implemented. you are more than welcome to contribute your changes to Charon.
+
+### Protocol
 
 Charon proposes a trivial *protocol* used for exchanging data with QMK.
 As per specification each data packet is 32-bytes long. We reserve byte 0
@@ -19,7 +24,7 @@ for Charon purposes. Here is the description of currently used protocol.
 | 0x03    | [1-3]      | key event    | [1-2]: key id, [3] state (`1`: pressed, `0`: released)       |
 
 
-## Endianness
+### Endianness
 
 For consistency, assume that all numbers (like key id) are always being sent in little-endian format,
 regardless the endianness of the QMK devices and the host. On Charon side always encode/decode numbers 
