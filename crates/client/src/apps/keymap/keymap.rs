@@ -4,6 +4,8 @@ use async_trait::async_trait;
 use ratatui::{
     Frame,
     layout::{Constraint, Direction, Layout},
+    style::{Color, Style},
+    text::{Line, Span, Text},
     widgets::{Block, Borders, Paragraph},
 };
 use tokio::fs::read_to_string;
@@ -76,6 +78,27 @@ impl UiApp for Keymap {
         // f.render_widget(p.clone(), col1[0]);
         // f.render_widget(p.clone(), col1[1]);
 
-        f.render_widget(Paragraph::new(self.layout.to_string().as_str()), f.area());
+        // f.render_widget(Paragraph::new(self.layout.to_string().as_str()), f.area());
+
+        let mut lines: Vec<Line> = Vec::new();
+        let mut line = Line::default();
+        for (part, is_key) in self.layout.parts() {
+            if is_key {
+                line.push_span(part);
+            } else {
+                for (i, p) in part.split('\n').enumerate() {
+                    if i > 0 {
+                        lines.push(std::mem::take(&mut line));
+                    }
+                    line.push_span(Span::styled(
+                        p.to_string(),
+                        Style::default().fg(Color::Gray),
+                    ));
+                }
+            }
+        }
+        lines.push(line);
+        let p = Paragraph::new(Text::from(lines));
+        f.render_widget(p, f.area());
     }
 }

@@ -1,13 +1,14 @@
-use std::fmt;
+use std::{fmt, mem};
 
-pub struct KeyboardLayout {
+const ARROWS: &'static str = "↑←↓→";
+
+pub(crate) struct KeyboardLayout {
     keys: Vec<Key>,
     parts: Vec<LayoutPart>,
 }
 
 #[derive(Debug, Clone)]
-pub struct Key {
-    pub pos: usize,
+pub(crate) struct Key {
     pub row: usize,
     pub col: usize,
     pub len: usize,
@@ -33,14 +34,13 @@ impl KeyboardLayout {
         let mut len = 0;
         let mut col = 0;
         let mut row = 0;
-        let mut pos = 0;
         let mut keys_in_row = 0;
         let mut body = String::new();
         let mut decor = String::new();
         let mut keys: Vec<Key> = Vec::new();
         let mut parts: Vec<LayoutPart> = Vec::new();
 
-        let is_key = |c: char| c.is_ascii();
+        let is_key = |c: char| c.is_ascii() || ARROWS.contains(c);
 
         for (i, ch) in layout.chars().enumerate() {
             if ch == '\n' {
@@ -55,29 +55,27 @@ impl KeyboardLayout {
             }
             if is_key(ch) {
                 if !is_key(prev_ch) {
-                    pos = i;
-                    parts.push(LayoutPart::Decoration(decor.clone()));
-                    decor.clear();
+                    parts.push(LayoutPart::Decoration(mem::take(&mut decor)));
                 }
                 len += 1;
                 body.push(ch);
             } else if is_key(prev_ch) {
-                if body.trim().len() > 0 {
+                let trimmed = body.trim();
+                if trimmed.len() > 0 {
                     keys.push(Key {
-                        pos,
                         row,
                         col,
                         len,
-                        lab: body.trim().to_string(),
+                        lab: trimmed.to_string(),
                     });
                     parts.push(LayoutPart::Key(keys.len() - 1));
                     col += 1;
                     keys_in_row += 1;
+                    body.clear();
                 } else {
-                    parts.push(LayoutPart::Decoration(body.clone()));
+                    parts.push(LayoutPart::Decoration(mem::take(&mut body)));
                 }
                 len = 0;
-                body.clear();
                 decor.push(ch);
             } else {
                 decor.push(ch);
@@ -144,7 +142,6 @@ mod test {
         assert_eq!(data.len(), 13);
         assert_eq!(data.key(3).len, 3);
         assert_eq!(data.key(3).col, 3);
-        assert_eq!(data.key(3).pos, 13);
     }
 
     #[test]
@@ -154,7 +151,6 @@ mod test {
         assert_eq!(data.len(), 5);
         assert_eq!(data.key(2).len, 1);
         assert_eq!(data.key(3).len, 10);
-        assert_eq!(data.key(3).pos, 20);
     }
 
     #[test]
@@ -171,7 +167,6 @@ mod test {
         assert_eq!(data.key(16).col, 0);
         assert_eq!(data.key(16).row, 1);
         assert_eq!(data.key(16).len, 2);
-        assert_eq!(data.key(0).pos, 72);
     }
 
     #[test]
