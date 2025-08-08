@@ -1,14 +1,29 @@
+use std::fmt;
+
 pub struct KeyboardLayout {
     keys: Vec<Key>,
-    layout: String,
+    parts: Vec<LayoutPart>,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct Key {
     pub pos: usize,
     pub row: usize,
     pub col: usize,
     pub len: usize,
+    pub lab: String,
+}
+
+impl fmt::Display for Key {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{:^width$}", self.lab, width = self.len)
+    }
+}
+
+#[derive(Debug)]
+enum LayoutPart {
+    Key(usize),
+    Decoration(String),
 }
 
 impl KeyboardLayout {
@@ -21,7 +36,9 @@ impl KeyboardLayout {
         let mut pos = 0;
         let mut keys_in_row = 0;
         let mut body = String::new();
+        let mut decor = String::new();
         let mut keys: Vec<Key> = Vec::new();
+        let mut parts: Vec<LayoutPart> = Vec::new();
 
         let is_key = |c: char| c.is_ascii();
 
@@ -33,28 +50,44 @@ impl KeyboardLayout {
                 }
                 keys_in_row = 0;
                 prev_ch = ch;
+                decor.push(ch);
                 continue;
             }
             if is_key(ch) {
-                if is_key(prev_ch) {
-                } else {
+                if !is_key(prev_ch) {
                     pos = i;
+                    parts.push(LayoutPart::Decoration(decor.clone()));
+                    decor.clear();
                 }
                 len += 1;
                 body.push(ch);
             } else if is_key(prev_ch) {
                 if body.trim().len() > 0 {
-                    keys.push(Key { pos, row, col, len });
+                    keys.push(Key {
+                        pos,
+                        row,
+                        col,
+                        len,
+                        lab: body.trim().to_string(),
+                    });
+                    parts.push(LayoutPart::Key(keys.len() - 1));
                     col += 1;
                     keys_in_row += 1;
+                } else {
+                    parts.push(LayoutPart::Decoration(body.clone()));
                 }
                 len = 0;
                 body.clear();
+                decor.push(ch);
+            } else {
+                decor.push(ch);
             }
             prev_ch = ch;
         }
-
-        Self { layout, keys }
+        if !decor.is_empty() {
+            parts.push(LayoutPart::Decoration(decor));
+        }
+        Self { keys, parts }
     }
 
     pub fn key(&self, id: usize) -> &Key {
@@ -63,6 +96,40 @@ impl KeyboardLayout {
 
     pub fn len(&self) -> usize {
         self.keys.len()
+    }
+
+    pub fn clear(&mut self) {
+        self.keys.iter_mut().for_each(|key| {
+            key.lab.clear();
+        });
+    }
+
+    pub fn parts(&self) -> impl Iterator<Item = (String, bool)> {
+        self.parts.iter().map(|part| match part {
+            LayoutPart::Decoration(s) => (s.clone(), false),
+            LayoutPart::Key(n) => (self.keys[*n].to_string(), true),
+        })
+    }
+
+    pub fn set_label(&mut self, key_id: usize, label: &str) {
+        self.keys
+            .get_mut(key_id)
+            .map(|key| key.lab = String::from(label));
+    }
+}
+
+impl fmt::Display for KeyboardLayout {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.parts().fold(String::new(), |a, b| a + &b.0))
+    }
+}
+
+impl Default for KeyboardLayout {
+    fn default() -> Self {
+        Self {
+            keys: Default::default(),
+            parts: Default::default(),
+        }
     }
 }
 
@@ -105,5 +172,26 @@ mod test {
         assert_eq!(data.key(16).row, 1);
         assert_eq!(data.key(16).len, 2);
         assert_eq!(data.key(0).pos, 72);
+    }
+
+    #[test]
+    fn test_to_string_simple() {
+        let row = "│ESC│F1 │F2 │F3 │F4 │F5 │F6 │F7 │F8 │F9 │F10│F11│F12│";
+        let data = KeyboardLayout::from_str(row);
+        assert_eq!(data.to_string(), row);
+    }
+
+    #[test]
+    fn test_to_string_full() {
+        let txt = r"
+┌──┐┌───┬───┬───┬───┬───┬───┬───┬───┬───┬───┬───┬───┬───┐  ┌───┐ ┌───┐
+│KN││ESC│F1 │F2 │F3 │F4 │F5 │F6 │F7 │F8 │F9 │F10│F11│F12│  │INS│ │PUP│
+├──┤├───┴┬──┴┬──┴┬──┴┬──┴┬──┴┬──┴┬──┴┬──┴┬──┴┬──┴┬──┴┬──┴┬─┴─┬─┘ ├───┤
+│M1││ ~  │ 1 │ 2 │ 3 │ 4 │ 5 │ 6 │ 7 │ 8 │ 9 │ 0 │ - │ = │BSP│   │DEL│
+├──┤├────┴┬──┴┬──┴┬─ ┴┬──┴┬──┴┬──┴┬──┴┬──┴┬──┴┬──┴┬──┴┬──┴┬───┐  ├───┤
+        "
+        .trim();
+        let data = KeyboardLayout::from_str(txt);
+        assert_eq!(data.to_string(), txt);
     }
 }

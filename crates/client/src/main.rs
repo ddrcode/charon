@@ -40,7 +40,7 @@ async fn main() -> eyre::Result<()> {
         Editor::new_box(ctx.clone()),
         Stats::new_box(ctx.clone()),
         Password::new_box(ctx.clone()),
-        Keymap::new_box(ctx.clone(), String::from("")),
+        Keymap::new_box(ctx.clone()),
     ]
     .into_iter()
     .map(|app| (app.id(), app))

@@ -9,18 +9,21 @@ use ratatui::{
 use tokio::fs::read_to_string;
 use tracing::error;
 
-use crate::domain::{AppEvent, Command, Context, traits::UiApp};
+use crate::{
+    apps::keymap::KeyboardLayout,
+    domain::{AppEvent, Command, Context, traits::UiApp},
+};
 
 pub struct Keymap {
     ctx: Arc<Context>,
-    layout: String,
+    layout: KeyboardLayout,
 }
 
 impl Keymap {
-    pub fn new_box(ctx: Arc<Context>, default_layout: String) -> Box<dyn UiApp + Send + Sync> {
+    pub fn new_box(ctx: Arc<Context>) -> Box<dyn UiApp + Send + Sync> {
         Box::new(Self {
             ctx,
-            layout: default_layout,
+            layout: KeyboardLayout::default(),
         })
     }
 
@@ -29,7 +32,7 @@ impl Keymap {
             .await
             .inspect_err(|err| error!("Error loading layout file: {err}"))
         {
-            self.layout = layout;
+            self.layout = KeyboardLayout::from_str(&layout);
         }
     }
 }
@@ -73,6 +76,6 @@ impl UiApp for Keymap {
         // f.render_widget(p.clone(), col1[0]);
         // f.render_widget(p.clone(), col1[1]);
 
-        f.render_widget(Paragraph::new(self.layout.as_str()), f.area());
+        f.render_widget(Paragraph::new(self.layout.to_string().as_str()), f.area());
     }
 }
