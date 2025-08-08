@@ -4,9 +4,9 @@ use async_trait::async_trait;
 use ratatui::{
     Frame,
     layout::{Constraint, Direction, Layout},
-    style::{Color, Style},
+    style::{Color, Style, Stylize},
     text::{Line, Span, Text},
-    widgets::{Block, Borders, Paragraph},
+    widgets::Paragraph,
 };
 use tokio::fs::read_to_string;
 use tracing::error;
@@ -30,7 +30,7 @@ impl Keymap {
     }
 
     async fn load_layout(&mut self) {
-        if let Ok(layout) = read_to_string("data/layouts/keychron_q10_ansi.txt")
+        if let Ok(layout) = read_to_string(self.ctx.config.keyboard_layout_file.clone())
             .await
             .inspect_err(|err| error!("Error loading layout file: {err}"))
         {
@@ -56,29 +56,10 @@ impl UiApp for Keymap {
     }
 
     fn render(&self, f: &mut Frame) {
-        // let rows = Layout::default()
-        //     .direction(Direction::Vertical)
-        //     .constraints(vec![Constraint::Length(2), Constraint::Length(2)])
-        //     .split(f.area());
-        //
-        // let col0 = Layout::default()
-        //     .direction(Direction::Horizontal)
-        //     .constraints(vec![Constraint::Length(2), Constraint::Length(2)])
-        //     .split(rows[0]);
-        //
-        // let col1 = Layout::default()
-        //     .direction(Direction::Horizontal)
-        //     .constraints(vec![Constraint::Length(2), Constraint::Length(2)])
-        //     .split(rows[1]);
-        //
-        // let p = Paragraph::new("├─\n│A");
-        //
-        // f.render_widget(p.clone(), col0[0]);
-        // f.render_widget(p.clone(), col0[1]);
-        // f.render_widget(p.clone(), col1[0]);
-        // f.render_widget(p.clone(), col1[1]);
-
-        // f.render_widget(Paragraph::new(self.layout.to_string().as_str()), f.area());
+        let rows = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints(vec![Constraint::Length(2), Constraint::Percentage(99)])
+            .split(f.area());
 
         let mut lines: Vec<Line> = Vec::new();
         let mut line = Line::default();
@@ -99,6 +80,9 @@ impl UiApp for Keymap {
         }
         lines.push(line);
         let p = Paragraph::new(Text::from(lines));
-        f.render_widget(p, f.area());
+        f.render_widget(p, rows[1]);
+
+        let title = Paragraph::new("Keyboard layout".bold());
+        f.render_widget(title, rows[0]);
     }
 }

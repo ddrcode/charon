@@ -2,7 +2,10 @@ use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
 use super::{InputConfig, defaults};
-use crate::{config::keyboard::KeyboardConfig, domain::KeyShortcut};
+use crate::{
+    config::keyboard::{KeyboardConfig, KeyboardGroup},
+    domain::KeyShortcut,
+};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CharonConfig {
@@ -96,6 +99,15 @@ impl CharonConfig {
                 vec![(name, config)]
             }
         }
+    }
+
+    pub fn keyboard_info(&self) -> Option<&KeyboardGroup> {
+        let InputConfig::Use(ref alias) = self.keyboard else {
+            return None;
+        };
+        self.keyboards
+            .as_ref()
+            .map(|kbs| kbs.groups.get(alias.as_ref()))?
     }
 }
 

@@ -9,6 +9,7 @@ pub struct AppConfig {
     pub fast_typing_treshold: u16,
 
     pub clipboard_cache_file: PathBuf,
+    pub keyboard_layout_file: PathBuf,
 
     pub password_app: &'static str,
     pub editor_app: &'static str,
@@ -26,6 +27,7 @@ impl Default for AppConfig {
             splash_duration: Duration::from_secs(180),
             fast_typing_treshold: 40,
 
+            keyboard_layout_file: PathBuf::from("data/layouts/keychron_q10_ansi.txt"),
             clipboard_cache_file: clip_cache,
 
             password_app: "passepartui",
