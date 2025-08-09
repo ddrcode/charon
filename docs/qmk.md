@@ -77,16 +77,16 @@ As per specification each data packet is 32-bytes long. We reserve byte 0
 as function identifier. The 256 functions limit should be more than enough
 for Charon purposes. Here is the description of currently used protocol.
 
-| Byte 0  | Data bytes | Name          | Description                                                |
-|---------|------------|---------------|------------------------------------------------------------|
-| 0x00    | -          | (reserved)    | No action                                                  |
-| 0x01    | [1-31]     | ping/echo     | Returns same value; testing mechanism                     |
-| 0x02    | [1-2]      | layer change  | byte 1: layer id, byte 2: `1` if default layer, `0` otherwise |
-| 0x03    | [1-3]      | key event     | [1-2]: key id, [3] state (`1`: pressed, `0`: released)       |
-| 0x03    | [1-2]      | keyboard info | [1]: num of cold, [2]: now of rows       |
-| 0x04    | [1]        | change Charon mode | Keyboard can impact Charon mode without a need to
-press a magic key|
-| 0x10    | [1-31]     | layer chunk   | given layer keymap (sent in chunks) |
+| Byte 0  |  Name          | Description                                                | Status |
+|---------|--------------|------------------------------------------------------------|--------|
+| 0x00    |(reserved)    | No action                                                  ||
+| 0x01    |ping/echo     | Echoes same value; testing mechanism                       ||
+| 0x02    |layer change  | informs about layer change                                 |✅|
+| 0x03    |key event     | [1-2]: key id, [3] state (`1`: pressed, `0`: released)       |✅|
+| 0x03    |keyboard info | [1]: num of cold, [2]: now of rows       ||
+| 0x04    |change Charon mode|Make Charon to switch to a specific mode||
+| 0x05    |Toggle Charon mode|Make Charon to toggle mode||
+| 0x10    |layer chunk   | given layer keymap (sent in chunks) ||
 
 
 
@@ -102,18 +102,48 @@ respectively when using the protocol.
 
 This section describes in detail functions described in Protocol table
 
-#### Change Charon mode
+#### Change Charon mode (`0x04`) and Toggle Charon mode (`0x05`)
 
 ```c
 void charon_change_charon_mode(uint8_t mode);
+void charon_toggle_charon_mode();
 ```
+Protocol (change function only):
+
+| Byte | arg name | Description | 
+|------|----------|-------------|
+| 1    | mode     | `0`: pass-through mode, `1`: in-app mode |
+
 Requests Charon to switch to a specific mode:
 0. `pass-through` mode: keys being send to the host computer
 1. `in-app` mode: Charon takes control; the client app shows menu
 
+##### Usage 
+
 One potential use of this function is to control Charon's state with custom keycode, without a need
 for a dedicated keyboard shortcut.
 In such case Charon will be controlled only via Raw HID, so every non-QMK/RAW keyboard connected
-to Charon won't be capable of controlling modes. To achieve so define a custom
-keycode and catch in `process_record_user` function.
+to Charon won't be capable of controlling modes. To achieve this, define a custom
+keycode and catch in `process_record_user` function, as shown in the example below:
+
+```c
+// In your keymap.c or <profile>.c file
+#include "charon.h"
+
+enum CustomKeycodes {
+    CHARON_TOGGLE_MODE = SAFE_RANGE // first available keycode
+};
+
+bool process_record_user(uint16_t keycode, keyrecord_t *record) {
+    if (record->event.pressed) {
+        switch (keycode) {
+            case CHARON_TOGGLE_MODE:
+                charon_toggle_charon_mode();
+                return false;  // stop further processing
+            // handle other cases
+        }
+    }
+    return true;
+}
+```
 
