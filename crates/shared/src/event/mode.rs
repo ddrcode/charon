@@ -1,10 +1,15 @@
 use serde::{Deserialize, Serialize};
-use std::fmt;
+use strum::{Display, FromRepr};
 
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[repr(u8)]
+#[derive(Debug, Default, Display, FromRepr, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum Mode {
-    PassThrough,
-    InApp,
+    #[default]
+    #[strum(to_string = "pass-through")]
+    PassThrough = 0,
+
+    #[strum(to_string = "in-app")]
+    InApp = 1,
 }
 
 impl Mode {
@@ -13,21 +18,5 @@ impl Mode {
             Mode::InApp => Mode::PassThrough,
             Mode::PassThrough => Mode::InApp,
         }
-    }
-}
-
-impl Default for Mode {
-    fn default() -> Self {
-        Mode::PassThrough
-    }
-}
-
-impl fmt::Display for Mode {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let mode = match self {
-            Mode::InApp => "in-app",
-            Mode::PassThrough => "pass-through",
-        };
-        write!(f, "{mode}")
     }
 }

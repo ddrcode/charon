@@ -56,17 +56,15 @@ impl QMK {
     }
 
     async fn handle_qmk_message(&mut self, msg: [u8; 32]) {
-        let qmk_event = match msg[0] {
-            2 => QMKEvent::LayerChange(msg[1]),
-            3 => QMKEvent::KeyEvent(u16::from_le_bytes([msg[1], msg[2]]), msg[3] == 1),
-            n => {
-                warn!("Unrecognized message id: {n}");
-                return;
+        match QMKEvent::try_from(msg) {
+            Ok(qmk_event) => {
+                debug!("QMK event received: {:?}", qmk_event);
+                self.process(DomainEvent::QMKEvent(qmk_event)).await;
             }
-        };
-
-        debug!("QMK event received: {:?}", qmk_event);
-        self.send(DomainEvent::QMKEvent(qmk_event)).await;
+            Err(err) => {
+                error!("Error processing QMK event: {err}");
+            }
+        }
     }
 
     async fn find_device(vendor_id: u16, product_id: u16) -> Option<DeviceReaderWriter> {

@@ -83,8 +83,8 @@ as function identifier, that gives 256 functions max – more than enough
 for Charon purposes.
 
 There is a separate protocoal for messages sent from QMK to Charon and separate for opposite
-direction. In case of corresponding functions (request/response-like behavior) the same function 
-id is used. 
+direction. In case of corresponding functions (request/response-like behavior) the same function
+id is used.
 
 #### QMK -> Charon direction
 
@@ -95,10 +95,10 @@ id is used.
 | 0x01    |ping/echo     | Echoes same value; testing mechanism                       ||
 | 0x02    |layer change  | informs about layer change                                 |✅|
 | 0x03    |key event     | [1-2]: key id, [3] state (`1`: pressed, `0`: released)       |✅|
-| 0x03    |keyboard info | [1]: num of cold, [2]: now of rows       ||
 | 0x04    |change Charon mode|Make Charon to switch to a specific mode||
 | 0x05    |Toggle Charon mode|Make Charon to toggle mode||
 | 0x10    |layer chunk   | given layer keymap (sent in chunks) ||
+| 0x11    |keyboard info | [1]: num of cold, [2]: now of rows       ||
 
 
 
@@ -125,14 +125,14 @@ void charon_send_layer_change(layer_state_t layer_id, bool is_default);
 
 ##### Protocol
 
-| Byte | arg name | Description | 
+| Byte | arg name | Description |
 |------|----------|-------------|
 | 1    |`layer_id`| The ID of currently enabled layer (max value if many)|
 | 2    |`is_default`| `1` if ID refers to a default layer, `0` otherwise|
 
 ##### Usage
 
-QMK has two separate callbacks for capturing layer change – one for a 
+QMK has two separate callbacks for capturing layer change – one for a
 regular layer, one for default layer (`layer_state_set_user` and `default_layer_state_set_user`),
 so Charon function must be called from both, i.e.:
 
@@ -161,17 +161,17 @@ void charon_send_key_event(uint16_t keycode, keyrecord_t *record);
 
 ##### Protocol
 
-| Byte | arg name | Description | 
+| Byte | arg name | Description |
 |------|----------|-------------|
 | 1-2  |`keycode` | QMK 16-bit keycode (includes custom keycodes)|
 | 3    |`is_pressed`| `1`: key pressed, `0` key released|
-| 4    |`column`  | Column number on keyboard matrix |
-| 5    |`row`     | Row number on keyboard matrix |
+| 4    |`row`     | Row number on keyboard matrix |
+| 5    |`column`  | Column number on keyboard matrix |
 
 ##### Usage
 
 The function uses the same input arguments as standard QMK key callback: `process_record_user`
-and it should be invoke from inside of it (ideally at the beggining, to record all key events). 
+and it should be invoke from inside of it (ideally at the beggining, to record all key events).
 
 ```c
 // In keymap.c or <profile>.c file
@@ -195,7 +195,7 @@ void charon_toggle_charon_mode();
 
 ##### Protocol (change function only):
 
-| Byte | arg name | Description | 
+| Byte | arg name | Description |
 |------|----------|-------------|
 | 1    |`mode`    | `0`: pass-through mode, `1`: in-app mode |
 
@@ -203,7 +203,7 @@ Requests Charon to switch to a specific mode:
 0. `pass-through` mode: keys being send to the host computer
 1. `in-app` mode: Charon takes control; the client app shows menu
 
-##### Usage 
+##### Usage
 
 One potential use of this function is to control Charon's state with custom keycode, without a need
 for a dedicated keyboard shortcut.
