@@ -84,6 +84,8 @@ for Charon purposes. Here is the description of currently used protocol.
 | 0x02    | [1-2]      | layer change  | byte 1: layer id, byte 2: `1` if default layer, `0` otherwise |
 | 0x03    | [1-3]      | key event     | [1-2]: key id, [3] state (`1`: pressed, `0`: released)       |
 | 0x03    | [1-2]      | keyboard info | [1]: num of cold, [2]: now of rows       |
+| 0x04    | [1]        | change Charon mode | Keyboard can impact Charon mode without a need to
+press a magic key|
 | 0x10    | [1-31]     | layer chunk   | given layer keymap (sent in chunks) |
 
 
@@ -95,3 +97,23 @@ regardless the endianness of the QMK devices and the host. On Charon side always
 with [`to_le_bytes`](https://doc.rust-lang.org/std/primitive.f16.html#method.to_le_bytes) and
 [`from_le_bytes`](https://doc.rust-lang.org/std/primitive.f16.html#method.from_le_bytes)
 respectively when using the protocol.
+
+### QMK functions
+
+This section describes in detail functions described in Protocol table
+
+#### Change Charon mode
+
+```c
+void charon_change_charon_mode(uint8_t mode);
+```
+Requests Charon to switch to a specific mode:
+0. `pass-through` mode: keys being send to the host computer
+1. `in-app` mode: Charon takes control; the client app shows menu
+
+One potential use of this function is to control Charon's state with custom keycode, without a need
+for a dedicated keyboard shortcut.
+In such case Charon will be controlled only via Raw HID, so every non-QMK/RAW keyboard connected
+to Charon won't be capable of controlling modes. To achieve so define a custom
+keycode and catch in `process_record_user` function.
+
