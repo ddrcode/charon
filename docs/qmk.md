@@ -4,6 +4,8 @@ This document explains how to make maximum of QMK-powered keyboard from
 Charon perspective. It all assumes that [Raw HID](https://docs.qmk.fm/features/rawhid)
 is enabled on the keyboard, so Charon can extract additional information from it.
 
+---
+
 ## Charon configuration
 
 To make Charon recognize your keyboard, you must identify its `vendor id` and `product id`,
@@ -51,6 +53,7 @@ If, out of madness, you connect more than one Raw HID-enabled QMK keyboards to C
 it will handle them with no problem. The daemon will start multiple QMK actors, each listening to
 a different device, and each event will have keyboard signature (the alias). How cool is that!?
 
+---
 
 ## QMK Configuration
 
@@ -65,6 +68,8 @@ In terms of Charon-specific Raw HID code: we have a
 [library](../setup/qmk/charon.c) you could use.
 Follow [QMK setup section](../setup/qmk/) for details.
 
+---
+
 ## Development
 
 If you want to expand current features, either on QMK or Charon side, this section explains how
@@ -73,9 +78,16 @@ the integration is implemented. You are more than welcome to contribute your cha
 ### Protocol
 
 Charon uses a trivial *protocol* for exchanging data with QMK.
-As per specification each data packet is 32-bytes long. We reserve byte 0
-as function identifier. The 256 functions limit should be more than enough
-for Charon purposes. Here is the description of currently used protocol.
+As per QMK specification: each data packet is exactly 32-bytes long. Charon uses byte 0
+as function identifier, that gives 256 functions max – more than enough
+for Charon purposes.
+
+There is a separate protocoal for messages sent from QMK to Charon and separate for opposite
+direction. In case of corresponding functions (request/response-like behavior) the same function 
+id is used. 
+
+#### QMK -> Charon direction
+
 
 | Byte 0  |  Name          | Description                                                | Status |
 |---------|--------------|------------------------------------------------------------|--------|
@@ -98,9 +110,81 @@ with [`to_le_bytes`](https://doc.rust-lang.org/std/primitive.f16.html#method.to_
 [`from_le_bytes`](https://doc.rust-lang.org/std/primitive.f16.html#method.from_le_bytes)
 respectively when using the protocol.
 
-### QMK functions
+
+### QMK functions (QMK -> Charon direction)
 
 This section describes in detail functions described in Protocol table
+
+---
+
+#### Layer change (`0x02`)
+
+```c
+void charon_send_layer_change(layer_state_t layer_id, bool is_default);
+```
+
+##### Protocol
+
+| Byte | arg name | Description | 
+|------|----------|-------------|
+| 1    |`layer_id`| The ID of currently enabled layer (max value if many)|
+| 2    |`is_default`| `1` if ID refers to a default layer, `0` otherwise|
+
+##### Usage
+
+QMK has two separate callbacks for capturing layer change – one for a 
+regular layer, one for default layer (`layer_state_set_user` and `default_layer_state_set_user`),
+so Charon function must be called from both, i.e.:
+
+```c
+// In keymap.c or <profile>.c file
+#include "charon.h"
+
+layer_state_t layer_state_set_user(layer_state_t state) {
+    charon_send_layer_change(state, false);
+    return state;
+}
+
+layer_state_t default_layer_state_set_user(layer_state_t state) {
+    charon_send_layer_change(state, true);
+    return state;
+}
+```
+
+---
+
+#### Key event (`0x03`)
+
+```c
+void charon_send_key_event(uint16_t keycode, keyrecord_t *record);
+```
+
+##### Protocol
+
+| Byte | arg name | Description | 
+|------|----------|-------------|
+| 1-2  |`keycode` | QMK 16-bit keycode (includes custom keycodes)|
+| 3    |`is_pressed`| `1`: key pressed, `0` key released|
+| 4    |`column`  | Column number on keyboard matrix |
+| 5    |`row`     | Row number on keyboard matrix |
+
+##### Usage
+
+The function uses the same input arguments as standard QMK key callback: `process_record_user`
+and it should be invoke from inside of it (ideally at the beggining, to record all key events). 
+
+```c
+// In keymap.c or <profile>.c file
+#include "charon.h"
+
+bool process_record_user(uint16_t keycode, keyrecord_t *record) {
+    charon_send_key_event(keycode, record);
+    // your key processing code
+    return true;
+}
+```
+
+---
 
 #### Change Charon mode (`0x04`) and Toggle Charon mode (`0x05`)
 
@@ -108,11 +192,12 @@ This section describes in detail functions described in Protocol table
 void charon_change_charon_mode(uint8_t mode);
 void charon_toggle_charon_mode();
 ```
-Protocol (change function only):
+
+##### Protocol (change function only):
 
 | Byte | arg name | Description | 
 |------|----------|-------------|
-| 1    | mode     | `0`: pass-through mode, `1`: in-app mode |
+| 1    |`mode`    | `0`: pass-through mode, `1`: in-app mode |
 
 Requests Charon to switch to a specific mode:
 0. `pass-through` mode: keys being send to the host computer
