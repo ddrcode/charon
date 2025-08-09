@@ -59,12 +59,29 @@ impl QMK {
         match QMKEvent::try_from(msg) {
             Ok(qmk_event) => {
                 debug!("QMK event received: {:?}", qmk_event);
-                self.process(DomainEvent::QMKEvent(qmk_event)).await;
+                self.process_qmk_event(qmk_event).await;
             }
             Err(err) => {
                 error!("Error processing QMK event: {err}");
             }
         }
+    }
+
+    async fn process_qmk_event(&mut self, qmk_event: QMKEvent) {
+        let event = match qmk_event {
+            QMKEvent::ToggleMode => {
+                let new_mode = self.state.mode().await.toggle();
+                debug!("Switching mode to {:?}", new_mode);
+                self.state.set_mode(new_mode).await;
+                DomainEvent::ModeChange(new_mode)
+            }
+            QMKEvent::ModeChange(mode) => {
+                self.state.set_mode(mode).await;
+                DomainEvent::ModeChange(mode)
+            }
+            e => DomainEvent::QMKEvent(e),
+        };
+        self.send(event).await;
     }
 
     async fn find_device(vendor_id: u16, product_id: u16) -> Option<DeviceReaderWriter> {
