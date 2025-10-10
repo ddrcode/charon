@@ -1,7 +1,7 @@
 use eyre::{OptionExt, eyre};
 use serde::{Deserialize, Serialize};
 
-use crate::event::{Mode, QMKRecord};
+use crate::{event::Mode, qmk::QMKRecord};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum QMKEvent {
@@ -10,6 +10,36 @@ pub enum QMKEvent {
     KeyEvent(QMKRecord),
     ModeChange(Mode),
     ToggleMode,
+}
+
+impl QMKEvent {
+    pub fn to_bytes(self) -> [u8; 32] {
+        use QMKEvent::*;
+        let mut bytes = [0u8; 32];
+        match self {
+            Echo(b) => return b,
+            LayerChange(layer) => {
+                bytes[0] = 0x02;
+                bytes[1] = layer;
+            }
+            KeyEvent(qmkrecord) => {
+                bytes[0] = 0x03;
+                qmkrecord
+                    .to_bytes()
+                    .into_iter()
+                    .enumerate()
+                    .for_each(|(i, byte)| bytes[i + 1] = byte);
+            }
+            ModeChange(mode) => {
+                bytes[0] = 0x04;
+                bytes[1] = mode as u8;
+            }
+            ToggleMode => {
+                bytes[0] = 0x05;
+            }
+        }
+        bytes
+    }
 }
 
 impl TryFrom<[u8; 32]> for QMKEvent {

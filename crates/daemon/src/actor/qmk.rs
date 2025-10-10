@@ -2,7 +2,10 @@ use std::borrow::Cow;
 
 use async_hid::{AsyncHidRead, Device, DeviceReaderWriter, HidBackend, HidResult};
 use async_trait::async_trait;
-use charon_lib::event::{DomainEvent, Event, QMKEvent};
+use charon_lib::{
+    event::{DomainEvent, Event},
+    qmk::QMKEvent,
+};
 use futures_lite::StreamExt;
 use tokio::{select, task::JoinHandle};
 use tracing::{debug, error, info, warn};
@@ -115,6 +118,8 @@ impl QMK {
             .inspect_err(|err| error!("Failed reading raw hid: {err}"))?;
         Ok((size, buf))
     }
+
+    async fn write_buf(&mut self) {}
 }
 
 #[async_trait]

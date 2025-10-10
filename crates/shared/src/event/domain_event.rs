@@ -2,7 +2,7 @@ use evdev::KeyCode;
 use serde::{Deserialize, Serialize};
 
 use super::{Mode, Topic};
-use crate::{event::QMKEvent, stats::CurrentStats};
+use crate::{qmk::QMKEvent, stats::CurrentStats};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[non_exhaustive]

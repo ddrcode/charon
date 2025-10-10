@@ -17,4 +17,9 @@ impl QMKRecord {
             col,
         }
     }
+
+    pub fn to_bytes(&self) -> [u8; 5] {
+        let kc = self.keycode.to_le_bytes();
+        [kc[0], kc[1], self.pressed.into(), self.row, self.col]
+    }
 }
