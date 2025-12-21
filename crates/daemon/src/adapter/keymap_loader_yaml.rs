@@ -13,12 +13,14 @@ use crate::{
     port::KeymapLoader,
 };
 
+#[allow(dead_code)]
 #[derive(Deserialize)]
 pub struct OsVariantDto {
     pub os: HashSet<String>,
     pub mappings: HashMap<char, String>,
 }
 
+#[allow(dead_code)]
 #[derive(Deserialize)]
 pub struct KeymapDto {
     pub base: Option<String>,

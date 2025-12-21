@@ -1,6 +1,6 @@
 use super::DomainEvent;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub enum Topic {
     System,
     TextInput,
@@ -29,9 +29,18 @@ impl From<&DomainEvent> for Topic {
             Sleep => System,
             WakeUp => System,
 
-            ReportSent() => Telemetry,
+            ReportSent => Telemetry,
 
             QMKEvent(..) => Monitoring,
         }
+    }
+}
+
+impl maiko::Topic<DomainEvent> for Topic {
+    fn from_event(event: &DomainEvent) -> Self
+    where
+        Self: Sized,
+    {
+        Self::from(event)
     }
 }

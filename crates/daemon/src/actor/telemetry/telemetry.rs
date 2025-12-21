@@ -35,7 +35,7 @@ impl Telemetry {
             DomainEvent::KeyRelease(..) => {
                 self.events.insert(event.id, event.timestamp);
             }
-            DomainEvent::ReportSent() => {
+            DomainEvent::ReportSent => {
                 if let Some(ref source_id) = event.source_event_id {
                     if let Some(timestamp) = self.events.remove(source_id) {
                         if let Some(diff) = event.timestamp.checked_sub(timestamp) {

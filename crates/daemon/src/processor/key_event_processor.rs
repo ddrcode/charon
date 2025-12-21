@@ -1,30 +1,18 @@
-use charon_lib::event::{DomainEvent, Event};
+use charon_lib::event::DomainEvent;
 use evdev::KeyCode;
-use tracing::error;
-use uuid::Uuid;
+use maiko::Meta;
+use tracing::{debug, error};
 
-use crate::domain::{HidKeyCode, KeyboardState, ProcessorState, traits::Processor};
+use crate::domain::{HidKeyCode, KeyboardState, traits::Processor};
 
+#[derive(Default)]
 pub struct KeyEventProcessor {
-    state: ProcessorState,
     report: KeyboardState,
-    events: Vec<Event>,
+    events: Vec<DomainEvent>,
 }
 
 impl KeyEventProcessor {
-    pub fn factory(state: ProcessorState) -> Box<dyn Processor + Send + Sync> {
-        Box::new(KeyEventProcessor::new(state))
-    }
-
-    pub fn new(state: ProcessorState) -> Self {
-        Self {
-            report: KeyboardState::new(),
-            state,
-            events: Vec::new(),
-        }
-    }
-
-    async fn handle_key_press(&mut self, key: &KeyCode, source_id: Uuid) {
+    async fn handle_key_press(&mut self, key: &KeyCode, meta: Meta) {
         let key = match HidKeyCode::try_from(key) {
             Ok(val) => val,
             Err(e) => {
@@ -32,10 +20,10 @@ impl KeyEventProcessor {
             }
         };
         self.report.update_on_press(key);
-        self.send_report(source_id).await;
+        self.send_report(meta).await;
     }
 
-    async fn handle_key_release(&mut self, key: &KeyCode, source_id: Uuid) {
+    async fn handle_key_release(&mut self, key: &KeyCode, meta: Meta) {
         let key = match HidKeyCode::try_from(key) {
             Ok(val) => val,
             Err(e) => {
@@ -43,23 +31,25 @@ impl KeyEventProcessor {
             }
         };
         self.report.update_on_release(key);
-        self.send_report(source_id).await;
+        self.send_report(meta).await;
     }
 
-    async fn send_report(&mut self, source_id: Uuid) {
+    async fn send_report(&mut self, _meta: Meta) {
         let report = self.report.to_report();
         let payload = DomainEvent::HidReport(report);
-        let event = Event::with_source_id(self.state.id.clone(), payload, source_id);
-        self.events.push(event);
+        // let event = Event::with_source_id(self.state.id.clone(), payload, meta);
+        // self.events.push(event);
+        self.events.push(payload);
     }
 }
 
 #[async_trait::async_trait]
 impl Processor for KeyEventProcessor {
-    async fn process(&mut self, event: Event) -> Vec<Event> {
-        match &event.payload {
-            DomainEvent::KeyPress(key, _) => self.handle_key_press(key, event.id).await,
-            DomainEvent::KeyRelease(key, _) => self.handle_key_release(key, event.id).await,
+    async fn process(&mut self, event: DomainEvent, meta: Meta) -> Vec<DomainEvent> {
+        debug!("GOT EVENT: {event:?}");
+        match &event {
+            DomainEvent::KeyPress(key, _) => self.handle_key_press(key, meta).await,
+            DomainEvent::KeyRelease(key, _) => self.handle_key_release(key, meta).await,
             _ => self.events.push(event),
         }
         std::mem::take(&mut self.events)

@@ -8,10 +8,9 @@ use tokio::{
     },
     task::JoinHandle,
 };
-use tracing::{debug, error, info};
+use tracing::{error, info};
 
 use crate::{
-    actor::{KeyScanner, Pipeline},
     broker::EventBroker,
     config::CharonConfig,
     domain::{
@@ -107,20 +106,6 @@ impl Daemon {
         self
     }
 
-    pub fn add_scanners(&mut self, topics: &'static [Topic]) -> &mut Self {
-        for (name, config) in self.config.get_config_per_keyboard() {
-            debug!("Registering scanner: {name}");
-            self.register_actor::<KeyScanner>(
-                format!("KeyScanner-{name}").into(),
-                name,
-                topics,
-                config,
-                Vec::new(),
-            );
-        }
-        self
-    }
-
     pub fn add_actor_with_init<T: Actor>(
         &mut self,
         init: T::Init,
@@ -140,7 +125,7 @@ impl Daemon {
         topics: &'static [Topic],
         factories: &[ProcessorCtor],
     ) -> &mut Self {
-        let state = ProcessorState::new(T::name().into(), self.mode.clone(), self.config.clone());
+        let state = ProcessorState::new(self.mode.clone(), self.config.clone());
         let processors: Vec<_> = factories.iter().map(|f| f(state.clone())).collect();
         self.register_actor::<T>(
             T::name().into(),
@@ -149,18 +134,6 @@ impl Daemon {
             self.config.clone(),
             processors,
         )
-    }
-
-    pub fn add_pipeline(
-        &mut self,
-        name: &'static str,
-        topics: &'static [Topic],
-        factories: &[ProcessorCtor],
-    ) -> &mut Self {
-        let state = ProcessorState::new(name.into(), self.mode.clone(), self.config.clone());
-        let processors: Vec<_> = factories.iter().map(|f| f(state.clone())).collect();
-        self.register_actor::<Pipeline>(name.into(), (), topics, self.config.clone(), processors);
-        self
     }
 
     pub fn update_config(&mut self, transform_cfg: fn(&mut CharonConfig)) -> &mut Self {

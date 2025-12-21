@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use super::{Mode, Topic};
 use crate::{qmk::QMKEvent, stats::CurrentStats};
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(maiko::Event, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[non_exhaustive]
 pub enum DomainEvent {
     KeyPress(KeyCode, String),
@@ -22,7 +22,7 @@ pub enum DomainEvent {
     WakeUp,
 
     // telemetry events
-    ReportSent(),
+    ReportSent,
 
     // QMK
     QMKEvent(QMKEvent),

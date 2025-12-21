@@ -20,11 +20,13 @@ use crate::{
     error::CharonError,
 };
 
+#[allow(dead_code)]
 pub struct QMK {
     state: ActorState,
     keyboard_alias: Cow<'static, str>,
 }
 
+#[allow(dead_code)]
 impl QMK {
     fn new(state: ActorState, keyboard_alias: Cow<'static, str>) -> Self {
         Self {
@@ -52,9 +54,8 @@ impl QMK {
     }
 
     async fn handle_event(&mut self, event: &Event) {
-        match &event.payload {
-            DomainEvent::Exit => self.stop().await,
-            _ => {}
+        if let DomainEvent::Exit = &event.payload {
+            self.stop().await
         }
     }
 
