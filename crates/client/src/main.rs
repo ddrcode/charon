@@ -18,6 +18,7 @@ use crate::{
     app::App,
     apps::{
         Charonsay, Editor, Password, Stats,
+        keymap::Keymap,
         menu::{Menu, MenuItem},
     },
     config::AppConfig,
@@ -39,6 +40,7 @@ async fn main() -> eyre::Result<()> {
         Editor::new_box(ctx.clone()),
         Stats::new_box(ctx.clone()),
         Password::new_box(ctx.clone()),
+        Keymap::new_box(ctx.clone()),
     ]
     .into_iter()
     .map(|app| (app.id(), app))
@@ -63,7 +65,7 @@ fn menu_items() -> Vec<MenuItem> {
         ("Passwords", '\u{f07f5}', "p"),
         ("Calendar", '\u{f07f5}', "l"),
         ("Calculator", '\u{f07f5}', "c"),
-        ("Todo", '\u{f07f5}', "t"),
+        ("Keymaps", '\u{f07f5}', "k"),
         ("Game", '\u{f07f5}', "g"),
         ("Quit", '\u{f0a48}', "q"),
     ]

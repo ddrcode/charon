@@ -23,6 +23,9 @@ pub enum CharonError {
     #[error("Couldn't find requested keyboard: {0}")]
     KeyboardNotFound(String),
 
+    #[error("QMK error: {0}")]
+    QMKError(String),
+
     #[error("Event channel error: {0}")]
     EventChannelError(#[from] SendError<Event>),
 

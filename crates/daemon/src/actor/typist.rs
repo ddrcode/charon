@@ -1,5 +1,5 @@
 use charon_lib::event::{DomainEvent, Event, Mode};
-use deunicode::{deunicode, deunicode_char};
+use deunicode::deunicode_char;
 use tokio::{
     fs::{read_to_string, remove_file},
     task::JoinHandle,

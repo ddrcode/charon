@@ -30,6 +30,8 @@ impl From<&DomainEvent> for Topic {
             WakeUp => System,
 
             ReportSent() => Telemetry,
+
+            QMKEvent(..) => Monitoring,
         }
     }
 }

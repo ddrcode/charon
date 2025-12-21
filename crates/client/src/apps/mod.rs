@@ -1,5 +1,6 @@
 mod charonsay;
 mod editor;
+pub mod keymap;
 pub mod menu;
 mod password;
 mod stats;
