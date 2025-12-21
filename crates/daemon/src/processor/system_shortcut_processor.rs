@@ -24,35 +24,33 @@ impl SystemShortcutProcessor {
         }
     }
 
-    async fn handle_report(&mut self, report: &[u8; 8], parent_meta: &Meta) -> bool {
+    async fn handle_report(&mut self, report: &[u8; 8]) -> bool {
         let num: u64 = u64::from_ne_bytes(*report);
         let config = self.state.config();
 
         if num == u64::from(&config.quit_shortcut) {
-            self.send_exit(parent_meta).await;
+            self.send_exit().await;
         } else if num == u64::from(&config.toggle_mode_shortcut) {
-            self.toggle_mode(parent_meta).await;
+            self.toggle_mode().await;
         } else if num == u64::from(&config.awake_host_shortcut) {
             self.wake_up_host();
         } else {
             return self.state.mode().await == Mode::PassThrough;
         }
 
-        self.reset_hid(parent_meta);
+        self.reset_hid();
         false
     }
 
-    async fn send_exit(&mut self, _parent_meta: &Meta) {
-        // let event = Event::with_source_id(self.state.id.clone(), DomainEvent::Exit, parent_meta);
+    async fn send_exit(&mut self) {
         self.events.push(DomainEvent::Exit);
     }
 
-    async fn toggle_mode(&mut self, _parent_meta: &Meta) {
+    async fn toggle_mode(&mut self) {
         let new_mode = self.state.mode().await.toggle();
         debug!("Switching mode to {:?}", new_mode);
         self.state.set_mode(new_mode).await;
         let payload = DomainEvent::ModeChange(new_mode);
-        // let event = Event::with_source_id(self.state.id.clone(), payload, parent_id);
         self.events.push(payload);
     }
 
@@ -67,23 +65,20 @@ impl SystemShortcutProcessor {
         }
     }
 
-    fn reset_hid(&mut self, _parent_meta: &Meta) {
-        let payload = DomainEvent::HidReport([0; 8]);
-        // let event = Event::with_source_id(self.state.id.clone(), payload, parent_meta);
-        self.events.push(payload);
+    fn reset_hid(&mut self) {
+        let event = DomainEvent::HidReport([0; 8]);
+        self.events.push(event);
     }
 }
 
 #[async_trait::async_trait]
 impl Processor for SystemShortcutProcessor {
-    async fn process(&mut self, event: DomainEvent, meta: Meta) -> Vec<DomainEvent> {
+    async fn process(&mut self, event: DomainEvent, _meta: Meta) -> Vec<DomainEvent> {
         match &event {
             DomainEvent::HidReport(report) => {
-                // if meta.correlation_id().is_some() {
-                if self.handle_report(report, &meta).await {
+                if self.handle_report(report).await {
                     self.events.push(event);
                 }
-                // }
             }
             _ => self.events.push(event),
         }

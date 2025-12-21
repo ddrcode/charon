@@ -1,5 +1,5 @@
 use charon_lib::event::DomainEvent;
-use maiko::{Context, Meta};
+use maiko::{Context, Envelope, Meta};
 
 use crate::domain::traits::Processor;
 
@@ -28,8 +28,15 @@ impl Pipeline {
             events = next_events;
         }
 
-        for ev in events {
-            self.ctx.send(ev).await?;
+        let correlation_id = meta.correlation_id().unwrap_or(meta.id());
+        for event in events {
+            self.ctx
+                .send_envelope(Envelope::<DomainEvent>::with_correlation(
+                    event,
+                    self.ctx.clone_name(),
+                    correlation_id,
+                ))
+                .await?;
         }
 
         Ok(())
