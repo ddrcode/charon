@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use super::{Mode, Topic};
 use crate::stats::CurrentStats;
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, maiko::Event, PartialEq, Serialize, Deserialize)]
 #[non_exhaustive]
 pub enum DomainEvent {
     KeyPress(KeyCode, String),

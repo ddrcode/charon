@@ -34,4 +34,7 @@ pub enum CharonError {
 
     #[error("Yaml parsing error: {0}")]
     YamlError(#[from] serde_yaml_bw::Error),
+
+    #[error("Event engine error: {0}")]
+    MaikoError(#[from] maiko::Error),
 }

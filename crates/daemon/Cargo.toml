@@ -22,3 +22,4 @@ lru_time_cache = "0.11.11"
 deunicode = "1.6.2"
 serde_yaml_bw = "2.1.1"
 eyre.workspace = true
+maiko.workspace = true
