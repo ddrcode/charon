@@ -1,49 +1,43 @@
 use std::path::PathBuf;
 
-use charon_lib::event::{DomainEvent, Event};
-use tokio::{process::Command, task::JoinHandle};
+use charon_lib::event::DomainEvent;
+use maiko::{Context, Meta};
+use tokio::process::Command;
 use tracing::{error, info, warn};
 
-use crate::{
-    domain::{ActorState, traits::Actor},
-    error::CharonError,
-};
+use crate::domain::ActorState;
 
 pub struct PowerManager {
+    ctx: Context<DomainEvent>,
     state: ActorState,
     asleep: bool,
 }
 
 impl PowerManager {
-    pub fn new(state: ActorState) -> Self {
+    pub fn new(ctx: Context<DomainEvent>, state: ActorState) -> Self {
         Self {
+            ctx,
             state,
             asleep: false,
         }
     }
 
-    async fn handle_event(&mut self, event: &Event) {
-        match &event.payload {
-            DomainEvent::Exit => self.stop().await,
-            DomainEvent::KeyPress(..) if self.asleep => self.handle_awake().await,
-            _ => {}
-        }
-    }
-
-    async fn handle_sleep(&mut self) {
+    async fn handle_sleep(&mut self) -> maiko::Result<()> {
         if let Some(path) = &self.state.config().sleep_script {
             if self.run_script(path.to_path_buf(), true).await {
-                self.send(DomainEvent::Sleep).await;
+                self.ctx.send(DomainEvent::Sleep).await?;
             }
         }
+        Ok(())
     }
 
-    async fn handle_awake(&mut self) {
+    async fn handle_awake(&mut self) -> maiko::Result<()> {
         if let Some(path) = &self.state.config().awake_script {
             if self.run_script(path.to_path_buf(), false).await {
-                self.send(DomainEvent::WakeUp).await;
+                self.ctx.send(DomainEvent::WakeUp).await?;
             }
         }
+        Ok(())
     }
 
     async fn run_script(&mut self, path: PathBuf, should_sleep: bool) -> bool {
@@ -75,45 +69,22 @@ impl PowerManager {
     }
 }
 
-#[async_trait::async_trait]
-impl Actor for PowerManager {
-    type Init = ();
+impl maiko::Actor for PowerManager {
+    type Event = DomainEvent;
 
-    fn name() -> &'static str {
-        "PowerManager"
-    }
-
-    fn spawn(state: ActorState, (): ()) -> Result<JoinHandle<()>, CharonError> {
-        let mut power_mngr = PowerManager::new(state);
-        let handle = tokio::task::spawn(async move {
-            power_mngr.run().await;
-        });
-        Ok(handle)
-    }
-
-    fn state(&self) -> &ActorState {
-        &self.state
-    }
-
-    fn state_mut(&mut self) -> &mut ActorState {
-        &mut self.state
-    }
-
-    async fn tick(&mut self) {
-        let time_to_sleep = self.state.config().time_to_sleep;
-        let time_to_sleep = tokio::time::Duration::from_secs(time_to_sleep);
-
-        tokio::select! {
-            Some(event) = self.state.receiver.recv() => {
-                self.handle_event(&event).await;
-            }
-            _ = tokio::time::sleep(time_to_sleep) => {
-                self.handle_sleep().await;
-            }
+    async fn handle(&mut self, event: &Self::Event, _meta: &Meta) -> maiko::Result<()> {
+        match event {
+            DomainEvent::Exit => self.ctx.stop(),
+            DomainEvent::KeyPress(..) if self.asleep => self.handle_awake().await?,
+            _ => {}
         }
+        Ok(())
     }
 
-    async fn shutdown(&mut self) {
-        self.handle_awake().await;
+    async fn tick(&mut self) -> maiko::Result<()> {
+        let time_to_sleep = tokio::time::Duration::from_secs(self.state.config().time_to_sleep);
+        tokio::time::sleep(time_to_sleep).await;
+        self.handle_sleep().await?;
+        Ok(())
     }
 }

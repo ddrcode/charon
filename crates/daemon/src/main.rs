@@ -2,30 +2,24 @@ pub mod actor;
 pub mod adapter;
 pub mod broker;
 pub mod config;
-pub mod daemon;
 pub mod domain;
 pub mod error;
 pub mod port;
 pub mod processor;
 pub mod util;
 
-use charon_lib::event::{Event, Mode, Topic as T};
+use charon_lib::event::{Mode, Topic as T};
 use maiko::Supervisor;
 use std::{fs::read_to_string, path::PathBuf, sync::Arc};
-use tokio::{
-    self,
-    io::unix::AsyncFd,
-    signal::unix,
-    sync::{RwLock, mpsc},
-};
+use tokio::{self, io::unix::AsyncFd, signal::unix};
 use tracing::{debug, info, warn};
 use tracing_subscriber::FmtSubscriber;
 
 use crate::{
-    actor::{KeyScanner, KeyWriter, Pipeline},
+    actor::{KeyScanner, KeyWriter, Pipeline, PowerManager},
     adapter::{EventDeviceUnix, HIDDeviceUnix},
     config::CharonConfig,
-    domain::{ActorState, ProcessorState, traits::Processor},
+    domain::{ActorState, traits::Processor},
     error::CharonError,
     processor::{KeyEventProcessor, SystemShortcutProcessor},
     util::evdev::find_input_device,
@@ -35,13 +29,13 @@ use crate::{
 async fn main() -> eyre::Result<()> {
     init_logging();
 
-    let config = get_config().expect("Failed loading config file");
+    let config = Arc::new(get_config().expect("Failed loading config file"));
+    let state = ActorState::new(Mode::PassThrough, config.clone());
     // info!("Loading keymap");
     // let keymap = KeymapLoaderYaml::new(&config.keymaps_dir)
     //     .load_keymap(&config.host_keymap)
     //     .await?;
 
-    let mode = Arc::new(RwLock::new(Mode::PassThrough));
     let mut supervisor = Supervisor::default();
 
     for (name, config) in config.get_config_per_keyboard() {
@@ -55,18 +49,7 @@ async fn main() -> eyre::Result<()> {
                 let device = evdev::Device::open(device_path).unwrap();
                 let async_dev = AsyncFd::new(device).unwrap();
                 let input = EventDeviceUnix::new(async_dev);
-
-                let (tx, rx) = mpsc::channel::<Event>(128);
-                let state = ActorState::new(
-                    format!("KeyScanner-{name}").into(),
-                    mode.clone(),
-                    tx,
-                    rx,
-                    config,
-                    Vec::new(),
-                );
-
-                KeyScanner::new(ctx, state, Box::new(input), name)
+                KeyScanner::new(ctx, state.clone(), Box::new(input), name)
             },
             &[T::System],
         )?;
@@ -85,21 +68,26 @@ async fn main() -> eyre::Result<()> {
     supervisor.add_actor(
         "KeyEventPipeline",
         |ctx| {
-            let state = ProcessorState::new(mode, config.clone());
             let processors: Vec<Box<dyn Processor + Send + Sync>> = vec![
                 Box::new(KeyEventProcessor::default()),
-                Box::new(SystemShortcutProcessor::new(state)),
+                Box::new(SystemShortcutProcessor::new(state.clone())),
             ];
             Pipeline::new(ctx, processors)
         },
         &[T::System, T::KeyInput],
     )?;
 
+    if config.sleep_script.is_some() && config.awake_script.is_some() {
+        supervisor.add_actor(
+            "PowerManager",
+            |ctx| PowerManager::new(ctx, state.clone()),
+            &[T::System, T::KeyInput],
+        )?;
+    }
+
     // let mut daemon = Daemon::new();
     // daemon
     //     .with_config(config.clone())
-    //     .add_scanners(&[T::System])
-    //     .add_actor::<KeyWriter>(&[T::System, T::KeyOutput])
     //     .add_actor_with_init::<Typist>(keymap, &[T::System, T::TextInput])
     //     .add_actor::<TypingStats>(&[T::System, T::KeyInput])
     //     .add_actor::<IPCServer>(&[T::System, T::Stats, T::Monitoring])

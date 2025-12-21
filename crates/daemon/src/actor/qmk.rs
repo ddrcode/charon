@@ -160,16 +160,16 @@ impl Actor for QMK {
         self.init().await;
         let mut device = Self::find_device(self.vendor_id(), self.product_id()).await;
 
-        while self.state().alive {
-            select! {
-                Some(event) = self.recv() => {
-                    self.handle_event(&event).await;
-                }
-                Ok((_n, buf)) = Self::read_buf(device.as_mut()) => {
-                    self.handle_qmk_message(buf).await;
-                }
+        // while self.state().alive {
+        select! {
+            Some(event) = self.recv() => {
+                self.handle_event(&event).await;
+            }
+            Ok((_n, buf)) = Self::read_buf(device.as_mut()) => {
+                self.handle_qmk_message(buf).await;
             }
         }
+        // }
 
         self.shutdown().await;
     }

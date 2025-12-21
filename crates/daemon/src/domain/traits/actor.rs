@@ -13,7 +13,8 @@ pub trait Actor {
     fn name() -> &'static str;
 
     fn id(&self) -> Cow<'static, str> {
-        self.state().id.clone()
+        // self.state().id.clone()
+        "id".into()
     }
 
     fn state(&self) -> &ActorState;
@@ -26,13 +27,13 @@ pub trait Actor {
     }
 
     async fn send_raw(&mut self, event: Event) {
-        if let Err(_) = self.state().sender.send(event).await {
-            warn!(
-                "Channel closed for {} while sending event, quitting",
-                self.id()
-            );
-            self.stop().await;
-        }
+        // if let Err(_) = self.state().sender.send(event).await {
+        //     warn!(
+        //         "Channel closed for {} while sending event, quitting",
+        //         self.id()
+        //     );
+        //     self.stop().await;
+        // }
     }
 
     async fn process(&mut self, payload: DomainEvent) {
@@ -58,27 +59,28 @@ pub trait Actor {
     }
 
     async fn recv(&mut self) -> Option<Event> {
-        if self.state().alive == false {
-            return None;
-        }
-        let maybe_event = self.state_mut().receiver.recv().await;
-        if maybe_event.is_none() {
-            warn!(
-                "Channel closed for {} while receiving event, quitting",
-                self.id()
-            );
-            self.stop().await;
-        }
-        maybe_event
+        // if self.state().alive == false {
+        //     return None;
+        // }
+        // let maybe_event = self.state_mut().receiver.recv().await;
+        // if maybe_event.is_none() {
+        //     warn!(
+        //         "Channel closed for {} while receiving event, quitting",
+        //         self.id()
+        //     );
+        //     self.stop().await;
+        // }
+        // maybe_event
+        None
     }
 
     async fn run(&mut self) {
         info!("Starting actor: {}", self.id());
         self.init().await;
 
-        while self.state().alive {
-            self.tick().await;
-        }
+        // while self.state().alive {
+        //     self.tick().await;
+        // }
 
         self.shutdown().await;
     }
@@ -87,8 +89,8 @@ pub trait Actor {
 
     async fn stop(&mut self) {
         let state = self.state_mut();
-        state.alive = false;
-        state.receiver.close();
+        // state.alive = false;
+        // state.receiver.close();
         info!("Actor: {} is stopping", self.id());
     }
 

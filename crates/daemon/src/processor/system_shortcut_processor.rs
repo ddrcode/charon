@@ -3,21 +3,17 @@ use maiko::Meta;
 use tracing::{debug, error, info};
 
 use crate::{
-    domain::{ProcessorState, traits::Processor},
+    domain::{ActorState, traits::Processor},
     util::system::wake_host_on_lan,
 };
 
 pub struct SystemShortcutProcessor {
-    state: ProcessorState,
+    state: ActorState,
     events: Vec<DomainEvent>,
 }
 
 impl SystemShortcutProcessor {
-    pub fn factory(state: ProcessorState) -> Box<dyn Processor + Send + Sync> {
-        Box::new(SystemShortcutProcessor::new(state))
-    }
-
-    pub fn new(state: ProcessorState) -> Self {
+    pub fn new(state: ActorState) -> Self {
         Self {
             state,
             events: Vec::new(),

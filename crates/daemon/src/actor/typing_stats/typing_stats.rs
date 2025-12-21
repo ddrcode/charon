@@ -114,23 +114,23 @@ impl Actor for TypingStats {
         let mut save_interval =
             tokio::time::interval(Duration::from_secs(self.state.config().stats_save_interval));
 
-        while self.state().alive {
-            select! {
-                Some(event) = self.recv() => {
-                    self.handle_event(&event).await;
-                }
-                _ = wpm_interval.tick() => {
-                    self.wpm.next();
-                    self.send(DomainEvent::CurrentStats(self.stats())).await;
-                }
-                _ = save_interval.tick() => {
-                    self.write_stats(&self.state.config().stats_file, self.stats()).await;
-                }
-                _ = tokio::time::sleep_until(next_midnight_instant()) => {
-                    self.today_count = 0;
-                }
+        // while self.state().alive {
+        select! {
+            Some(event) = self.recv() => {
+                self.handle_event(&event).await;
+            }
+            _ = wpm_interval.tick() => {
+                self.wpm.next();
+                self.send(DomainEvent::CurrentStats(self.stats())).await;
+            }
+            _ = save_interval.tick() => {
+                self.write_stats(&self.state.config().stats_file, self.stats()).await;
+            }
+            _ = tokio::time::sleep_until(next_midnight_instant()) => {
+                self.today_count = 0;
             }
         }
+        // }
 
         self.shutdown().await;
     }

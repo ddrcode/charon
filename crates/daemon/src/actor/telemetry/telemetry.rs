@@ -78,16 +78,16 @@ impl Actor for Telemetry {
 
         let mut push_interval = tokio::time::interval(Duration::from_secs(15));
 
-        while self.state().alive {
-            select! {
-                Some(event) = self.recv() => {
-                    self.handle_event(&event).await;
-                }
-                _ = push_interval.tick() => {
-                    self.metrics.push().await;
-                }
+        // while self.state().alive {
+        select! {
+            Some(event) = self.recv() => {
+                self.handle_event(&event).await;
+            }
+            _ = push_interval.tick() => {
+                self.metrics.push().await;
             }
         }
+        // }
 
         self.shutdown().await;
     }
