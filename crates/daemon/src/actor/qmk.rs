@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 
-use async_hid::{AsyncHidRead, Device, DeviceReaderWriter, HidBackend, HidResult};
+use async_hid::{AsyncHidRead, DeviceReaderWriter, HidBackend};
 use async_trait::async_trait;
 use charon_lib::{
     event::{DomainEvent, Event},
@@ -8,7 +8,7 @@ use charon_lib::{
 };
 use futures_lite::StreamExt;
 use tokio::{select, task::JoinHandle};
-use tracing::{debug, error, info, warn};
+use tracing::{debug, error, info};
 
 // https://docs.qmk.fm/features/rawhid#basic-configuration
 pub const USAGE_PAGE: u16 = 0xFF60;

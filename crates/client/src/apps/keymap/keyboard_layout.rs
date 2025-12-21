@@ -2,6 +2,7 @@ use std::{fmt, mem};
 
 const ARROWS: &'static str = "↑←↓→";
 
+#[derive(Default)]
 pub(crate) struct KeyboardLayout {
     keys: Vec<Key>,
     parts: Vec<LayoutPart>,
@@ -42,7 +43,7 @@ impl KeyboardLayout {
 
         let is_key = |c: char| c.is_ascii() || ARROWS.contains(c);
 
-        for (i, ch) in layout.chars().enumerate() {
+        for ch in layout.chars() {
             if ch == '\n' {
                 if keys_in_row > 0 {
                     row += 1;
@@ -119,15 +120,6 @@ impl KeyboardLayout {
 impl fmt::Display for KeyboardLayout {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.parts().fold(String::new(), |a, b| a + &b.0))
-    }
-}
-
-impl Default for KeyboardLayout {
-    fn default() -> Self {
-        Self {
-            keys: Default::default(),
-            parts: Default::default(),
-        }
     }
 }
 

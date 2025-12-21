@@ -64,7 +64,7 @@ impl<'a> KeyHeatmapRenderer<'a> {
         }
     }
 
-    fn render_heatmap(&self) -> Paragraph {
+    fn render_heatmap(&self) -> Paragraph<'_> {
         let rows = vec![
             vec![],
             vec![
