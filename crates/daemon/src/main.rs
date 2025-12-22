@@ -16,7 +16,7 @@ use tracing::{debug, info, warn};
 use tracing_subscriber::FmtSubscriber;
 
 use crate::{
-    actor::{KeyScanner, KeyWriter, Pipeline, PowerManager, QMK, Typist},
+    actor::{KeyScanner, KeyWriter, Pipeline, PowerManager, QMK, Typist, ipc_server::IPCServer},
     adapter::{EventDeviceUnix, HIDDeviceUnix, KeymapLoaderYaml},
     config::{CharonConfig, InputConfig},
     domain::{ActorState, traits::Processor},
@@ -75,6 +75,12 @@ async fn main() -> eyre::Result<()> {
             Pipeline::new(ctx, processors)
         },
         &[T::System, T::KeyInput],
+    )?;
+
+    supervisor.add_actor(
+        "IPCServer",
+        |ctx| IPCServer::new(ctx, state.clone()),
+        &[T::System, T::Stats, T::Monitoring],
     )?;
 
     if config.sleep_script.is_some() && config.awake_script.is_some() {
