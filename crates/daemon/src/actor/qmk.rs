@@ -1,35 +1,33 @@
 use std::borrow::Cow;
 
 use async_hid::{AsyncHidRead, DeviceReaderWriter, HidBackend};
-use async_trait::async_trait;
-use charon_lib::{
-    event::{DomainEvent, Event},
-    qmk::QMKEvent,
-};
+use charon_lib::{event::DomainEvent, qmk::QMKEvent};
 use futures_lite::StreamExt;
-use tokio::{select, task::JoinHandle};
+use maiko::{Context, Meta};
 use tracing::{debug, error, info};
 
 // https://docs.qmk.fm/features/rawhid#basic-configuration
 pub const USAGE_PAGE: u16 = 0xFF60;
 pub const USAGE_ID: u16 = 0x0061;
 
-use crate::{
-    config::InputConfig,
-    domain::{ActorState, traits::Actor},
-    error::CharonError,
-};
+use crate::domain::ActorState;
 
 #[allow(dead_code)]
 pub struct QMK {
+    ctx: Context<DomainEvent>,
     state: ActorState,
     keyboard_alias: Cow<'static, str>,
 }
 
 #[allow(dead_code)]
 impl QMK {
-    fn new(state: ActorState, keyboard_alias: Cow<'static, str>) -> Self {
+    pub fn new(
+        ctx: Context<DomainEvent>,
+        state: ActorState,
+        keyboard_alias: Cow<'static, str>,
+    ) -> Self {
         Self {
+            ctx,
             state,
             keyboard_alias,
         }
@@ -51,12 +49,6 @@ impl QMK {
             .expect("keyboard info must be provided")
             .product_id
             .expect("product_id must be provided")
-    }
-
-    async fn handle_event(&mut self, event: &Event) {
-        if let DomainEvent::Exit = &event.payload {
-            self.stop().await
-        }
     }
 
     async fn handle_qmk_message(&mut self, msg: [u8; 32]) {
@@ -85,7 +77,7 @@ impl QMK {
             }
             e => DomainEvent::QMKEvent(e),
         };
-        self.send(event).await;
+        self.ctx.send(event).await;
     }
 
     async fn find_device(vendor_id: u16, product_id: u16) -> Option<DeviceReaderWriter> {
@@ -123,64 +115,22 @@ impl QMK {
     async fn write_buf(&mut self) {}
 }
 
-#[async_trait]
-impl Actor for QMK {
-    type Init = ();
+impl maiko::Actor for QMK {
+    type Event = DomainEvent;
 
-    fn name() -> &'static str {
-        "QMK"
-    }
-
-    fn spawn(state: ActorState, (): ()) -> Result<JoinHandle<()>, CharonError> {
-        let alias = match state.config().keyboard {
-            InputConfig::Use(ref keyb) => keyb.clone(),
-            ref k => {
-                return Err(CharonError::QMKError(format!(
-                    "{k:?} - insufficient or wrong configuration to enable QMK actor"
-                )));
-            }
-        };
-
-        let raw_enabled = state.config().keyboard_info().is_some_and(|group| {
-            group.raw_hid_enabled && group.vendor_id.is_some() && group.product_id.is_some()
-        });
-
-        if !raw_enabled {
-            return Err(CharonError::QMKError(
-                "vendor_id or product_id is not provided or raw_hid_enabled is false".into(),
-            ));
+    async fn handle(&mut self, event: &Self::Event, _meta: &Meta) -> maiko::Result<()> {
+        if matches!(event, DomainEvent::Exit) {
+            self.ctx.stop();
         }
-
-        let mut qmk = QMK::new(state, alias);
-        Ok(tokio::spawn(async move { qmk.run().await }))
+        Ok(())
     }
 
-    async fn run(&mut self) {
-        info!("Starting actor: {}", self.id());
-        self.init().await;
+    async fn tick(&mut self) -> maiko::Result<()> {
+        // TODO it shuldn't be read on every tick!
         let mut device = Self::find_device(self.vendor_id(), self.product_id()).await;
-
-        // while self.state().alive {
-        select! {
-            Some(event) = self.recv() => {
-                self.handle_event(&event).await;
-            }
-            Ok((_n, buf)) = Self::read_buf(device.as_mut()) => {
-                self.handle_qmk_message(buf).await;
-            }
+        if let Ok((_n, buf)) = Self::read_buf(device.as_mut()).await {
+            self.handle_qmk_message(buf).await;
         }
-        // }
-
-        self.shutdown().await;
-    }
-
-    async fn tick(&mut self) {}
-
-    fn state(&self) -> &ActorState {
-        &self.state
-    }
-
-    fn state_mut(&mut self) -> &mut ActorState {
-        &mut self.state
+        Ok(())
     }
 }

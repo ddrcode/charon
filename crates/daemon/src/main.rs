@@ -16,9 +16,9 @@ use tracing::{debug, info, warn};
 use tracing_subscriber::FmtSubscriber;
 
 use crate::{
-    actor::{KeyScanner, KeyWriter, Pipeline, PowerManager},
+    actor::{KeyScanner, KeyWriter, Pipeline, PowerManager, QMK},
     adapter::{EventDeviceUnix, HIDDeviceUnix},
-    config::CharonConfig,
+    config::{CharonConfig, InputConfig},
     domain::{ActorState, traits::Processor},
     error::CharonError,
     processor::{KeyEventProcessor, SystemShortcutProcessor},
@@ -85,21 +85,29 @@ async fn main() -> eyre::Result<()> {
         )?;
     }
 
+    let raw_enabled = config.keyboard_info().is_some_and(|group| {
+        group.raw_hid_enabled && group.vendor_id.is_some() && group.product_id.is_some()
+    });
+    if raw_enabled {
+        let alias = match config.keyboard {
+            InputConfig::Use(ref keyb) => keyb.clone(),
+            ref k => Err(CharonError::QMKError(format!(
+                "{k:?} - insufficient or wrong configuration to enable QMK actor"
+            )))?,
+        };
+        supervisor.add_actor(
+            "QMK",
+            |ctx| QMK::new(ctx, state.clone(), alias),
+            &[T::System],
+        )?;
+    }
+
     // let mut daemon = Daemon::new();
     // daemon
     //     .with_config(config.clone())
     //     .add_actor_with_init::<Typist>(keymap, &[T::System, T::TextInput])
     //     .add_actor::<TypingStats>(&[T::System, T::KeyInput])
     //     .add_actor::<IPCServer>(&[T::System, T::Stats, T::Monitoring])
-    //     .add_pipeline(
-    //         "PassThroughPipeline",
-    //         &[T::System, T::KeyInput],
-    //         &[KeyEventProcessor::factory, SystemShortcutProcessor::factory],
-    //     );
-    // .add_actor_conditionally::<PowerManager>(
-    //     config.sleep_script.is_some() && config.awake_script.is_some(),
-    //     &[T::System, T::KeyInput],
-    // )
     // .add_actor_conditionally::<Telemetry>(
     //     config.enable_telemetry,
     //     &[T::System, T::Telemetry, T::KeyInput, T::Stats],
