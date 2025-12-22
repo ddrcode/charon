@@ -16,11 +16,12 @@ use tracing::{debug, info, warn};
 use tracing_subscriber::FmtSubscriber;
 
 use crate::{
-    actor::{KeyScanner, KeyWriter, Pipeline, PowerManager, QMK},
-    adapter::{EventDeviceUnix, HIDDeviceUnix},
+    actor::{KeyScanner, KeyWriter, Pipeline, PowerManager, QMK, Typist},
+    adapter::{EventDeviceUnix, HIDDeviceUnix, KeymapLoaderYaml},
     config::{CharonConfig, InputConfig},
     domain::{ActorState, traits::Processor},
     error::CharonError,
+    port::KeymapLoader,
     processor::{KeyEventProcessor, SystemShortcutProcessor},
     util::evdev::find_input_device,
 };
@@ -31,10 +32,9 @@ async fn main() -> eyre::Result<()> {
 
     let config = Arc::new(get_config().expect("Failed loading config file"));
     let state = ActorState::new(Mode::PassThrough, config.clone());
-    // info!("Loading keymap");
-    // let keymap = KeymapLoaderYaml::new(&config.keymaps_dir)
-    //     .load_keymap(&config.host_keymap)
-    //     .await?;
+    let keymap = KeymapLoaderYaml::new(&config.keymaps_dir)
+        .load_keymap(&config.host_keymap)
+        .await?;
 
     let mut supervisor = Supervisor::default();
 
@@ -102,17 +102,21 @@ async fn main() -> eyre::Result<()> {
         )?;
     }
 
+    supervisor.add_actor(
+        "Typist",
+        |ctx| Typist::new(ctx, state.clone(), keymap),
+        &[T::System, T::TextInput],
+    )?;
+
     // let mut daemon = Daemon::new();
     // daemon
     //     .with_config(config.clone())
-    //     .add_actor_with_init::<Typist>(keymap, &[T::System, T::TextInput])
     //     .add_actor::<TypingStats>(&[T::System, T::KeyInput])
     //     .add_actor::<IPCServer>(&[T::System, T::Stats, T::Monitoring])
     // .add_actor_conditionally::<Telemetry>(
     //     config.enable_telemetry,
     //     &[T::System, T::Telemetry, T::KeyInput, T::Stats],
     // )
-    // .add_actor_conditionally::<QMK>(true, &[T::System]);
 
     let mut sigterm = unix::signal(unix::SignalKind::terminate())?;
 

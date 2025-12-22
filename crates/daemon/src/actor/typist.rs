@@ -1,41 +1,29 @@
-use charon_lib::event::{DomainEvent, Event, Mode};
+use charon_lib::event::{DomainEvent, Mode};
 use deunicode::deunicode_char;
-use tokio::{
-    fs::{read_to_string, remove_file},
-    task::JoinHandle,
-};
+use maiko::{Context, Meta};
+use tokio::fs::{read_to_string, remove_file};
 use tracing::{debug, warn};
-use uuid::Uuid;
 
 use crate::{
-    domain::{ActorState, HidReport, Keymap, traits::Actor},
+    domain::{ActorState, HidReport, Keymap},
     error::CharonError,
 };
 
 pub struct Typist {
+    ctx: Context<DomainEvent>,
     state: ActorState,
     speed: tokio::time::Duration,
     keymap: Keymap,
 }
 
 impl Typist {
-    pub fn new(state: ActorState, interval: u8, keymap: Keymap) -> Self {
+    pub fn new(ctx: Context<DomainEvent>, state: ActorState, keymap: Keymap) -> Self {
+        let interval = state.config().typing_interval;
         Self {
+            ctx,
             state,
             speed: tokio::time::Duration::from_millis(interval.into()),
             keymap,
-        }
-    }
-
-    async fn handle_event(&mut self, event: &Event) {
-        match &event.payload {
-            DomainEvent::SendText(txt) => self.send_string(txt, &event.id).await,
-            DomainEvent::SendFile(path, remove) => self
-                .send_file(path, *remove, &event.id)
-                .await
-                .expect("File not found"),
-            DomainEvent::Exit => self.stop().await,
-            _ => {}
         }
     }
 
@@ -53,41 +41,44 @@ impl Typist {
         None
     }
 
-    pub async fn send_char(&mut self, c: char) {
+    pub async fn send_char(&mut self, c: char) -> maiko::Result<()> {
         if let Some(report) = self.keymap.report(c).or_else(|| self.to_ascii_report(c)) {
-            self.send(DomainEvent::HidReport(report.into())).await;
+            self.ctx.send(DomainEvent::HidReport(report.into())).await?;
             tokio::time::sleep(self.speed).await;
-            self.send(DomainEvent::HidReport(HidReport::default().into()))
-                .await;
+            self.ctx
+                .send(DomainEvent::HidReport(HidReport::default().into()))
+                .await?;
             tokio::time::sleep(self.speed).await;
         } else {
             warn!("Couldn't find key mapping for char {c}");
         }
+        Ok(())
     }
 
-    pub async fn send_string(&mut self, s: &String, source_id: &Uuid) {
+    pub async fn send_string(&mut self, s: &String, source_id: &u128) -> maiko::Result<()> {
         for c in s.chars() {
-            self.send_char(c).await;
+            self.send_char(c).await?;
             if self.state.mode().await == Mode::PassThrough {
                 warn!("Sending text interrupted by mode change");
-                return;
+                return Ok(());
             }
         }
         debug!("Typing completed");
 
-        let event = Event::with_source_id(self.id(), DomainEvent::TextSent, source_id.clone());
-        self.send_raw(event).await;
+        self.ctx
+            .send_with_correlation(DomainEvent::TextSent, *source_id)
+            .await
     }
 
     pub async fn send_file(
         &mut self,
         path: &String,
         remove: bool,
-        source_id: &Uuid,
+        source_id: &u128,
     ) -> Result<(), CharonError> {
         debug!("Typing text from file: {path}");
         let text = read_to_string(path).await?;
-        self.send_string(&text, source_id).await;
+        self.send_string(&text, source_id).await?;
         if remove {
             remove_file(path).await?;
         }
@@ -95,31 +86,19 @@ impl Typist {
     }
 }
 
-#[async_trait::async_trait]
-impl Actor for Typist {
-    type Init = Keymap;
+impl maiko::Actor for Typist {
+    type Event = DomainEvent;
 
-    fn name() -> &'static str {
-        "Typist"
-    }
-
-    fn spawn(state: ActorState, keymap: Keymap) -> Result<JoinHandle<()>, CharonError> {
-        let speed = state.config().typing_interval;
-        let mut writer = Typist::new(state, speed, keymap);
-        Ok(tokio::spawn(async move { writer.run().await }))
-    }
-
-    async fn tick(&mut self) {
-        if let Some(event) = self.recv().await {
-            self.handle_event(&event).await;
+    async fn handle(&mut self, event: &Self::Event, meta: &Meta) -> maiko::Result<()> {
+        match event {
+            DomainEvent::SendText(txt) => self.send_string(txt, &meta.id()).await?,
+            DomainEvent::SendFile(path, remove) => self
+                .send_file(path, *remove, &meta.id())
+                .await
+                .expect("File not found"), // FIXME do we want to crash the system because of that?
+            DomainEvent::Exit => self.ctx.stop(),
+            _ => {}
         }
-    }
-
-    fn state(&self) -> &ActorState {
-        &self.state
-    }
-
-    fn state_mut(&mut self) -> &mut ActorState {
-        &mut self.state
+        Ok(())
     }
 }
