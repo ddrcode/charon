@@ -195,6 +195,7 @@ dependencies = [
  "crossterm 0.29.0",
  "eyre",
  "futures",
+ "maiko",
  "rand",
  "ratatui",
  "reqwest",

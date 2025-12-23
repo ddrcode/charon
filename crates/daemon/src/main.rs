@@ -147,8 +147,6 @@ async fn main() -> eyre::Result<()> {
 
     supervisor.stop().await?;
 
-    // daemon.shutdown().await;
-
     info!("Charon says goodbye. Hades is waiting...");
     Ok(())
 }
