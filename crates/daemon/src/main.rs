@@ -1,6 +1,5 @@
 pub mod actor;
 pub mod adapter;
-pub mod broker;
 pub mod config;
 pub mod domain;
 pub mod error;
@@ -16,7 +15,10 @@ use tracing::{debug, info, warn};
 use tracing_subscriber::FmtSubscriber;
 
 use crate::{
-    actor::{KeyScanner, KeyWriter, Pipeline, PowerManager, QMK, Typist, ipc_server::IPCServer},
+    actor::{
+        KeyScanner, KeyWriter, Pipeline, PowerManager, QMK, Telemetry, Typist,
+        ipc_server::IPCServer,
+    },
     adapter::{EventDeviceUnix, HIDDeviceUnix, KeymapLoaderYaml},
     config::{CharonConfig, InputConfig},
     domain::{ActorState, traits::Processor},
@@ -114,15 +116,18 @@ async fn main() -> eyre::Result<()> {
         &[T::System, T::TextInput],
     )?;
 
+    if config.enable_telemetry {
+        supervisor.add_actor(
+            "Telemetry",
+            Telemetry::new,
+            &[T::System, T::Telemetry, T::KeyInput, T::Stats],
+        )?;
+    }
+
     // let mut daemon = Daemon::new();
     // daemon
     //     .with_config(config.clone())
     //     .add_actor::<TypingStats>(&[T::System, T::KeyInput])
-    //     .add_actor::<IPCServer>(&[T::System, T::Stats, T::Monitoring])
-    // .add_actor_conditionally::<Telemetry>(
-    //     config.enable_telemetry,
-    //     &[T::System, T::Telemetry, T::KeyInput, T::Stats],
-    // )
 
     let mut sigterm = unix::signal(unix::SignalKind::terminate())?;
 

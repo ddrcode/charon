@@ -1,104 +1,67 @@
-use charon_lib::event::{DomainEvent, Event};
+use charon_lib::event::DomainEvent;
 use lru_time_cache::LruCache;
+use maiko::{Context, Meta};
 use std::time::Duration;
-use tokio::{select, task::JoinHandle};
-use tracing::{info, warn};
-use uuid::Uuid;
+use tracing::warn;
 
-use crate::{
-    actor::telemetry::MetricsManager,
-    domain::{ActorState, traits::Actor},
-    error::CharonError,
-};
+use crate::actor::telemetry::MetricsManager;
 
 pub struct Telemetry {
-    state: ActorState,
-    events: LruCache<Uuid, u64>,
+    ctx: Context<DomainEvent>,
+    events: LruCache<u128, u64>,
     metrics: MetricsManager,
+    push_interval: tokio::time::Interval,
 }
 
 impl Telemetry {
-    pub fn new(state: ActorState, metrics: MetricsManager) -> Self {
+    pub fn new(ctx: Context<DomainEvent>) -> Self {
         Self {
-            state,
+            ctx,
             events: LruCache::with_expiry_duration_and_capacity(Duration::from_secs(10), 1024),
-            metrics,
+            metrics: MetricsManager::new().expect("Prometheus metrics should initialize correctly"),
+            push_interval: tokio::time::interval(Duration::from_secs(15)),
         }
     }
+}
 
-    async fn handle_event(&mut self, event: &Event) {
-        match &event.payload {
+impl maiko::Actor for Telemetry {
+    type Event = DomainEvent;
+
+    async fn handle(&mut self, event: &DomainEvent, meta: &Meta) -> maiko::Result {
+        match event {
             DomainEvent::KeyPress(key, keyboard) => {
-                self.events.insert(event.id, event.timestamp);
+                self.events.insert(meta.id(), meta.timestamp());
                 self.metrics.register_key_event(key, keyboard);
             }
             DomainEvent::KeyRelease(..) => {
-                self.events.insert(event.id, event.timestamp);
+                self.events.insert(meta.id(), meta.timestamp());
             }
             DomainEvent::ReportSent => {
-                if let Some(ref source_id) = event.source_event_id {
+                if let Some(ref source_id) = meta.correlation_id() {
                     if let Some(timestamp) = self.events.remove(source_id) {
-                        if let Some(diff) = event.timestamp.checked_sub(timestamp) {
+                        if let Some(diff) = meta.timestamp().checked_sub(timestamp) {
                             self.metrics.register_key_to_report_time(diff);
                         }
                     }
                 } else {
                     warn!(
                         "Missing source_event_id for ReportSent event, id: {}",
-                        event.id
+                        meta.id()
                     );
                 }
             }
             DomainEvent::CurrentStats(stats) => {
                 self.metrics.register_wpm(stats.wpm);
             }
-            DomainEvent::Exit => self.stop().await,
+            DomainEvent::Exit => self.ctx.stop(),
             _ => {}
         }
-    }
-}
-
-#[async_trait::async_trait]
-impl Actor for Telemetry {
-    type Init = ();
-
-    fn name() -> &'static str {
-        "Telemetry"
+        Ok(())
     }
 
-    fn spawn(state: ActorState, (): ()) -> Result<JoinHandle<()>, CharonError> {
-        let metrics = MetricsManager::new()?;
-        let mut telemetry = Telemetry::new(state, metrics);
-        Ok(tokio::spawn(async move { telemetry.run().await }))
-    }
-
-    async fn run(&mut self) {
-        info!("Starting actor: {}", self.id());
-        self.init().await;
-
-        let mut push_interval = tokio::time::interval(Duration::from_secs(15));
-
-        // while self.state().alive {
-        select! {
-            Some(event) = self.recv() => {
-                self.handle_event(&event).await;
-            }
-            _ = push_interval.tick() => {
-                self.metrics.push().await;
-            }
-        }
-        // }
-
-        self.shutdown().await;
-    }
-
-    async fn tick(&mut self) {}
-
-    fn state(&self) -> &ActorState {
-        &self.state
-    }
-
-    fn state_mut(&mut self) -> &mut ActorState {
-        &mut self.state
+    async fn tick(&mut self) -> maiko::Result {
+        self.push_interval.tick().await;
+        self.metrics.push().await;
+        Ok(())
     }
 }
