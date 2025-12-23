@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use charon_lib::event::{DomainEvent, Mode};
+use charon_lib::event::{CharonEvent, Mode};
 use maiko::{Context, Envelope};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::net::UnixStream;
@@ -10,15 +10,15 @@ use tracing::info;
 
 pub struct ClientSession {
     stream: UnixStream,
-    ctx: Context<DomainEvent>,
-    session_rx: Receiver<Arc<Envelope<DomainEvent>>>,
+    ctx: Context<CharonEvent>,
+    session_rx: Receiver<Arc<Envelope<CharonEvent>>>,
 }
 
 impl ClientSession {
     pub fn new(
         stream: UnixStream,
-        ctx: Context<DomainEvent>,
-        session_rx: Receiver<Arc<Envelope<DomainEvent>>>,
+        ctx: Context<CharonEvent>,
+        session_rx: Receiver<Arc<Envelope<CharonEvent>>>,
     ) -> Self {
         Self {
             stream,
@@ -28,7 +28,7 @@ impl ClientSession {
     }
 
     pub async fn init(&mut self, mode: Mode) {
-        self.send(DomainEvent::ModeChange(mode)).await.unwrap();
+        self.send(CharonEvent::ModeChange(mode)).await.unwrap();
     }
 
     pub async fn run(&mut self) {
@@ -44,7 +44,7 @@ impl ClientSession {
                         break;
                     }
                     info!("Received: {}", line.trim());
-                    let envelope = serde_json::from_str::<Envelope<DomainEvent>>(&line).unwrap();
+                    let envelope = serde_json::from_str::<Envelope<CharonEvent>>(&line).unwrap();
                     if let Err(e) = self.ctx.send(envelope.event).await {
                         tracing::warn!("Failed to send to broker: {e}");
                     }
@@ -57,17 +57,17 @@ impl ClientSession {
         }
     }
 
-    async fn handle_event(event: &Envelope<DomainEvent>, writer: &mut WriteHalf<'_>) -> bool {
+    async fn handle_event(event: &Envelope<CharonEvent>, writer: &mut WriteHalf<'_>) -> bool {
         let payload = serde_json::to_string(event).unwrap();
 
         writer.write_all(payload.as_bytes()).await.unwrap();
         writer.write_all(b"\n").await.unwrap();
         // writer.flush().await.unwrap();
 
-        !matches!(event.event, DomainEvent::Exit)
+        !matches!(event.event, CharonEvent::Exit)
     }
 
-    pub async fn send(&mut self, event: DomainEvent) -> eyre::Result<()> {
+    pub async fn send(&mut self, event: CharonEvent) -> eyre::Result<()> {
         let stream = &mut self.stream;
         let event = Envelope::new(event, self.ctx.name());
         let payload = serde_json::to_string(&event)?;

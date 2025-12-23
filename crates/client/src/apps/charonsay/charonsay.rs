@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use charon_lib::event::DomainEvent;
+use charon_lib::event::CharonEvent;
 use ratatui::{
     Frame,
     layout::{Alignment, Constraint, Direction, Layout},
@@ -64,7 +64,7 @@ impl Charonsay {
         match msg {
             AppEvent::Activate => Transition::ToSplash,
 
-            AppEvent::Backend(DomainEvent::CurrentStats(stats)) => {
+            AppEvent::Backend(CharonEvent::CurrentStats(stats)) => {
                 let treshold = self.ctx.config.fast_typing_treshold;
                 match state.view {
                     WisdomCategory::Idle if stats.wpm > 0 => Transition::ToSplash,
@@ -110,10 +110,10 @@ impl UiApp for Charonsay {
         let mut should_render = false;
 
         match msg {
-            AppEvent::Backend(DomainEvent::KeyPress(..)) => {
+            AppEvent::Backend(CharonEvent::KeyPress(..)) => {
                 state.time_to_idle = config.idle_time;
             }
-            AppEvent::Backend(DomainEvent::CurrentStats(stats)) => {
+            AppEvent::Backend(CharonEvent::CurrentStats(stats)) => {
                 if state.stats != *stats {
                     state.stats = stats.clone();
                     should_render = true;

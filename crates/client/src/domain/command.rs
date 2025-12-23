@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 
-use charon_lib::event::DomainEvent;
+use charon_lib::event::CharonEvent;
 use strum::Display;
 
 #[derive(Debug, Clone, PartialEq, Display)]
@@ -10,7 +10,7 @@ pub enum Command {
     ExitApp,
     Render,
     RunApp(&'static str),
-    SendEvent(DomainEvent),
+    SendEvent(CharonEvent),
     SuspendApp,
     ResumeApp,
     SuspendTUI,

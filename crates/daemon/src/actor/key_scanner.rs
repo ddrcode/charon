@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use charon_lib::event::{DomainEvent, Mode};
+use charon_lib::event::{CharonEvent, Mode};
 use maiko::Context;
 
 use crate::{domain::ActorState, port::EventDevice};
@@ -15,7 +15,7 @@ use tracing::{debug, error, warn};
 /// the key events should be send only to the host, while when in in-app mode
 /// the keyboard is available to Charon device.
 pub struct KeyScanner {
-    ctx: Context<DomainEvent>,
+    ctx: Context<CharonEvent>,
 
     /// Actor's state
     state: ActorState,
@@ -38,7 +38,7 @@ pub struct KeyScanner {
 
 impl KeyScanner {
     pub fn new(
-        ctx: Context<DomainEvent>,
+        ctx: Context<CharonEvent>,
         state: ActorState,
         input: Box<dyn EventDevice>,
         keyboard_name: String,
@@ -59,11 +59,11 @@ impl KeyScanner {
             EventSummary::Key(_, key, value) => match value {
                 1 | 2 => {
                     self.keyboard_state.insert(key.code());
-                    DomainEvent::KeyPress(key, self.keyboard_name.clone())
+                    CharonEvent::KeyPress(key, self.keyboard_name.clone())
                 }
                 0 => {
                     self.keyboard_state.remove(&key.code());
-                    DomainEvent::KeyRelease(key, self.keyboard_name.clone())
+                    CharonEvent::KeyRelease(key, self.keyboard_name.clone())
                 }
                 other => {
                     warn!("Unhandled key event value: {}", other);
@@ -120,7 +120,7 @@ impl Drop for KeyScanner {
 }
 
 impl maiko::Actor for KeyScanner {
-    type Event = DomainEvent;
+    type Event = CharonEvent;
 
     async fn on_start(&mut self) -> maiko::Result<()> {
         self.toggle_grabbing(&self.state.mode().await);
@@ -129,10 +129,10 @@ impl maiko::Actor for KeyScanner {
 
     async fn handle(&mut self, event: &Self::Event, _meta: &maiko::Meta) -> maiko::Result<()> {
         match event {
-            DomainEvent::Exit => {
+            CharonEvent::Exit => {
                 self.ctx.stop();
             }
-            DomainEvent::ModeChange(mode) => {
+            CharonEvent::ModeChange(mode) => {
                 self.toggle_grabbing(mode);
             }
             other => {
@@ -226,7 +226,7 @@ mod tests {
         // are released
         switch_mode(&broker_tx, Mode::InApp).await;
         scanner.tick().await;
-        assert_event_matches!(broker_rx, DomainEvent::KeyPress(KeyCode::KEY_A, ..));
+        assert_event_matches!(broker_rx, CharonEvent::KeyPress(KeyCode::KEY_A, ..));
 
         with_lock!(state, |lock| {
             assert!(
@@ -242,7 +242,7 @@ mod tests {
         }
 
         scanner.tick().await;
-        assert_event_matches!(broker_rx, DomainEvent::KeyRelease(KeyCode::KEY_A, ..));
+        assert_event_matches!(broker_rx, CharonEvent::KeyRelease(KeyCode::KEY_A, ..));
 
         with_lock!(state, |lock| {
             assert!(!lock.grabbed);

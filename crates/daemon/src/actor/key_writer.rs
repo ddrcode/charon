@@ -1,4 +1,4 @@
-use charon_lib::event::DomainEvent;
+use charon_lib::event::CharonEvent;
 use maiko::{Context, Meta};
 use std::sync::Arc;
 use tracing::{debug, error};
@@ -6,13 +6,13 @@ use tracing::{debug, error};
 use crate::port::HIDDevice;
 
 pub struct KeyWriter {
-    ctx: Context<DomainEvent>,
+    ctx: Context<CharonEvent>,
     device: Box<dyn HIDDevice + Send + Sync>,
     prev_sender: Arc<str>,
 }
 
 impl KeyWriter {
-    pub fn new(ctx: Context<DomainEvent>, device: Box<dyn HIDDevice + Send + Sync>) -> Self {
+    pub fn new(ctx: Context<CharonEvent>, device: Box<dyn HIDDevice + Send + Sync>) -> Self {
         Self {
             ctx,
             device,
@@ -42,7 +42,7 @@ impl KeyWriter {
         // if self.state.config().enable_telemetry {
         if meta.correlation_id().is_some() {
             self.ctx
-                .send_child_event(DomainEvent::ReportSent, meta)
+                .send_child_event(CharonEvent::ReportSent, meta)
                 .await?;
         }
         // }
@@ -51,16 +51,16 @@ impl KeyWriter {
 }
 
 impl maiko::Actor for KeyWriter {
-    type Event = DomainEvent;
+    type Event = CharonEvent;
 
     async fn handle(&mut self, event: &Self::Event, meta: &Meta) -> maiko::Result<()> {
         match event {
-            DomainEvent::HidReport(report) => {
+            CharonEvent::HidReport(report) => {
                 self.send_report(report, meta.actor_name());
                 self.send_telemetry(meta).await?;
             }
-            DomainEvent::Exit => self.ctx.stop(),
-            DomainEvent::ModeChange(_) => self.reset(),
+            CharonEvent::Exit => self.ctx.stop(),
+            CharonEvent::ModeChange(_) => self.reset(),
             _ => {}
         }
         Ok(())

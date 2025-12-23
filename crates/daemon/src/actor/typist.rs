@@ -1,4 +1,4 @@
-use charon_lib::event::{DomainEvent, Mode};
+use charon_lib::event::{CharonEvent, Mode};
 use deunicode::deunicode_char;
 use maiko::{Context, Meta};
 use tokio::fs::{read_to_string, remove_file};
@@ -10,14 +10,14 @@ use crate::{
 };
 
 pub struct Typist {
-    ctx: Context<DomainEvent>,
+    ctx: Context<CharonEvent>,
     state: ActorState,
     speed: tokio::time::Duration,
     keymap: Keymap,
 }
 
 impl Typist {
-    pub fn new(ctx: Context<DomainEvent>, state: ActorState, keymap: Keymap) -> Self {
+    pub fn new(ctx: Context<CharonEvent>, state: ActorState, keymap: Keymap) -> Self {
         let interval = state.config().typing_interval;
         Self {
             ctx,
@@ -43,10 +43,10 @@ impl Typist {
 
     pub async fn send_char(&mut self, c: char) -> maiko::Result<()> {
         if let Some(report) = self.keymap.report(c).or_else(|| self.to_ascii_report(c)) {
-            self.ctx.send(DomainEvent::HidReport(report.into())).await?;
+            self.ctx.send(CharonEvent::HidReport(report.into())).await?;
             tokio::time::sleep(self.speed).await;
             self.ctx
-                .send(DomainEvent::HidReport(HidReport::default().into()))
+                .send(CharonEvent::HidReport(HidReport::default().into()))
                 .await?;
             tokio::time::sleep(self.speed).await;
         } else {
@@ -66,7 +66,7 @@ impl Typist {
         debug!("Typing completed");
 
         self.ctx
-            .send_with_correlation(DomainEvent::TextSent, *source_id)
+            .send_with_correlation(CharonEvent::TextSent, *source_id)
             .await
     }
 
@@ -87,16 +87,16 @@ impl Typist {
 }
 
 impl maiko::Actor for Typist {
-    type Event = DomainEvent;
+    type Event = CharonEvent;
 
     async fn handle(&mut self, event: &Self::Event, meta: &Meta) -> maiko::Result<()> {
         match event {
-            DomainEvent::SendText(txt) => self.send_string(txt, &meta.id()).await?,
-            DomainEvent::SendFile(path, remove) => self
+            CharonEvent::SendText(txt) => self.send_string(txt, &meta.id()).await?,
+            CharonEvent::SendFile(path, remove) => self
                 .send_file(path, *remove, &meta.id())
                 .await
                 .expect("File not found"), // FIXME do we want to crash the system because of that?
-            DomainEvent::Exit => self.ctx.stop(),
+            CharonEvent::Exit => self.ctx.stop(),
             _ => {}
         }
         Ok(())

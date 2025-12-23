@@ -1,6 +1,6 @@
 use std::{borrow::Cow, sync::Arc};
 
-use charon_lib::event::{DomainEvent, Mode};
+use charon_lib::event::{CharonEvent, Mode};
 use tokio::{
     fs::{OpenOptions, read_to_string},
     io::AsyncWriteExt,
@@ -64,13 +64,13 @@ impl ExternalApp for Password {
             return None;
         };
 
-        Some(Command::SendEvent(DomainEvent::SendText(pwd)))
+        Some(Command::SendEvent(CharonEvent::SendText(pwd)))
     }
 
     async fn handle_event(&mut self, event: &AppEvent) -> Option<Command> {
-        if matches!(event, AppEvent::Backend(DomainEvent::TextSent)) {
+        if matches!(event, AppEvent::Backend(CharonEvent::TextSent)) {
             self.should_exit = true;
-            return Some(Command::SendEvent(DomainEvent::ModeChange(
+            return Some(Command::SendEvent(CharonEvent::ModeChange(
                 Mode::PassThrough,
             )));
         }

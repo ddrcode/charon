@@ -3,7 +3,7 @@
 /// Here is the [original version](https://github.com/ratatui/templates/blob/df2db86b0103e9ec66498f5523fa3fa40733b66b/component-generated/src/app.rs)
 use std::{borrow::Cow, sync::Arc};
 
-use charon_lib::event::DomainEvent;
+use charon_lib::event::CharonEvent;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use eyre::OptionExt;
 use maiko::Envelope;
@@ -140,7 +140,7 @@ impl App {
     async fn handle_app_event(&mut self, event: AppEvent, tui: &mut Tui) -> eyre::Result<()> {
         if !matches!(
             event,
-            AppEvent::Tick(..) | AppEvent::Backend(DomainEvent::CurrentStats(..))
+            AppEvent::Tick(..) | AppEvent::Backend(CharonEvent::CurrentStats(..))
         ) {
             debug!("{event:?}");
         }
@@ -182,7 +182,7 @@ impl App {
             self.should_quit = true;
             return Ok(());
         }
-        let envelope = serde_json::from_str::<Envelope<DomainEvent>>(line.trim())?;
+        let envelope = serde_json::from_str::<Envelope<CharonEvent>>(line.trim())?;
         self.app_event_tx.send(AppEvent::Backend(envelope.event))?;
         Ok(())
     }
@@ -224,7 +224,7 @@ impl App {
         Ok(())
     }
 
-    async fn send_to_daemon(&mut self, payload: &DomainEvent) -> eyre::Result<()> {
+    async fn send_to_daemon(&mut self, payload: &CharonEvent) -> eyre::Result<()> {
         let writer = self
             .sock_writer
             .as_mut()

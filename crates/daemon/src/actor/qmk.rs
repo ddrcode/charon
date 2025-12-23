@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 
 use async_hid::{AsyncHidRead, DeviceReaderWriter, HidBackend};
-use charon_lib::{event::DomainEvent, qmk::QMKEvent};
+use charon_lib::{event::CharonEvent, qmk::QMKEvent};
 use futures_lite::StreamExt;
 use maiko::{Context, Meta};
 use tracing::{debug, error, info};
@@ -14,7 +14,7 @@ use crate::domain::ActorState;
 
 #[allow(dead_code)]
 pub struct QMK {
-    ctx: Context<DomainEvent>,
+    ctx: Context<CharonEvent>,
     state: ActorState,
     keyboard_alias: Cow<'static, str>,
 }
@@ -22,7 +22,7 @@ pub struct QMK {
 #[allow(dead_code)]
 impl QMK {
     pub fn new(
-        ctx: Context<DomainEvent>,
+        ctx: Context<CharonEvent>,
         state: ActorState,
         keyboard_alias: Cow<'static, str>,
     ) -> Self {
@@ -70,13 +70,13 @@ impl QMK {
                 let new_mode = self.state.mode().await.toggle();
                 debug!("Switching mode to {:?}", new_mode);
                 self.state.set_mode(new_mode).await;
-                DomainEvent::ModeChange(new_mode)
+                CharonEvent::ModeChange(new_mode)
             }
             QMKEvent::ModeChange(mode) => {
                 self.state.set_mode(mode).await;
-                DomainEvent::ModeChange(mode)
+                CharonEvent::ModeChange(mode)
             }
-            e => DomainEvent::QMKEvent(e),
+            e => CharonEvent::QMKEvent(e),
         };
         self.ctx.send(event).await
     }
@@ -117,10 +117,10 @@ impl QMK {
 }
 
 impl maiko::Actor for QMK {
-    type Event = DomainEvent;
+    type Event = CharonEvent;
 
     async fn handle(&mut self, event: &Self::Event, _meta: &Meta) -> maiko::Result<()> {
-        if matches!(event, DomainEvent::Exit) {
+        if matches!(event, CharonEvent::Exit) {
             self.ctx.stop();
         }
         Ok(())

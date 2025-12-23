@@ -1,4 +1,4 @@
-use charon_lib::event::{DomainEvent, Mode};
+use charon_lib::event::{CharonEvent, Mode};
 use maiko::Meta;
 use tracing::{debug, error, info};
 
@@ -9,7 +9,7 @@ use crate::{
 
 pub struct SystemShortcutProcessor {
     state: ActorState,
-    events: Vec<DomainEvent>,
+    events: Vec<CharonEvent>,
 }
 
 impl SystemShortcutProcessor {
@@ -39,14 +39,14 @@ impl SystemShortcutProcessor {
     }
 
     async fn send_exit(&mut self) {
-        self.events.push(DomainEvent::Exit);
+        self.events.push(CharonEvent::Exit);
     }
 
     async fn toggle_mode(&mut self) {
         let new_mode = self.state.mode().await.toggle();
         debug!("Switching mode to {:?}", new_mode);
         self.state.set_mode(new_mode).await;
-        let payload = DomainEvent::ModeChange(new_mode);
+        let payload = CharonEvent::ModeChange(new_mode);
         self.events.push(payload);
     }
 
@@ -62,16 +62,16 @@ impl SystemShortcutProcessor {
     }
 
     fn reset_hid(&mut self) {
-        let event = DomainEvent::HidReport([0; 8]);
+        let event = CharonEvent::HidReport([0; 8]);
         self.events.push(event);
     }
 }
 
 #[async_trait::async_trait]
 impl Processor for SystemShortcutProcessor {
-    async fn process(&mut self, event: DomainEvent, _meta: Meta) -> Vec<DomainEvent> {
+    async fn process(&mut self, event: CharonEvent, _meta: Meta) -> Vec<CharonEvent> {
         match &event {
-            DomainEvent::HidReport(report) => {
+            CharonEvent::HidReport(report) => {
                 if self.handle_report(report).await {
                     self.events.push(event);
                 }

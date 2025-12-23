@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use charon_lib::event::DomainEvent;
+use charon_lib::event::CharonEvent;
 use maiko::{Context, Meta};
 use tokio::process::Command;
 use tracing::{error, info, warn};
@@ -8,13 +8,13 @@ use tracing::{error, info, warn};
 use crate::domain::ActorState;
 
 pub struct PowerManager {
-    ctx: Context<DomainEvent>,
+    ctx: Context<CharonEvent>,
     state: ActorState,
     asleep: bool,
 }
 
 impl PowerManager {
-    pub fn new(ctx: Context<DomainEvent>, state: ActorState) -> Self {
+    pub fn new(ctx: Context<CharonEvent>, state: ActorState) -> Self {
         Self {
             ctx,
             state,
@@ -25,7 +25,7 @@ impl PowerManager {
     async fn handle_sleep(&mut self) -> maiko::Result<()> {
         if let Some(path) = &self.state.config().sleep_script {
             if self.run_script(path.to_path_buf(), true).await {
-                self.ctx.send(DomainEvent::Sleep).await?;
+                self.ctx.send(CharonEvent::Sleep).await?;
             }
         }
         Ok(())
@@ -34,7 +34,7 @@ impl PowerManager {
     async fn handle_awake(&mut self) -> maiko::Result<()> {
         if let Some(path) = &self.state.config().awake_script {
             if self.run_script(path.to_path_buf(), false).await {
-                self.ctx.send(DomainEvent::WakeUp).await?;
+                self.ctx.send(CharonEvent::WakeUp).await?;
             }
         }
         Ok(())
@@ -70,12 +70,12 @@ impl PowerManager {
 }
 
 impl maiko::Actor for PowerManager {
-    type Event = DomainEvent;
+    type Event = CharonEvent;
 
     async fn handle(&mut self, event: &Self::Event, _meta: &Meta) -> maiko::Result<()> {
         match event {
-            DomainEvent::Exit => self.ctx.stop(),
-            DomainEvent::KeyPress(..) if self.asleep => self.handle_awake().await?,
+            CharonEvent::Exit => self.ctx.stop(),
+            CharonEvent::KeyPress(..) if self.asleep => self.handle_awake().await?,
             _ => {}
         }
         Ok(())

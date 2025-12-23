@@ -1,4 +1,4 @@
-use super::DomainEvent;
+use super::CharonEvent;
 
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub enum Topic {
@@ -11,9 +11,9 @@ pub enum Topic {
     Telemetry,
 }
 
-impl From<&DomainEvent> for Topic {
-    fn from(value: &DomainEvent) -> Self {
-        use DomainEvent::*;
+impl From<&CharonEvent> for Topic {
+    fn from(value: &CharonEvent) -> Self {
+        use CharonEvent::*;
         use Topic::*;
         match value {
             KeyPress(..) => KeyInput,
@@ -36,8 +36,8 @@ impl From<&DomainEvent> for Topic {
     }
 }
 
-impl maiko::Topic<DomainEvent> for Topic {
-    fn from_event(event: &DomainEvent) -> Self
+impl maiko::Topic<CharonEvent> for Topic {
+    fn from_event(event: &CharonEvent) -> Self
     where
         Self: Sized,
     {

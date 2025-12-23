@@ -6,7 +6,7 @@ use crate::{qmk::QMKEvent, stats::CurrentStats};
 
 #[derive(maiko::Event, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[non_exhaustive]
-pub enum DomainEvent {
+pub enum CharonEvent {
     KeyPress(KeyCode, String),
     KeyRelease(KeyCode, String),
     HidReport([u8; 8]),
@@ -28,7 +28,7 @@ pub enum DomainEvent {
     QMKEvent(QMKEvent),
 }
 
-impl DomainEvent {
+impl CharonEvent {
     pub fn topic(&self) -> Topic {
         self.into()
     }

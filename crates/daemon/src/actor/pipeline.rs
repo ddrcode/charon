@@ -1,22 +1,22 @@
-use charon_lib::event::DomainEvent;
+use charon_lib::event::CharonEvent;
 use maiko::{Context, Envelope, Meta};
 
 use crate::domain::traits::Processor;
 
 pub struct Pipeline {
-    ctx: Context<DomainEvent>,
+    ctx: Context<CharonEvent>,
     processors: Vec<Box<dyn Processor + Send + Sync>>,
 }
 
 impl Pipeline {
     pub fn new(
-        ctx: Context<DomainEvent>,
+        ctx: Context<CharonEvent>,
         processors: Vec<Box<dyn Processor + Send + Sync>>,
     ) -> Self {
         Self { ctx, processors }
     }
 
-    async fn process(&mut self, event: &DomainEvent, meta: &Meta) -> maiko::Result<()> {
+    async fn process(&mut self, event: &CharonEvent, meta: &Meta) -> maiko::Result<()> {
         let mut events = vec![event.clone()];
 
         for proc in &mut self.processors.iter_mut() {
@@ -31,7 +31,7 @@ impl Pipeline {
         let correlation_id = meta.correlation_id().unwrap_or(meta.id());
         for event in events {
             self.ctx
-                .send_envelope(Envelope::<DomainEvent>::with_correlation(
+                .send_envelope(Envelope::<CharonEvent>::with_correlation(
                     event,
                     self.ctx.clone_name(),
                     correlation_id,
@@ -44,10 +44,10 @@ impl Pipeline {
 }
 
 impl maiko::Actor for Pipeline {
-    type Event = DomainEvent;
+    type Event = CharonEvent;
 
     async fn handle(&mut self, event: &Self::Event, meta: &maiko::Meta) -> maiko::Result<()> {
-        if matches!(event, DomainEvent::Exit) {
+        if matches!(event, CharonEvent::Exit) {
             self.ctx.stop();
         } else {
             self.process(event, meta).await?;

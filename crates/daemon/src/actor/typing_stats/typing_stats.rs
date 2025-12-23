@@ -1,7 +1,7 @@
 use std::{path::Path, time::Duration};
 
 use charon_lib::{
-    event::DomainEvent,
+    event::CharonEvent,
     stats::CurrentStats,
     util::time::{is_today, next_midnight_instant},
 };
@@ -13,7 +13,7 @@ use super::WPMCounter;
 use crate::domain::ActorState;
 
 pub struct TypingStats {
-    ctx: Context<DomainEvent>,
+    ctx: Context<CharonEvent>,
     state: ActorState,
     wpm: WPMCounter,
     total_count: u64,
@@ -23,7 +23,7 @@ pub struct TypingStats {
 }
 
 impl TypingStats {
-    pub fn new(ctx: Context<DomainEvent>, state: ActorState) -> Self {
+    pub fn new(ctx: Context<CharonEvent>, state: ActorState) -> Self {
         let wpm = WPMCounter::new(
             Duration::from_secs(state.config().stats_wpm_slot_duration),
             state.config().stats_wpm_slot_count,
@@ -75,7 +75,7 @@ impl TypingStats {
 }
 
 impl maiko::Actor for TypingStats {
-    type Event = DomainEvent;
+    type Event = CharonEvent;
 
     async fn on_start(&mut self) -> maiko::Result {
         match self.load_stats(&self.state.config().stats_file).await {
@@ -93,8 +93,8 @@ impl maiko::Actor for TypingStats {
 
     async fn handle(&mut self, event: &Self::Event, _meta: &Meta) -> maiko::Result {
         match event {
-            DomainEvent::Exit => self.ctx.stop(),
-            DomainEvent::KeyPress(key, _) => {
+            CharonEvent::Exit => self.ctx.stop(),
+            CharonEvent::KeyPress(key, _) => {
                 self.wpm.register_key(key);
                 self.total_count += 1;
                 self.today_count += 1;
@@ -108,7 +108,7 @@ impl maiko::Actor for TypingStats {
         select! {
             _ = self.wpm_interval.tick() => {
                 self.wpm.next();
-                self.ctx.send(DomainEvent::CurrentStats(self.stats())).await?;
+                self.ctx.send(CharonEvent::CurrentStats(self.stats())).await?;
             }
             _ = self.save_interval.tick() => {
                 self.write_stats(&self.state.config().stats_file, self.stats()).await;

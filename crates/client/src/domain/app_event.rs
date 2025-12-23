@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use charon_lib::event::DomainEvent;
+use charon_lib::event::CharonEvent;
 use crossterm::event::KeyEvent;
 use strum::Display;
 
@@ -10,7 +10,7 @@ pub enum AppEvent {
     Activate,
     Tick(Duration),
     Key(KeyEvent),
-    Backend(DomainEvent),
+    Backend(CharonEvent),
     Quit,
     Resize(u16, u16),
     ReturnFromExternal(Option<std::process::ExitStatus>),

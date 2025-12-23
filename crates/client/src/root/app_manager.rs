@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use charon_lib::event::{DomainEvent, Mode};
+use charon_lib::event::{CharonEvent, Mode};
 use ratatui::Frame;
 use tracing::{error, info};
 
@@ -35,15 +35,15 @@ impl AppManager {
 
     pub async fn update(&mut self, msg: &AppEvent) -> Option<Command> {
         match msg {
-            AppEvent::Backend(DomainEvent::ModeChange(mode)) => {
+            AppEvent::Backend(CharonEvent::ModeChange(mode)) => {
                 self.active_id = Self::mode_screen(mode);
                 Some(Command::Render)
             }
-            AppEvent::Backend(DomainEvent::Sleep) => {
+            AppEvent::Backend(CharonEvent::Sleep) => {
                 self.is_awake = false;
                 return None;
             }
-            AppEvent::Backend(DomainEvent::WakeUp) => {
+            AppEvent::Backend(CharonEvent::WakeUp) => {
                 self.is_awake = true;
                 return None;
             }
