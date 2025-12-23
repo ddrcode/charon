@@ -16,7 +16,7 @@ use tracing_subscriber::FmtSubscriber;
 
 use crate::{
     actor::{
-        KeyScanner, KeyWriter, Pipeline, PowerManager, QMK, Telemetry, Typist,
+        KeyScanner, KeyWriter, Pipeline, PowerManager, QMK, Telemetry, TypingStats, Typist,
         ipc_server::IPCServer,
     },
     adapter::{EventDeviceUnix, HIDDeviceUnix, KeymapLoaderYaml},
@@ -124,10 +124,11 @@ async fn main() -> eyre::Result<()> {
         )?;
     }
 
-    // let mut daemon = Daemon::new();
-    // daemon
-    //     .with_config(config.clone())
-    //     .add_actor::<TypingStats>(&[T::System, T::KeyInput])
+    supervisor.add_actor(
+        "TypingStats",
+        |ctx| TypingStats::new(ctx, state.clone()),
+        &[T::System, T::KeyInput],
+    )?;
 
     let mut sigterm = unix::signal(unix::SignalKind::terminate())?;
 

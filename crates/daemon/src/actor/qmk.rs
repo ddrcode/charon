@@ -51,19 +51,20 @@ impl QMK {
             .expect("product_id must be provided")
     }
 
-    async fn handle_qmk_message(&mut self, msg: [u8; 32]) {
+    async fn handle_qmk_message(&mut self, msg: [u8; 32]) -> maiko::Result {
         match QMKEvent::try_from(msg) {
             Ok(qmk_event) => {
                 debug!("QMK event received: {:?}", qmk_event);
-                self.process_qmk_event(qmk_event).await;
+                self.process_qmk_event(qmk_event).await?;
             }
             Err(err) => {
                 error!("Error processing QMK event: {err}");
             }
         }
+        Ok(())
     }
 
-    async fn process_qmk_event(&mut self, qmk_event: QMKEvent) {
+    async fn process_qmk_event(&mut self, qmk_event: QMKEvent) -> maiko::Result {
         let event = match qmk_event {
             QMKEvent::ToggleMode => {
                 let new_mode = self.state.mode().await.toggle();
@@ -77,7 +78,7 @@ impl QMK {
             }
             e => DomainEvent::QMKEvent(e),
         };
-        self.ctx.send(event).await;
+        self.ctx.send(event).await
     }
 
     async fn find_device(vendor_id: u16, product_id: u16) -> Option<DeviceReaderWriter> {
@@ -129,7 +130,7 @@ impl maiko::Actor for QMK {
         // TODO it shuldn't be read on every tick!
         let mut device = Self::find_device(self.vendor_id(), self.product_id()).await;
         if let Ok((_n, buf)) = Self::read_buf(device.as_mut()).await {
-            self.handle_qmk_message(buf).await;
+            self.handle_qmk_message(buf).await?;
         }
         Ok(())
     }
