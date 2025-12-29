@@ -1,8 +1,8 @@
 use std::path::PathBuf;
 
 use charon_lib::event::CharonEvent;
-use maiko::{Context, Meta};
-use tokio::process::Command;
+use maiko::{Context, Runtime};
+use tokio::{process::Command, select};
 use tracing::{error, info, warn};
 
 use crate::domain::ActorState;
@@ -72,7 +72,7 @@ impl PowerManager {
 impl maiko::Actor for PowerManager {
     type Event = CharonEvent;
 
-    async fn handle(&mut self, event: &Self::Event, _meta: &Meta) -> maiko::Result<()> {
+    async fn handle_event(&mut self, event: &Self::Event) -> maiko::Result<()> {
         match event {
             CharonEvent::Exit => self.ctx.stop(),
             CharonEvent::KeyPress(..) if self.asleep => self.handle_awake().await?,
@@ -81,10 +81,18 @@ impl maiko::Actor for PowerManager {
         Ok(())
     }
 
-    async fn tick(&mut self) -> maiko::Result<()> {
-        let time_to_sleep = tokio::time::Duration::from_secs(self.state.config().time_to_sleep);
-        tokio::time::sleep(time_to_sleep).await;
-        self.handle_sleep().await?;
+    async fn tick(&mut self, runtime: &mut Runtime<'_, Self::Event>) -> maiko::Result {
+        let time_to_sleep = self.state.config().time_to_sleep;
+        let time_to_sleep = tokio::time::Duration::from_secs(time_to_sleep);
+
+        select! {
+            Some(ref envelope) = runtime.recv() => {
+                runtime.default_handle(self, envelope).await?;
+            }
+            _ = tokio::time::sleep(time_to_sleep) => {
+                self.handle_sleep().await?;
+            }
+        }
         Ok(())
     }
 }

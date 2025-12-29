@@ -3,7 +3,8 @@ use std::borrow::Cow;
 use async_hid::{AsyncHidRead, DeviceReaderWriter, HidBackend};
 use charon_lib::{event::CharonEvent, qmk::QMKEvent};
 use futures_lite::StreamExt;
-use maiko::{Context, Meta};
+use maiko::{Context, Runtime};
+use tokio::select;
 use tracing::{debug, error, info};
 
 // https://docs.qmk.fm/features/rawhid#basic-configuration
@@ -119,18 +120,22 @@ impl QMK {
 impl maiko::Actor for QMK {
     type Event = CharonEvent;
 
-    async fn handle(&mut self, event: &Self::Event, _meta: &Meta) -> maiko::Result<()> {
+    async fn handle_event(&mut self, event: &Self::Event) -> maiko::Result<()> {
         if matches!(event, CharonEvent::Exit) {
             self.ctx.stop();
         }
         Ok(())
     }
 
-    async fn tick(&mut self) -> maiko::Result<()> {
-        // TODO it shuldn't be read on every tick!
+    async fn tick(&mut self, runtime: &mut Runtime<'_, Self::Event>) -> maiko::Result {
         let mut device = Self::find_device(self.vendor_id(), self.product_id()).await;
-        if let Ok((_n, buf)) = Self::read_buf(device.as_mut()).await {
-            self.handle_qmk_message(buf).await?;
+        select! {
+            Some(ref envelope) = runtime.recv() => {
+                runtime.default_handle(self, envelope).await?;
+            }
+            Ok((_n, buf)) = Self::read_buf(device.as_mut()) => {
+                self.handle_qmk_message(buf).await?;
+            }
         }
         Ok(())
     }

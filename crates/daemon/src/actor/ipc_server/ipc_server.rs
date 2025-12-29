@@ -3,8 +3,9 @@ use std::{fs, sync::Arc};
 
 use crate::domain::ActorState;
 use charon_lib::event::CharonEvent;
-use maiko::{Context, Envelope, Meta};
+use maiko::{Context, Envelope, Runtime};
 use tokio::net::UnixListener;
+use tokio::select;
 use tokio::sync::mpsc;
 use tracing::info;
 
@@ -37,17 +38,17 @@ impl IPCServer {
 impl maiko::Actor for IPCServer {
     type Event = CharonEvent;
 
-    async fn handle(&mut self, event: &Self::Event, meta: &Meta) -> maiko::Result {
+    async fn handle_envelope(&mut self, lope: &Arc<Envelope<Self::Event>>) -> maiko::Result {
         if let Some(session) = &self.session {
-            let envelope = Envelope::from((event, meta));
-            if let Err(e) = session.sender.send(Arc::new(envelope)).await {
+            let envelope = lope.clone();
+            if let Err(e) = session.sender.send(envelope).await {
                 tracing::warn!("Failed to send event to session: {e}");
                 self.session = None;
             }
         }
-        match event {
+        match &lope.event {
             // FIXME change dependency on actor name
-            CharonEvent::ModeChange(mode) if meta.actor_name() == "client" => {
+            CharonEvent::ModeChange(mode) if lope.meta.actor_name() == "client" => {
                 info!("Client requested to change mode to: {mode}");
                 self.state.set_mode(*mode).await;
             }
@@ -57,25 +58,31 @@ impl maiko::Actor for IPCServer {
         Ok(())
     }
 
-    async fn tick(&mut self) -> maiko::Result {
-        // Accept a new connection
-        if let Ok((stream, _)) = self.listener.accept().await {
-            info!("Accepted new IPC client");
-            // if let Some(old) = self.session.take() {
-            //     tracing::warn!("Replacing existing session");
-            //     old.shutdown().await;
-            // }
+    async fn tick(&mut self, runtime: &mut Runtime<'_, Self::Event>) -> maiko::Result {
+        select! {
+            Some(ref envelope) = runtime.recv() => {
+                runtime.default_handle(self, envelope).await?;
+            }
 
-            let channel_size = self.state.config().channel_size;
-            let mode = self.state.mode().await;
-            let (session_tx, session_rx) =
-                mpsc::channel::<Arc<Envelope<CharonEvent>>>(channel_size);
-            let mut session = ClientSession::new(stream, self.ctx.clone(), session_rx);
-            let handle = tokio::spawn(async move {
-                session.init(mode).await;
-                session.run().await;
-            });
-            self.session = Some(ClientSessionState::new(handle, session_tx));
+            // Accept a new connection
+            Ok((stream, _)) = self.listener.accept() => {
+                info!("Accepted new IPC client");
+                // if let Some(old) = self.session.take() {
+                //     tracing::warn!("Replacing existing session");
+                //     old.shutdown().await;
+                // }
+
+                let channel_size = self.state.config().channel_size;
+                let mode = self.state.mode().await;
+                let (session_tx, session_rx) =
+                    mpsc::channel::<Arc<Envelope<CharonEvent>>>(channel_size);
+                let mut session = ClientSession::new(stream, self.ctx.clone(), session_rx);
+                let handle = tokio::spawn(async move {
+                    session.init(mode).await;
+                    session.run().await;
+                });
+                self.session = Some(ClientSessionState::new(handle, session_tx));
+            }
         }
         Ok(())
     }

@@ -1,6 +1,8 @@
+use std::sync::Arc;
+
 use charon_lib::event::{CharonEvent, Mode};
 use deunicode::deunicode_char;
-use maiko::{Context, Meta};
+use maiko::{Context, Envelope};
 use tokio::fs::{read_to_string, remove_file};
 use tracing::{debug, warn};
 
@@ -89,11 +91,14 @@ impl Typist {
 impl maiko::Actor for Typist {
     type Event = CharonEvent;
 
-    async fn handle(&mut self, event: &Self::Event, meta: &Meta) -> maiko::Result<()> {
-        match event {
-            CharonEvent::SendText(txt) => self.send_string(txt, &meta.id()).await?,
+    async fn handle_envelope(
+        &mut self,
+        envelope: &Arc<Envelope<CharonEvent>>,
+    ) -> maiko::Result<()> {
+        match &envelope.event {
+            CharonEvent::SendText(txt) => self.send_string(txt, &envelope.meta.id()).await?,
             CharonEvent::SendFile(path, remove) => self
-                .send_file(path, *remove, &meta.id())
+                .send_file(path, *remove, &envelope.meta.id())
                 .await
                 .expect("File not found"), // FIXME do we want to crash the system because of that?
             CharonEvent::Exit => self.ctx.stop(),

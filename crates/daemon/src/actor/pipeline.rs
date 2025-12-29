@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use charon_lib::event::CharonEvent;
 use maiko::{Context, Envelope, Meta};
 
@@ -46,11 +48,11 @@ impl Pipeline {
 impl maiko::Actor for Pipeline {
     type Event = CharonEvent;
 
-    async fn handle(&mut self, event: &Self::Event, meta: &maiko::Meta) -> maiko::Result<()> {
-        if matches!(event, CharonEvent::Exit) {
+    async fn handle_envelope(&mut self, lope: &Arc<Envelope<Self::Event>>) -> maiko::Result<()> {
+        if matches!(lope.event, CharonEvent::Exit) {
             self.ctx.stop();
         } else {
-            self.process(event, meta).await?;
+            self.process(&lope.event, &lope.meta).await?;
         }
         Ok(())
     }

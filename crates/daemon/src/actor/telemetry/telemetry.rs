@@ -1,7 +1,8 @@
 use charon_lib::event::CharonEvent;
 use lru_time_cache::LruCache;
-use maiko::{Context, Meta};
-use std::time::Duration;
+use maiko::{Context, Envelope, Runtime};
+use std::{sync::Arc, time::Duration};
+use tokio::select;
 use tracing::warn;
 
 use crate::actor::telemetry::MetricsManager;
@@ -27,8 +28,9 @@ impl Telemetry {
 impl maiko::Actor for Telemetry {
     type Event = CharonEvent;
 
-    async fn handle(&mut self, event: &CharonEvent, meta: &Meta) -> maiko::Result {
-        match event {
+    async fn handle_envelope(&mut self, envelope: &Arc<Envelope<Self::Event>>) -> maiko::Result {
+        let meta = &envelope.meta;
+        match &envelope.event {
             CharonEvent::KeyPress(key, keyboard) => {
                 self.events.insert(meta.id(), meta.timestamp());
                 self.metrics.register_key_event(key, keyboard);
@@ -59,9 +61,15 @@ impl maiko::Actor for Telemetry {
         Ok(())
     }
 
-    async fn tick(&mut self) -> maiko::Result {
-        self.push_interval.tick().await;
-        self.metrics.push().await;
+    async fn tick(&mut self, runtime: &mut Runtime<'_, Self::Event>) -> maiko::Result {
+        select! {
+            Some(ref envelope) = runtime.recv() => {
+                runtime.default_handle(self, envelope).await?;
+            }
+            _ = self.push_interval.tick() => {
+                self.metrics.push().await;
+            }
+        }
         Ok(())
     }
 }

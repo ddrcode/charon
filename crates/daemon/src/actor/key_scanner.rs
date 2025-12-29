@@ -1,7 +1,8 @@
 use std::collections::HashSet;
 
 use charon_lib::event::{CharonEvent, Mode};
-use maiko::Context;
+use maiko::{Context, Runtime};
+use tokio::select;
 
 use crate::{domain::ActorState, port::EventDevice};
 use evdev::{EventSummary, InputEvent};
@@ -127,7 +128,7 @@ impl maiko::Actor for KeyScanner {
         Ok(())
     }
 
-    async fn handle(&mut self, event: &Self::Event, _meta: &maiko::Meta) -> maiko::Result<()> {
+    async fn handle_event(&mut self, event: &Self::Event) -> maiko::Result<()> {
         match event {
             CharonEvent::Exit => {
                 self.ctx.stop();
@@ -142,14 +143,19 @@ impl maiko::Actor for KeyScanner {
         Ok(())
     }
 
-    async fn tick(&mut self) -> maiko::Result<()> {
-        if let Some(event) = self.input.next_event().await {
-            self.handle_device_event(event).await?;
+    async fn tick(&mut self, runtime: &mut Runtime<'_, Self::Event>) -> maiko::Result {
+        select! {
+            Some(ref envelope) = runtime.recv() => {
+                runtime.default_handle(self, envelope).await?;
+            }
+            Some(device_event) = self.input.next_event() => {
+                self.handle_device_event(device_event).await?;
 
-            // grab/ungrab only when all keys are released
-            if self.should_handle_grab.is_some() && self.keyboard_state.is_empty() {
-                if let Some(mode) = self.should_handle_grab {
-                    self.toggle_grabbing(&mode);
+                // grab/ungrab only when all keys are released
+                if self.should_handle_grab.is_some() && self.keyboard_state.is_empty() {
+                    if let Some(mode) = self.should_handle_grab {
+                        self.toggle_grabbing(&mode);
+                    }
                 }
             }
         }
