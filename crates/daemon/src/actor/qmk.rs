@@ -1,10 +1,10 @@
 use std::borrow::Cow;
 
-use async_hid::{AsyncHidRead, DeviceReaderWriter, HidBackend};
+use async_hid::{AsyncHidRead, DeviceReader, DeviceReaderWriter, DeviceWriter, HidBackend};
 use charon_lib::{event::CharonEvent, qmk::QMKEvent};
 use futures_lite::StreamExt;
-use maiko::{Context, Runtime};
-use tokio::select;
+use maiko::{Config, Context, Runtime};
+use tokio::{select, time::Sleep};
 use tracing::{debug, error, info};
 
 // https://docs.qmk.fm/features/rawhid#basic-configuration
@@ -18,6 +18,7 @@ pub struct QMK {
     ctx: Context<CharonEvent>,
     state: ActorState,
     keyboard_alias: Cow<'static, str>,
+    device: Option<(DeviceReader, DeviceWriter)>,
 }
 
 #[allow(dead_code)]
@@ -31,6 +32,7 @@ impl QMK {
             ctx,
             state,
             keyboard_alias,
+            device: None,
         }
     }
 
@@ -120,6 +122,11 @@ impl QMK {
 impl maiko::Actor for QMK {
     type Event = CharonEvent;
 
+    async fn on_start(&mut self) -> maiko::Result {
+        self.device = Self::find_device(self.vendor_id(), self.product_id()).await;
+        Ok(())
+    }
+
     async fn handle_event(&mut self, event: &Self::Event) -> maiko::Result<()> {
         if matches!(event, CharonEvent::Exit) {
             self.ctx.stop();
@@ -128,14 +135,18 @@ impl maiko::Actor for QMK {
     }
 
     async fn tick(&mut self, runtime: &mut Runtime<'_, Self::Event>) -> maiko::Result {
-        let mut device = Self::find_device(self.vendor_id(), self.product_id()).await;
+        let timeout = tokio::time::sleep(runtime.config.tick_interval);
+        tokio::pin!(timeout);
+
         select! {
+            biased;
+            Ok((_n, buf)) = Self::read_buf(self.device.as_mut()) => {
+                self.handle_qmk_message(buf).await?;
+            }
             Some(ref envelope) = runtime.recv() => {
                 runtime.default_handle(self, envelope).await?;
             }
-            Ok((_n, buf)) = Self::read_buf(device.as_mut()) => {
-                self.handle_qmk_message(buf).await?;
-            }
+            _ = timeout => {}
         }
         Ok(())
     }

@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use charon_lib::event::CharonEvent;
+use charon_lib::{event::CharonEvent, util::DynamicInterval};
 use maiko::{Context, Runtime};
 use tokio::{process::Command, select};
 use tracing::{error, info, warn};
@@ -11,18 +11,23 @@ pub struct PowerManager {
     ctx: Context<CharonEvent>,
     state: ActorState,
     asleep: bool,
+    interval: DynamicInterval,
 }
 
 impl PowerManager {
     pub fn new(ctx: Context<CharonEvent>, state: ActorState) -> Self {
+        let time_to_sleep = state.config().time_to_sleep;
+        let time_to_sleep = tokio::time::Duration::from_secs(time_to_sleep);
         Self {
             ctx,
             state,
             asleep: false,
+            interval: DynamicInterval::new(time_to_sleep),
         }
     }
 
     async fn handle_sleep(&mut self) -> maiko::Result<()> {
+        self.interval.stop();
         if let Some(path) = &self.state.config().sleep_script {
             if self.run_script(path.to_path_buf(), true).await {
                 self.ctx.send(CharonEvent::Sleep).await?;
@@ -75,23 +80,32 @@ impl maiko::Actor for PowerManager {
     async fn handle_event(&mut self, event: &Self::Event) -> maiko::Result<()> {
         match event {
             CharonEvent::Exit => self.ctx.stop(),
-            CharonEvent::KeyPress(..) if self.asleep => self.handle_awake().await?,
+            CharonEvent::KeyPress(..) => {
+                if self.asleep {
+                    self.handle_awake().await?;
+                }
+                self.interval.reset();
+            }
             _ => {}
         }
         Ok(())
     }
 
     async fn tick(&mut self, runtime: &mut Runtime<'_, Self::Event>) -> maiko::Result {
-        let time_to_sleep = self.state.config().time_to_sleep;
-        let time_to_sleep = tokio::time::Duration::from_secs(time_to_sleep);
+        let timeout = tokio::time::sleep(runtime.config.tick_interval);
+        tokio::pin!(timeout);
 
         select! {
             Some(ref envelope) = runtime.recv() => {
                 runtime.default_handle(self, envelope).await?;
             }
-            _ = tokio::time::sleep(time_to_sleep) => {
+            _ = self.interval.sleep_until() => {
                 self.handle_sleep().await?;
             }
+            _ = &mut timeout => {}
+            // _ = tokio::time::sleep(time_to_sleep) => {
+            //     self.handle_sleep().await?;
+            // }
         }
         Ok(())
     }
