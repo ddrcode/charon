@@ -144,6 +144,9 @@ impl maiko::Actor for KeyScanner {
     }
 
     async fn tick(&mut self, runtime: &mut Runtime<'_, Self::Event>) -> maiko::Result {
+        let timeout = tokio::time::sleep(runtime.config.tick_interval);
+        tokio::pin!(timeout);
+
         select! {
             Some(ref envelope) = runtime.recv() => {
                 runtime.default_handle(self, envelope).await?;
@@ -158,6 +161,7 @@ impl maiko::Actor for KeyScanner {
                     }
                 }
             }
+            _ = &mut timeout => {}
         }
         Ok(())
     }

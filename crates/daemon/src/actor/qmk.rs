@@ -3,8 +3,8 @@ use std::borrow::Cow;
 use async_hid::{AsyncHidRead, DeviceReader, DeviceReaderWriter, DeviceWriter, HidBackend};
 use charon_lib::{event::CharonEvent, qmk::QMKEvent};
 use futures_lite::StreamExt;
-use maiko::{Config, Context, Runtime};
-use tokio::{select, time::Sleep};
+use maiko::{Context, Runtime};
+use tokio::select;
 use tracing::{debug, error, info};
 
 // https://docs.qmk.fm/features/rawhid#basic-configuration
