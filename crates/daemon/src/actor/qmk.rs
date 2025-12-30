@@ -4,7 +4,6 @@ use async_hid::{AsyncHidRead, DeviceReader, DeviceReaderWriter, DeviceWriter, Hi
 use charon_lib::{event::CharonEvent, qmk::QMKEvent};
 use futures_lite::StreamExt;
 use maiko::{Context, Runtime};
-use tokio::select;
 use tracing::{debug, error, info};
 
 // https://docs.qmk.fm/features/rawhid#basic-configuration
@@ -135,19 +134,11 @@ impl maiko::Actor for QMK {
     }
 
     async fn tick(&mut self, runtime: &mut Runtime<'_, Self::Event>) -> maiko::Result {
-        let timeout = tokio::time::sleep(runtime.config.tick_interval);
-        tokio::pin!(timeout);
-
-        select! {
-            biased;
+        maiko::select!(self, runtime,
             Ok((_n, buf)) = Self::read_buf(self.device.as_mut()) => {
                 self.handle_qmk_message(buf).await?;
             }
-            Some(ref envelope) = runtime.recv() => {
-                runtime.default_handle(self, envelope).await?;
-            }
-            _ = timeout => {}
-        }
+        );
         Ok(())
     }
 }

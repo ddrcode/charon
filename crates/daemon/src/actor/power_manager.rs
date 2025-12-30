@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use charon_lib::{event::CharonEvent, util::DynamicInterval};
 use maiko::{Context, Runtime};
-use tokio::{process::Command, select};
+use tokio::process::Command;
 use tracing::{error, info, warn};
 
 use crate::domain::ActorState;
@@ -92,21 +92,11 @@ impl maiko::Actor for PowerManager {
     }
 
     async fn tick(&mut self, runtime: &mut Runtime<'_, Self::Event>) -> maiko::Result {
-        let timeout = tokio::time::sleep(runtime.config.tick_interval);
-        tokio::pin!(timeout);
-
-        select! {
-            Some(ref envelope) = runtime.recv() => {
-                runtime.default_handle(self, envelope).await?;
-            }
+        maiko::select!(self, runtime,
             _ = self.interval.sleep_until() => {
                 self.handle_sleep().await?;
             }
-            _ = &mut timeout => {}
-            // _ = tokio::time::sleep(time_to_sleep) => {
-            //     self.handle_sleep().await?;
-            // }
-        }
+        );
         Ok(())
     }
 }

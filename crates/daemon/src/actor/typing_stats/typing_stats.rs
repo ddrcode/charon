@@ -6,7 +6,6 @@ use charon_lib::{
     util::time::{is_today, next_midnight_instant},
 };
 use maiko::{Context, Runtime};
-use tokio::select;
 use tracing::error;
 
 use super::WPMCounter;
@@ -105,10 +104,7 @@ impl maiko::Actor for TypingStats {
     }
 
     async fn tick(&mut self, runtime: &mut Runtime<'_, Self::Event>) -> maiko::Result {
-        select! {
-            Some(ref envelope) = runtime.recv() => {
-                runtime.default_handle(self, envelope).await?;
-            }
+        maiko::select!(self, runtime,
             _ = self.wpm_interval.tick() => {
                 self.wpm.next();
                 runtime.ctx.send(CharonEvent::CurrentStats(self.stats())).await?;
@@ -119,7 +115,7 @@ impl maiko::Actor for TypingStats {
             _ = tokio::time::sleep_until(next_midnight_instant()) => {
                 self.today_count = 0;
             }
-        }
+        );
         Ok(())
     }
 

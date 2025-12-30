@@ -5,7 +5,6 @@ use crate::domain::ActorState;
 use charon_lib::event::CharonEvent;
 use maiko::{Context, Envelope, Runtime};
 use tokio::net::UnixListener;
-use tokio::select;
 use tokio::sync::mpsc;
 use tracing::info;
 
@@ -59,12 +58,7 @@ impl maiko::Actor for IPCServer {
     }
 
     async fn tick(&mut self, runtime: &mut Runtime<'_, Self::Event>) -> maiko::Result {
-        select! {
-            Some(ref envelope) = runtime.recv() => {
-                runtime.default_handle(self, envelope).await?;
-            }
-
-            // Accept a new connection
+        maiko::select!(self, runtime,
             Ok((stream, _)) = self.listener.accept() => {
                 info!("Accepted new IPC client");
                 // if let Some(old) = self.session.take() {
@@ -83,7 +77,7 @@ impl maiko::Actor for IPCServer {
                 });
                 self.session = Some(ClientSessionState::new(handle, session_tx));
             }
-        }
+        );
         Ok(())
     }
 }
