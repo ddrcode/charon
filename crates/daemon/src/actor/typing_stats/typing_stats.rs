@@ -91,7 +91,7 @@ impl maiko::Actor for TypingStats {
         Ok(())
     }
 
-    async fn handle(&mut self, event: &Self::Event, _meta: &Meta) -> maiko::Result {
+    async fn handle_event(&mut self, event: &Self::Event) -> maiko::Result {
         match event {
             CharonEvent::Exit => self.ctx.stop(),
             CharonEvent::KeyPress(key, _) => {

@@ -1,7 +1,10 @@
-use std::path::PathBuf;
+use std::{
+    path::PathBuf,
+    time::{Duration, Instant},
+};
 
 use charon_lib::event::CharonEvent;
-use maiko::{Context, Meta};
+use maiko::{Context, StepAction};
 use tokio::process::Command;
 use tracing::{error, info, warn};
 
@@ -11,14 +14,19 @@ pub struct PowerManager {
     ctx: Context<CharonEvent>,
     state: ActorState,
     asleep: bool,
+    last_event: Instant,
+    time_to_sleep: Duration,
 }
 
 impl PowerManager {
     pub fn new(ctx: Context<CharonEvent>, state: ActorState) -> Self {
+        let time_to_sleep = Duration::from_secs(state.config().time_to_sleep);
         Self {
             ctx,
             state,
             asleep: false,
+            last_event: Instant::now(),
+            time_to_sleep,
         }
     }
 
@@ -72,7 +80,7 @@ impl PowerManager {
 impl maiko::Actor for PowerManager {
     type Event = CharonEvent;
 
-    async fn handle(&mut self, event: &Self::Event, _meta: &Meta) -> maiko::Result<()> {
+    async fn handle_event(&mut self, event: &Self::Event) -> maiko::Result<()> {
         match event {
             CharonEvent::Exit => self.ctx.stop(),
             CharonEvent::KeyPress(..) if self.asleep => self.handle_awake().await?,
@@ -81,10 +89,14 @@ impl maiko::Actor for PowerManager {
         Ok(())
     }
 
-    async fn tick(&mut self) -> maiko::Result<()> {
-        let time_to_sleep = tokio::time::Duration::from_secs(self.state.config().time_to_sleep);
-        tokio::time::sleep(time_to_sleep).await;
-        self.handle_sleep().await?;
-        Ok(())
+    async fn step(&mut self) -> maiko::Result<StepAction> {
+        if self.last_event.elapsed() >= self.time_to_sleep {
+            self.handle_sleep().await?;
+            Ok(StepAction::AwaitEvent)
+        } else {
+            Ok(StepAction::Backoff(
+                self.time_to_sleep - self.last_event.elapsed(),
+            ))
+        }
     }
 }

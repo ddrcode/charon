@@ -19,7 +19,7 @@ use crate::{
         KeyScanner, KeyWriter, Pipeline, PowerManager, QMK, Telemetry, TypingStats, Typist,
         ipc_server::IPCServer,
     },
-    adapter::{EventDeviceUnix, HIDDeviceUnix, KeymapLoaderYaml},
+    adapter::{EventDeviceUnix, HIDDeviceUnix, KeymapLoaderYaml, QmkAsyncHidDevice},
     config::{CharonConfig, InputConfig},
     domain::{ActorState, traits::Processor},
     error::CharonError,
@@ -97,15 +97,16 @@ async fn main() -> eyre::Result<()> {
         group.raw_hid_enabled && group.vendor_id.is_some() && group.product_id.is_some()
     });
     if raw_enabled {
-        let alias = match config.keyboard {
-            InputConfig::Use(ref keyb) => keyb.clone(),
-            ref k => Err(CharonError::QMKError(format!(
-                "{k:?} - insufficient or wrong configuration to enable QMK actor"
-            )))?,
-        };
+        // let alias = match config.keyboard {
+        //     InputConfig::Use(ref keyb) => keyb.clone(),
+        //     ref k => Err(CharonError::QMKError(format!(
+        //         "{k:?} - insufficient or wrong configuration to enable QMK actor"
+        //     )))?,
+        // };
+        let device = QmkAsyncHidDevice::async_new(&config).await;
         supervisor.add_actor(
             "QMK",
-            |ctx| QMK::new(ctx, state.clone(), alias),
+            |ctx| QMK::new(ctx, state.clone(), Box::new(device)),
             &[T::System],
         )?;
     }

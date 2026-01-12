@@ -35,4 +35,13 @@ pub enum CharonError {
 
     #[error("Actor handling error: {0}")]
     MaikoError(#[from] maiko::Error),
+
+    #[error("RawHid error: {0}")]
+    RawHidError(#[from] async_hid::HidError),
+}
+
+impl From<CharonError> for maiko::Error {
+    fn from(err: CharonError) -> Self {
+        maiko::Error::External(err.to_string().into())
+    }
 }

@@ -1,7 +1,7 @@
-use std::collections::HashSet;
+use std::{collections::HashSet, time::Duration};
 
 use charon_lib::event::{CharonEvent, Mode};
-use maiko::Context;
+use maiko::{Context, StepAction};
 
 use crate::{domain::ActorState, port::EventDevice};
 use evdev::{EventSummary, InputEvent};
@@ -127,7 +127,7 @@ impl maiko::Actor for KeyScanner {
         Ok(())
     }
 
-    async fn handle(&mut self, event: &Self::Event, _meta: &maiko::Meta) -> maiko::Result<()> {
+    async fn handle_event(&mut self, event: &Self::Event) -> maiko::Result<()> {
         match event {
             CharonEvent::Exit => {
                 self.ctx.stop();
@@ -142,8 +142,8 @@ impl maiko::Actor for KeyScanner {
         Ok(())
     }
 
-    async fn tick(&mut self) -> maiko::Result<()> {
-        if let Some(event) = self.input.next_event().await {
+    async fn step(&mut self) -> maiko::Result<StepAction> {
+        while let Some(event) = self.input.next_event().await {
             self.handle_device_event(event).await?;
 
             // grab/ungrab only when all keys are released
@@ -153,7 +153,7 @@ impl maiko::Actor for KeyScanner {
                 }
             }
         }
-        Ok(())
+        Ok(StepAction::Backoff(Duration::from_millis(5)))
     }
 
     fn on_error(&self, error: maiko::Error) -> maiko::Result<()> {

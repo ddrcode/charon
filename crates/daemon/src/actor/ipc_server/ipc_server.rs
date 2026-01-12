@@ -1,9 +1,10 @@
 use std::path::Path;
+use std::time::Duration;
 use std::{fs, sync::Arc};
 
 use crate::domain::ActorState;
 use charon_lib::event::CharonEvent;
-use maiko::{Context, Envelope, Meta};
+use maiko::{Context, Envelope, Meta, StepAction};
 use tokio::net::UnixListener;
 use tokio::sync::mpsc;
 use tracing::info;
@@ -37,17 +38,16 @@ impl IPCServer {
 impl maiko::Actor for IPCServer {
     type Event = CharonEvent;
 
-    async fn handle(&mut self, event: &Self::Event, meta: &Meta) -> maiko::Result {
+    async fn handle_envelope(&mut self, lope: &Arc<Envelope<Self::Event>>) -> maiko::Result {
         if let Some(session) = &self.session {
-            let envelope = Envelope::from((event, meta));
-            if let Err(e) = session.sender.send(Arc::new(envelope)).await {
+            if let Err(e) = session.sender.send(lope.clone()).await {
                 tracing::warn!("Failed to send event to session: {e}");
                 self.session = None;
             }
         }
-        match event {
+        match &lope.event {
             // FIXME change dependency on actor name
-            CharonEvent::ModeChange(mode) if meta.actor_name() == "client" => {
+            CharonEvent::ModeChange(mode) if lope.meta.actor_name() == "client" => {
                 info!("Client requested to change mode to: {mode}");
                 self.state.set_mode(*mode).await;
             }
@@ -57,7 +57,7 @@ impl maiko::Actor for IPCServer {
         Ok(())
     }
 
-    async fn tick(&mut self) -> maiko::Result {
+    async fn step(&mut self) -> maiko::Result<StepAction> {
         // Accept a new connection
         if let Ok((stream, _)) = self.listener.accept().await {
             info!("Accepted new IPC client");
@@ -77,6 +77,6 @@ impl maiko::Actor for IPCServer {
             });
             self.session = Some(ClientSessionState::new(handle, session_tx));
         }
-        Ok(())
+        Ok(StepAction::Backoff(Duration::from_millis(1000)))
     }
 }

@@ -1,7 +1,7 @@
 use charon_lib::event::CharonEvent;
 use lru_time_cache::LruCache;
-use maiko::{Context, Meta};
-use std::time::Duration;
+use maiko::{Context, Envelope, StepAction};
+use std::{sync::Arc, time::Duration};
 use tracing::warn;
 
 use crate::actor::telemetry::MetricsManager;
@@ -10,7 +10,7 @@ pub struct Telemetry {
     ctx: Context<CharonEvent>,
     events: LruCache<u128, u64>,
     metrics: MetricsManager,
-    push_interval: tokio::time::Interval,
+    push_interval: Duration,
 }
 
 impl Telemetry {
@@ -19,7 +19,7 @@ impl Telemetry {
             ctx,
             events: LruCache::with_expiry_duration_and_capacity(Duration::from_secs(10), 1024),
             metrics: MetricsManager::new().expect("Prometheus metrics should initialize correctly"),
-            push_interval: tokio::time::interval(Duration::from_secs(15)),
+            push_interval: Duration::from_secs(15),
         }
     }
 }
@@ -27,26 +27,26 @@ impl Telemetry {
 impl maiko::Actor for Telemetry {
     type Event = CharonEvent;
 
-    async fn handle(&mut self, event: &CharonEvent, meta: &Meta) -> maiko::Result {
-        match event {
+    async fn handle_envelope(&mut self, lope: &Arc<Envelope<Self::Event>>) -> maiko::Result {
+        match &lope.event {
             CharonEvent::KeyPress(key, keyboard) => {
-                self.events.insert(meta.id(), meta.timestamp());
+                self.events.insert(lope.meta.id(), lope.meta.timestamp());
                 self.metrics.register_key_event(key, keyboard);
             }
             CharonEvent::KeyRelease(..) => {
-                self.events.insert(meta.id(), meta.timestamp());
+                self.events.insert(lope.meta.id(), lope.meta.timestamp());
             }
             CharonEvent::ReportSent => {
-                if let Some(ref source_id) = meta.correlation_id() {
+                if let Some(ref source_id) = lope.meta.correlation_id() {
                     if let Some(timestamp) = self.events.remove(source_id) {
-                        if let Some(diff) = meta.timestamp().checked_sub(timestamp) {
+                        if let Some(diff) = lope.meta.timestamp().checked_sub(timestamp) {
                             self.metrics.register_key_to_report_time(diff);
                         }
                     }
                 } else {
                     warn!(
                         "Missing source_event_id for ReportSent event, id: {}",
-                        meta.id()
+                        lope.meta.id()
                     );
                 }
             }
@@ -59,9 +59,8 @@ impl maiko::Actor for Telemetry {
         Ok(())
     }
 
-    async fn tick(&mut self) -> maiko::Result {
-        self.push_interval.tick().await;
+    async fn step(&mut self) -> maiko::Result<StepAction> {
         self.metrics.push().await;
-        Ok(())
+        Ok(StepAction::Backoff(self.push_interval))
     }
 }

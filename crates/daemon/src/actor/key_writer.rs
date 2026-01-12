@@ -1,5 +1,5 @@
 use charon_lib::event::CharonEvent;
-use maiko::{Context, Meta};
+use maiko::{Context, Envelope, Meta};
 use std::sync::Arc;
 use tracing::{debug, error};
 
@@ -53,11 +53,11 @@ impl KeyWriter {
 impl maiko::Actor for KeyWriter {
     type Event = CharonEvent;
 
-    async fn handle(&mut self, event: &Self::Event, meta: &Meta) -> maiko::Result<()> {
-        match event {
+    async fn handle_envelope(&mut self, lope: &Arc<Envelope<Self::Event>>) -> maiko::Result<()> {
+        match &lope.event {
             CharonEvent::HidReport(report) => {
-                self.send_report(report, meta.actor_name());
-                self.send_telemetry(meta).await?;
+                self.send_report(report, lope.meta.actor_name());
+                self.send_telemetry(&lope.meta).await?;
             }
             CharonEvent::Exit => self.ctx.stop(),
             CharonEvent::ModeChange(_) => self.reset(),
