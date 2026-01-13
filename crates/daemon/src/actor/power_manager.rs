@@ -40,6 +40,7 @@ impl PowerManager {
     }
 
     async fn handle_awake(&mut self) -> maiko::Result<()> {
+        self.last_event = Instant::now();
         if let Some(path) = &self.state.config().awake_script {
             if self.run_script(path.to_path_buf(), false).await {
                 self.ctx.send(CharonEvent::WakeUp).await?;
@@ -84,6 +85,7 @@ impl maiko::Actor for PowerManager {
         match envelope.event() {
             CharonEvent::Exit => self.ctx.stop(),
             CharonEvent::KeyPress(..) if self.asleep => self.handle_awake().await?,
+            CharonEvent::KeyPress(..) if !self.asleep => self.last_event = Instant::now(),
             _ => {}
         }
         Ok(())
