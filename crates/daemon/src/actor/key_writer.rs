@@ -1,46 +1,29 @@
-use charon_lib::event::{DomainEvent, Event};
-use std::borrow::Cow;
-use tokio::task::JoinHandle;
+use charon_lib::event::CharonEvent;
+use maiko::{Context, Envelope, Meta};
+use std::sync::Arc;
 use tracing::{debug, error};
 
-use crate::{
-    adapter::HIDDeviceUnix,
-    domain::{ActorState, traits::Actor},
-    error::CharonError,
-    port::HIDDevice,
-};
+use crate::port::HIDDevice;
 
 pub struct KeyWriter {
-    state: ActorState,
+    ctx: Context<CharonEvent>,
     device: Box<dyn HIDDevice + Send + Sync>,
-    prev_sender: Cow<'static, str>,
+    prev_sender: Arc<str>,
 }
 
 impl KeyWriter {
-    pub fn new(state: ActorState, device: Box<dyn HIDDevice + Send + Sync>) -> Self {
+    pub fn new(ctx: Context<CharonEvent>, device: Box<dyn HIDDevice + Send + Sync>) -> Self {
         Self {
-            state,
+            ctx,
             device,
             prev_sender: "".into(),
         }
     }
 
-    async fn handle_event(&mut self, event: &Event) {
-        match &event.payload {
-            DomainEvent::HidReport(report) => {
-                self.send_report(report, &event.sender);
-                self.send_telemetry(event).await;
-            }
-            DomainEvent::Exit => self.stop().await,
-            DomainEvent::ModeChange(_) => self.reset(),
-            _ => {}
-        }
-    }
-
-    fn send_report(&mut self, report: &[u8; 8], sender: &Cow<'static, str>) {
-        if self.prev_sender != *sender {
+    fn send_report(&mut self, report: &[u8; 8], sender: &str) {
+        if self.prev_sender.as_ref() != sender {
             self.reset();
-            self.prev_sender = sender.clone()
+            self.prev_sender = Arc::from(sender);
         }
         debug!("Writing report to HID controller: {:?}", report);
         if let Err(err) = self.device.send_report(report) {
@@ -54,50 +37,37 @@ impl KeyWriter {
         }
     }
 
-    async fn send_telemetry(&mut self, event: &Event) {
-        if self.state.config().enable_telemetry {
-            if let Some(source_id) = event.source_event_id {
-                self.send_raw(Event::with_source_id(
-                    self.id(),
-                    DomainEvent::ReportSent(),
-                    source_id,
-                ))
-                .await;
-            }
+    #[inline]
+    async fn send_telemetry(&mut self, meta: &Meta) -> maiko::Result<()> {
+        // if self.state.config().enable_telemetry {
+        if meta.correlation_id().is_some() {
+            self.ctx
+                .send_child_event(CharonEvent::ReportSent, meta)
+                .await?;
         }
+        // }
+        Ok(())
     }
 }
 
-#[async_trait::async_trait]
-impl Actor for KeyWriter {
-    type Init = ();
+impl maiko::Actor for KeyWriter {
+    type Event = CharonEvent;
 
-    fn name() -> &'static str {
-        "KeyWriter"
-    }
-
-    fn spawn(state: ActorState, (): ()) -> Result<JoinHandle<()>, CharonError> {
-        let dev_path = state.config().hid_keyboard.clone();
-        let dev = HIDDeviceUnix::new(&dev_path);
-        let mut writer = KeyWriter::new(state, Box::new(dev));
-        Ok(tokio::spawn(async move { writer.run().await }))
-    }
-
-    async fn tick(&mut self) {
-        if let Some(event) = self.recv().await {
-            self.handle_event(&event).await;
+    async fn handle_event(&mut self, envelope: &Envelope<Self::Event>) -> maiko::Result<()> {
+        match envelope.event() {
+            CharonEvent::HidReport(report) => {
+                self.send_report(report, envelope.meta().actor_name());
+                self.send_telemetry(envelope.meta()).await?;
+            }
+            CharonEvent::Exit => self.ctx.stop(),
+            CharonEvent::ModeChange(_) => self.reset(),
+            _ => {}
         }
+        Ok(())
     }
 
-    async fn shutdown(&mut self) {
+    async fn on_shutdown(&mut self) -> maiko::Result<()> {
         self.reset();
-    }
-
-    fn state(&self) -> &ActorState {
-        &self.state
-    }
-
-    fn state_mut(&mut self) -> &mut ActorState {
-        &mut self.state
+        Ok(())
     }
 }

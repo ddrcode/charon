@@ -1,62 +1,53 @@
-use charon_lib::event::{DomainEvent, Event, Mode};
+use charon_lib::event::{CharonEvent, Mode};
+use maiko::Meta;
 use tracing::{debug, error, info};
-use uuid::Uuid;
 
 use crate::{
-    domain::{ProcessorState, traits::Processor},
+    domain::{ActorState, traits::Processor},
     util::system::wake_host_on_lan,
 };
 
 pub struct SystemShortcutProcessor {
-    state: ProcessorState,
-    events: Vec<Event>,
+    state: ActorState,
+    events: Vec<CharonEvent>,
 }
 
 impl SystemShortcutProcessor {
-    pub fn factory(state: ProcessorState) -> Box<dyn Processor + Send + Sync> {
-        Box::new(SystemShortcutProcessor::new(state))
-    }
-
-    pub fn new(state: ProcessorState) -> Self {
+    pub fn new(state: ActorState) -> Self {
         Self {
             state,
             events: Vec::new(),
         }
     }
 
-    async fn handle_report(&mut self, report: &[u8; 8], parent_id: Uuid) -> bool {
+    async fn handle_report(&mut self, report: &[u8; 8]) -> bool {
         let num: u64 = u64::from_ne_bytes(*report);
         let config = self.state.config();
 
         if num == u64::from(&config.quit_shortcut) {
-            self.send_exit(parent_id).await;
+            self.send_exit().await;
         } else if num == u64::from(&config.toggle_mode_shortcut) {
-            self.toggle_mode(parent_id).await;
+            self.toggle_mode().await;
         } else if num == u64::from(&config.awake_host_shortcut) {
             self.wake_up_host();
         } else {
             return self.state.mode().await == Mode::PassThrough;
         }
 
-        self.reset_hid(parent_id);
+        self.reset_hid();
         false
     }
 
-    async fn send_exit(&mut self, parent_id: Uuid) {
-        let event = Event::with_source_id(self.state.id.clone(), DomainEvent::Exit, parent_id);
-        self.events.push(event);
+    async fn send_exit(&mut self) {
+        self.events.push(CharonEvent::Exit);
     }
 
-    async fn toggle_mode(&mut self, parent_id: Uuid) {
+    async fn toggle_mode(&mut self) {
         let new_mode = self.state.mode().await.toggle();
         debug!("Switching mode to {:?}", new_mode);
         self.state.set_mode(new_mode).await;
-        let event = Event::with_source_id(
-            self.state.id.clone(),
-            DomainEvent::ModeChange(new_mode),
-            parent_id,
-        );
-        self.events.push(event);
+        let payload = CharonEvent::ModeChange(new_mode);
+        self.events.push(payload);
     }
 
     fn wake_up_host(&self) {
@@ -70,25 +61,19 @@ impl SystemShortcutProcessor {
         }
     }
 
-    fn reset_hid(&mut self, parent_id: Uuid) {
-        let event = Event::with_source_id(
-            self.state.id.clone(),
-            DomainEvent::HidReport([0; 8]),
-            parent_id,
-        );
+    fn reset_hid(&mut self) {
+        let event = CharonEvent::HidReport([0; 8]);
         self.events.push(event);
     }
 }
 
 #[async_trait::async_trait]
 impl Processor for SystemShortcutProcessor {
-    async fn process(&mut self, event: Event) -> Vec<Event> {
-        match &event.payload {
-            DomainEvent::HidReport(report) => {
-                if let Some(source_id) = event.source_event_id {
-                    if self.handle_report(&report, source_id).await {
-                        self.events.push(event);
-                    }
+    async fn process(&mut self, event: CharonEvent, _meta: Meta) -> Vec<CharonEvent> {
+        match &event {
+            CharonEvent::HidReport(report) => {
+                if self.handle_report(report).await {
+                    self.events.push(event);
                 }
             }
             _ => self.events.push(event),

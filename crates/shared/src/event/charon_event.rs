@@ -4,9 +4,9 @@ use serde::{Deserialize, Serialize};
 use super::{Mode, Topic};
 use crate::{qmk::QMKEvent, stats::CurrentStats};
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(maiko::Event, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[non_exhaustive]
-pub enum DomainEvent {
+pub enum CharonEvent {
     KeyPress(KeyCode, String),
     KeyRelease(KeyCode, String),
     HidReport([u8; 8]),
@@ -22,13 +22,13 @@ pub enum DomainEvent {
     WakeUp,
 
     // telemetry events
-    ReportSent(),
+    ReportSent,
 
     // QMK
     QMKEvent(QMKEvent),
 }
 
-impl DomainEvent {
+impl CharonEvent {
     pub fn topic(&self) -> Topic {
         self.into()
     }

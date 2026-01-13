@@ -1,6 +1,6 @@
 use std::{borrow::Cow, path::PathBuf, sync::Arc};
 
-use charon_lib::event::{DomainEvent, Mode};
+use charon_lib::event::{CharonEvent, Mode};
 use tempfile::NamedTempFile;
 
 use crate::domain::{
@@ -58,16 +58,16 @@ impl ExternalApp for Editor {
     }
 
     async fn process_result(&mut self) -> Option<Command> {
-        Some(Command::SendEvent(DomainEvent::SendFile(
+        Some(Command::SendEvent(CharonEvent::SendFile(
             self.path_to_string(),
             true,
         )))
     }
 
     async fn handle_event(&mut self, event: &AppEvent) -> Option<Command> {
-        if matches!(event, AppEvent::Backend(DomainEvent::TextSent)) {
+        if matches!(event, AppEvent::Backend(CharonEvent::TextSent)) {
             self.should_exit = true;
-            return Some(Command::SendEvent(DomainEvent::ModeChange(
+            return Some(Command::SendEvent(CharonEvent::ModeChange(
                 Mode::PassThrough,
             )));
         }

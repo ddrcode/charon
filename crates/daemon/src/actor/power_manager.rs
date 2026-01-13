@@ -1,49 +1,52 @@
-use std::path::PathBuf;
-
-use charon_lib::event::{DomainEvent, Event};
-use tokio::{process::Command, task::JoinHandle};
-use tracing::{error, info, warn};
-
-use crate::{
-    domain::{ActorState, traits::Actor},
-    error::CharonError,
+use std::{
+    path::PathBuf,
+    time::{Duration, Instant},
 };
 
+use charon_lib::event::CharonEvent;
+use maiko::{Context, Envelope, StepAction};
+use tokio::process::Command;
+use tracing::{error, info, warn};
+
+use crate::domain::ActorState;
+
 pub struct PowerManager {
+    ctx: Context<CharonEvent>,
     state: ActorState,
     asleep: bool,
+    last_event: Instant,
+    time_to_sleep: Duration,
 }
 
 impl PowerManager {
-    pub fn new(state: ActorState) -> Self {
+    pub fn new(ctx: Context<CharonEvent>, state: ActorState) -> Self {
+        let time_to_sleep = Duration::from_secs(state.config().time_to_sleep);
         Self {
+            ctx,
             state,
             asleep: false,
+            last_event: Instant::now(),
+            time_to_sleep,
         }
     }
 
-    async fn handle_event(&mut self, event: &Event) {
-        match &event.payload {
-            DomainEvent::Exit => self.stop().await,
-            DomainEvent::KeyPress(..) if self.asleep => self.handle_awake().await,
-            _ => {}
-        }
-    }
-
-    async fn handle_sleep(&mut self) {
+    async fn handle_sleep(&mut self) -> maiko::Result<()> {
         if let Some(path) = &self.state.config().sleep_script {
             if self.run_script(path.to_path_buf(), true).await {
-                self.send(DomainEvent::Sleep).await;
+                self.ctx.send(CharonEvent::Sleep).await?;
             }
         }
+        Ok(())
     }
 
-    async fn handle_awake(&mut self) {
+    async fn handle_awake(&mut self) -> maiko::Result<()> {
+        self.last_event = Instant::now();
         if let Some(path) = &self.state.config().awake_script {
             if self.run_script(path.to_path_buf(), false).await {
-                self.send(DomainEvent::WakeUp).await;
+                self.ctx.send(CharonEvent::WakeUp).await?;
             }
         }
+        Ok(())
     }
 
     async fn run_script(&mut self, path: PathBuf, should_sleep: bool) -> bool {
@@ -75,45 +78,27 @@ impl PowerManager {
     }
 }
 
-#[async_trait::async_trait]
-impl Actor for PowerManager {
-    type Init = ();
+impl maiko::Actor for PowerManager {
+    type Event = CharonEvent;
 
-    fn name() -> &'static str {
-        "PowerManager"
-    }
-
-    fn spawn(state: ActorState, (): ()) -> Result<JoinHandle<()>, CharonError> {
-        let mut power_mngr = PowerManager::new(state);
-        let handle = tokio::task::spawn(async move {
-            power_mngr.run().await;
-        });
-        Ok(handle)
-    }
-
-    fn state(&self) -> &ActorState {
-        &self.state
-    }
-
-    fn state_mut(&mut self) -> &mut ActorState {
-        &mut self.state
-    }
-
-    async fn tick(&mut self) {
-        let time_to_sleep = self.state.config().time_to_sleep;
-        let time_to_sleep = tokio::time::Duration::from_secs(time_to_sleep);
-
-        tokio::select! {
-            Some(event) = self.state.receiver.recv() => {
-                self.handle_event(&event).await;
-            }
-            _ = tokio::time::sleep(time_to_sleep) => {
-                self.handle_sleep().await;
-            }
+    async fn handle_event(&mut self, envelope: &Envelope<Self::Event>) -> maiko::Result<()> {
+        match envelope.event() {
+            CharonEvent::Exit => self.ctx.stop(),
+            CharonEvent::KeyPress(..) if self.asleep => self.handle_awake().await?,
+            CharonEvent::KeyPress(..) if !self.asleep => self.last_event = Instant::now(),
+            _ => {}
         }
+        Ok(())
     }
 
-    async fn shutdown(&mut self) {
-        self.handle_awake().await;
+    async fn step(&mut self) -> maiko::Result<StepAction> {
+        if self.last_event.elapsed() >= self.time_to_sleep {
+            self.handle_sleep().await?;
+            Ok(StepAction::AwaitEvent)
+        } else {
+            Ok(StepAction::Backoff(
+                self.time_to_sleep - self.last_event.elapsed(),
+            ))
+        }
     }
 }

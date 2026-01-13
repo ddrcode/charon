@@ -1,7 +1,5 @@
-use charon_lib::event::Event;
 use evdev::KeyCode;
 use thiserror;
-use tokio::sync::mpsc::error::SendError;
 
 #[derive(Debug, thiserror::Error)]
 pub enum CharonError {
@@ -26,9 +24,6 @@ pub enum CharonError {
     #[error("QMK error: {0}")]
     QMKError(String),
 
-    #[error("Event channel error: {0}")]
-    EventChannelError(#[from] SendError<Event>),
-
     #[error("IO error: {0}")]
     IOError(#[from] std::io::Error),
 
@@ -37,4 +32,16 @@ pub enum CharonError {
 
     #[error("Yaml parsing error: {0}")]
     YamlError(#[from] serde_yaml_bw::Error),
+
+    #[error("Actor handling error: {0}")]
+    MaikoError(#[from] maiko::Error),
+
+    #[error("RawHid error: {0}")]
+    RawHidError(#[from] async_hid::HidError),
+}
+
+impl From<CharonError> for maiko::Error {
+    fn from(err: CharonError) -> Self {
+        maiko::Error::External(err.to_string().into())
+    }
 }

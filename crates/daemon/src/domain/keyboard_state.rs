@@ -16,10 +16,8 @@ impl KeyboardState {
     pub fn update_on_press(&mut self, key: HidKeyCode) {
         if key.is_modifier() {
             self.modifiers.add(key.into());
-        } else {
-            if !self.keys.contains(&key) && self.keys.len() < 6 {
-                self.keys.push(key);
-            }
+        } else if !self.keys.contains(&key) && self.keys.len() < 6 {
+            self.keys.push(key);
         }
     }
 
@@ -48,5 +46,11 @@ impl KeyboardState {
 
     pub fn is(&self, key: HidKeyCode, modifiers: Modifiers) -> bool {
         self.modifiers == modifiers && self.keys.len() == 1 && self.keys[0] == key.into()
+    }
+}
+
+impl Default for KeyboardState {
+    fn default() -> Self {
+        KeyboardState::new()
     }
 }

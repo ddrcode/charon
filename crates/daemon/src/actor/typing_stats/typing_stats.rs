@@ -1,49 +1,43 @@
 use std::{path::Path, time::Duration};
 
 use charon_lib::{
-    event::{DomainEvent, Event},
+    event::CharonEvent,
     stats::CurrentStats,
     util::time::{is_today, next_midnight_instant},
 };
-use tokio::{select, task::JoinHandle};
-use tracing::{error, info};
+use maiko::{Context, Envelope, StepAction};
+use tokio::select;
+use tracing::error;
 
 use super::WPMCounter;
-use crate::{
-    domain::{ActorState, traits::Actor},
-    error::CharonError,
-};
+use crate::domain::ActorState;
 
 pub struct TypingStats {
+    ctx: Context<CharonEvent>,
     state: ActorState,
     wpm: WPMCounter,
     total_count: u64,
     today_count: u64,
+    wpm_interval: tokio::time::Interval,
+    save_interval: tokio::time::Interval,
 }
 
 impl TypingStats {
-    pub fn new(state: ActorState) -> Self {
+    pub fn new(ctx: Context<CharonEvent>, state: ActorState) -> Self {
         let wpm = WPMCounter::new(
             Duration::from_secs(state.config().stats_wpm_slot_duration),
             state.config().stats_wpm_slot_count,
         );
         Self {
-            state,
-            wpm,
+            ctx,
             total_count: 0,
             today_count: 0,
-        }
-    }
-
-    async fn handle_event(&mut self, event: &Event) {
-        match &event.payload {
-            DomainEvent::Exit => self.stop().await,
-            DomainEvent::KeyPress(key, _) => {
-                self.wpm.register_key(key);
-                self.total_count += 1;
-                self.today_count += 1;
-            }
-            _ => {}
+            wpm_interval: tokio::time::interval(wpm.period()),
+            save_interval: tokio::time::interval(Duration::from_secs(
+                state.config().stats_save_interval,
+            )),
+            wpm,
+            state,
         }
     }
 
@@ -80,20 +74,10 @@ impl TypingStats {
     }
 }
 
-#[async_trait::async_trait]
-impl Actor for TypingStats {
-    type Init = ();
+impl maiko::Actor for TypingStats {
+    type Event = CharonEvent;
 
-    fn name() -> &'static str {
-        "TypingStats"
-    }
-
-    fn spawn(state: ActorState, (): ()) -> Result<JoinHandle<()>, CharonError> {
-        let mut stats = TypingStats::new(state);
-        Ok(tokio::spawn(async move { stats.run().await }))
-    }
-
-    async fn init(&mut self) {
+    async fn on_start(&mut self) -> maiko::Result {
         match self.load_stats(&self.state.config().stats_file).await {
             Ok(stats) => {
                 self.total_count = stats.total;
@@ -104,49 +88,41 @@ impl Actor for TypingStats {
                 error!("Couldn't load stats file: {err}");
             }
         }
+        Ok(())
     }
 
-    async fn run(&mut self) {
-        info!("Starting actor: {}", self.id());
-        self.init().await;
+    async fn handle_event(&mut self, envelope: &Envelope<Self::Event>) -> maiko::Result {
+        match envelope.event() {
+            CharonEvent::Exit => self.ctx.stop(),
+            CharonEvent::KeyPress(key, _) => {
+                self.wpm.register_key(key);
+                self.total_count += 1;
+                self.today_count += 1;
+            }
+            _ => {}
+        }
+        Ok(())
+    }
 
-        let mut wpm_interval = tokio::time::interval(self.wpm.period());
-        let mut save_interval =
-            tokio::time::interval(Duration::from_secs(self.state.config().stats_save_interval));
-
-        while self.state().alive {
-            select! {
-                Some(event) = self.recv() => {
-                    self.handle_event(&event).await;
-                }
-                _ = wpm_interval.tick() => {
-                    self.wpm.next();
-                    self.send(DomainEvent::CurrentStats(self.stats())).await;
-                }
-                _ = save_interval.tick() => {
-                    self.write_stats(&self.state.config().stats_file, self.stats()).await;
-                }
-                _ = tokio::time::sleep_until(next_midnight_instant()) => {
-                    self.today_count = 0;
-                }
+    async fn step(&mut self) -> maiko::Result<StepAction> {
+        select! {
+            _ = self.wpm_interval.tick() => {
+                self.wpm.next();
+                self.ctx.send(CharonEvent::CurrentStats(self.stats())).await?;
+            }
+            _ = self.save_interval.tick() => {
+                self.write_stats(&self.state.config().stats_file, self.stats()).await;
+            }
+            _ = tokio::time::sleep_until(next_midnight_instant()) => {
+                self.today_count = 0;
             }
         }
-
-        self.shutdown().await;
+        Ok(StepAction::Yield)
     }
 
-    async fn shutdown(&mut self) {
+    async fn on_shutdown(&mut self) -> maiko::Result {
         self.write_stats(&self.state.config().stats_file, self.stats())
             .await;
-    }
-
-    async fn tick(&mut self) {}
-
-    fn state(&self) -> &ActorState {
-        &self.state
-    }
-
-    fn state_mut(&mut self) -> &mut ActorState {
-        &mut self.state
+        Ok(())
     }
 }

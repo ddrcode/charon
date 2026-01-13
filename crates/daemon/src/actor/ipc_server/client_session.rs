@@ -1,33 +1,34 @@
-use charon_lib::event::{DomainEvent, Event, Mode};
+use std::sync::Arc;
+
+use charon_lib::event::{CharonEvent, Mode};
+use maiko::{Context, Envelope};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::net::UnixStream;
 use tokio::net::unix::WriteHalf;
-use tokio::sync::mpsc::{Receiver, Sender};
+use tokio::sync::mpsc::Receiver;
 use tracing::info;
 
-#[derive(Debug)]
 pub struct ClientSession {
     stream: UnixStream,
-    broker_tx: Sender<Event>,
-    session_rx: Receiver<Event>,
+    ctx: Context<CharonEvent>,
+    session_rx: Receiver<Arc<Envelope<CharonEvent>>>,
 }
 
 impl ClientSession {
-    pub fn new(stream: UnixStream, broker_tx: Sender<Event>, session_rx: Receiver<Event>) -> Self {
+    pub fn new(
+        stream: UnixStream,
+        ctx: Context<CharonEvent>,
+        session_rx: Receiver<Arc<Envelope<CharonEvent>>>,
+    ) -> Self {
         Self {
             stream,
-            broker_tx,
+            ctx,
             session_rx,
         }
     }
 
     pub async fn init(&mut self, mode: Mode) {
-        self.send(Event::new(
-            "IPCServer".into(),
-            DomainEvent::ModeChange(mode),
-        ))
-        .await
-        .unwrap();
+        self.send(CharonEvent::ModeChange(mode)).await.unwrap();
     }
 
     pub async fn run(&mut self) {
@@ -42,7 +43,11 @@ impl ClientSession {
                     if n == 0 {
                         break;
                     }
-                    Self::handle_stream(&line, self.broker_tx.clone()).await;
+                    info!("Received: {}", line.trim());
+                    let envelope = serde_json::from_str::<Envelope<CharonEvent>>(&line).unwrap();
+                    if let Err(e) = self.ctx.send_envelope(envelope).await {
+                        tracing::warn!("Failed to send to broker: {e}");
+                    }
                     line.clear();
                 }
                 Some(event) = self.session_rx.recv() => {
@@ -52,26 +57,19 @@ impl ClientSession {
         }
     }
 
-    async fn handle_stream(line: &str, broker_tx: Sender<Event>) {
-        info!("Received: {}", line.trim());
-        let event = serde_json::from_str::<Event>(line).unwrap();
-        if let Err(e) = broker_tx.send(event).await {
-            tracing::warn!("Failed to send to broker: {e}");
-        }
-    }
-
-    async fn handle_event(event: &Event, writer: &mut WriteHalf<'_>) -> bool {
+    async fn handle_event(event: &Envelope<CharonEvent>, writer: &mut WriteHalf<'_>) -> bool {
         let payload = serde_json::to_string(event).unwrap();
 
         writer.write_all(payload.as_bytes()).await.unwrap();
         writer.write_all(b"\n").await.unwrap();
         // writer.flush().await.unwrap();
 
-        event.payload != DomainEvent::Exit
+        !matches!(event.event(), CharonEvent::Exit)
     }
 
-    pub async fn send(&mut self, event: Event) -> eyre::Result<()> {
+    pub async fn send(&mut self, event: CharonEvent) -> eyre::Result<()> {
         let stream = &mut self.stream;
+        let event = Envelope::new(event, self.ctx.name());
         let payload = serde_json::to_string(&event)?;
         stream.write_all(payload.as_bytes()).await?;
         stream.write_all(b"\n").await?;

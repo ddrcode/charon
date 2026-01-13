@@ -1,16 +1,10 @@
 use std::collections::HashSet;
 
-use charon_lib::event::{DomainEvent, Event, Mode};
-use tokio::{io::unix::AsyncFd, task::JoinHandle};
+use charon_lib::event::{CharonEvent, Mode};
+use maiko::{Context, Envelope, StepAction};
 
-use crate::{
-    adapter::EventDeviceUnix,
-    domain::{ActorState, traits::Actor},
-    error::CharonError,
-    port::EventDevice,
-    util::evdev::find_input_device,
-};
-use evdev::{Device, EventSummary, InputEvent};
+use crate::{domain::ActorState, port::EventDevice};
+use evdev::{EventSummary, InputEvent};
 use tracing::{debug, error, warn};
 
 /// The key actor of Charon, that scans evdev (input device) on Linux side
@@ -21,6 +15,8 @@ use tracing::{debug, error, warn};
 /// the key events should be send only to the host, while when in in-app mode
 /// the keyboard is available to Charon device.
 pub struct KeyScanner {
+    ctx: Context<CharonEvent>,
+
     /// Actor's state
     state: ActorState,
 
@@ -41,8 +37,14 @@ pub struct KeyScanner {
 }
 
 impl KeyScanner {
-    pub fn new(state: ActorState, input: Box<dyn EventDevice>, keyboard_name: String) -> Self {
+    pub fn new(
+        ctx: Context<CharonEvent>,
+        state: ActorState,
+        input: Box<dyn EventDevice>,
+        keyboard_name: String,
+    ) -> Self {
         KeyScanner {
+            ctx,
             state,
             input,
             keyboard_name,
@@ -51,45 +53,31 @@ impl KeyScanner {
         }
     }
 
-    async fn handle_device_event(&mut self, key_event: InputEvent) {
+    async fn handle_device_event(&mut self, key_event: InputEvent) -> maiko::Result<()> {
         let payload = match key_event.destructure() {
             // meaning of value: 0 - key release, 1 - key press, 2 - key repeat
             EventSummary::Key(_, key, value) => match value {
                 1 | 2 => {
                     self.keyboard_state.insert(key.code());
-                    DomainEvent::KeyPress(key, self.keyboard_name.clone())
+                    CharonEvent::KeyPress(key, self.keyboard_name.clone())
                 }
                 0 => {
                     self.keyboard_state.remove(&key.code());
-                    DomainEvent::KeyRelease(key, self.keyboard_name.clone())
+                    CharonEvent::KeyRelease(key, self.keyboard_name.clone())
                 }
                 other => {
                     warn!("Unhandled key event value: {}", other);
-                    return;
+                    return Ok(());
                 }
             },
-            EventSummary::Synchronization(..) | EventSummary::Misc(..) => return,
+            EventSummary::Synchronization(..) | EventSummary::Misc(..) => return Ok(()),
             e => {
                 warn!("Unhandled device event: {:?}", e);
-                return;
+                return Ok(());
             }
         };
 
-        self.process(payload).await;
-    }
-
-    async fn handle_event(&mut self, event: &Event) {
-        match &event.payload {
-            DomainEvent::Exit => {
-                self.stop().await;
-            }
-            DomainEvent::ModeChange(mode) => {
-                self.toggle_grabbing(mode);
-            }
-            other => {
-                debug!("Unhandled event: {:?}", other);
-            }
-        }
+        self.ctx.send(payload).await
     }
 
     fn toggle_grabbing(&mut self, mode: &Mode) {
@@ -131,56 +119,46 @@ impl Drop for KeyScanner {
     }
 }
 
-#[async_trait::async_trait]
-impl Actor for KeyScanner {
-    type Init = String;
+impl maiko::Actor for KeyScanner {
+    type Event = CharonEvent;
 
-    fn name() -> &'static str {
-        "KeyScanner"
-    }
-
-    fn spawn(state: ActorState, keyboard_name: String) -> Result<JoinHandle<()>, CharonError> {
-        let keyboard = &state.config().keyboard;
-        let device_path = find_input_device(keyboard)
-            .ok_or_else(|| CharonError::KeyboardNotFound(keyboard_name.clone()))?;
-        let device = Device::open(device_path)?;
-        let async_dev = AsyncFd::new(device)?;
-        let input = EventDeviceUnix::new(async_dev);
-        let mut scanner = KeyScanner::new(state, Box::new(input), keyboard_name);
-        let handle = tokio::task::spawn(async move {
-            scanner.run().await;
-        });
-        Ok(handle)
-    }
-
-    fn state(&self) -> &ActorState {
-        &self.state
-    }
-
-    fn state_mut(&mut self) -> &mut ActorState {
-        &mut self.state
-    }
-
-    async fn init(&mut self) {
+    async fn on_start(&mut self) -> maiko::Result<()> {
         self.toggle_grabbing(&self.state.mode().await);
+        Ok(())
     }
 
-    async fn tick(&mut self) {
-        tokio::select! {
-            Some(event) = self.state.receiver.recv() => {
-                self.handle_event(&event).await;
+    async fn handle_event(&mut self, envelope: &Envelope<Self::Event>) -> maiko::Result<()> {
+        match envelope.event() {
+            CharonEvent::Exit => {
+                self.ctx.stop();
             }
-            Some(event) = self.input.next_event() => {
-                self.handle_device_event(event).await;
+            CharonEvent::ModeChange(mode) => {
+                self.toggle_grabbing(mode);
+            }
+            other => {
+                debug!("Unhandled event: {:?}", other);
+            }
+        }
+        Ok(())
+    }
 
-                // grab/ungrab only when all keys are released
-                if self.should_handle_grab.is_some() && self.keyboard_state.is_empty() {
-                    if let Some(mode) = self.should_handle_grab {
-                        self.toggle_grabbing(&mode);
-                    }
+    async fn step(&mut self) -> maiko::Result<StepAction> {
+        while let Some(event) = self.input.next_event().await {
+            self.handle_device_event(event).await?;
+
+            // grab/ungrab only when all keys are released
+            if self.should_handle_grab.is_some() && self.keyboard_state.is_empty() {
+                if let Some(mode) = self.should_handle_grab {
+                    self.toggle_grabbing(&mode);
                 }
             }
         }
+        Ok(StepAction::Yield)
+    }
+
+    fn on_error(&self, error: maiko::Error) -> maiko::Result<()> {
+        error!("Error occured: {:?}", error);
+        Err(error)
     }
 }
 
@@ -248,7 +226,7 @@ mod tests {
         // are released
         switch_mode(&broker_tx, Mode::InApp).await;
         scanner.tick().await;
-        assert_event_matches!(broker_rx, DomainEvent::KeyPress(KeyCode::KEY_A, ..));
+        assert_event_matches!(broker_rx, CharonEvent::KeyPress(KeyCode::KEY_A, ..));
 
         with_lock!(state, |lock| {
             assert!(
@@ -264,7 +242,7 @@ mod tests {
         }
 
         scanner.tick().await;
-        assert_event_matches!(broker_rx, DomainEvent::KeyRelease(KeyCode::KEY_A, ..));
+        assert_event_matches!(broker_rx, CharonEvent::KeyRelease(KeyCode::KEY_A, ..));
 
         with_lock!(state, |lock| {
             assert!(!lock.grabbed);
