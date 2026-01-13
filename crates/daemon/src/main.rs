@@ -20,7 +20,7 @@ use crate::{
         ipc_server::IPCServer,
     },
     adapter::{EventDeviceUnix, HIDDeviceUnix, KeymapLoaderYaml, QmkAsyncHidDevice},
-    config::{CharonConfig, InputConfig},
+    config::CharonConfig,
     domain::{ActorState, traits::Processor},
     error::CharonError,
     port::KeymapLoader,

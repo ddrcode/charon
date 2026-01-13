@@ -1,7 +1,7 @@
 use charon_lib::event::CharonEvent;
 use lru_time_cache::LruCache;
 use maiko::{Context, Envelope, StepAction};
-use std::{sync::Arc, time::Duration};
+use std::time::Duration;
 use tracing::warn;
 
 use crate::actor::telemetry::MetricsManager;
@@ -27,26 +27,27 @@ impl Telemetry {
 impl maiko::Actor for Telemetry {
     type Event = CharonEvent;
 
-    async fn handle_envelope(&mut self, lope: &Arc<Envelope<Self::Event>>) -> maiko::Result {
-        match &lope.event {
+    async fn handle_event(&mut self, envelope: &Envelope<Self::Event>) -> maiko::Result {
+        let meta = envelope.meta();
+        match envelope.event() {
             CharonEvent::KeyPress(key, keyboard) => {
-                self.events.insert(lope.meta.id(), lope.meta.timestamp());
+                self.events.insert(meta.id(), meta.timestamp());
                 self.metrics.register_key_event(key, keyboard);
             }
             CharonEvent::KeyRelease(..) => {
-                self.events.insert(lope.meta.id(), lope.meta.timestamp());
+                self.events.insert(meta.id(), meta.timestamp());
             }
             CharonEvent::ReportSent => {
-                if let Some(ref source_id) = lope.meta.correlation_id() {
+                if let Some(ref source_id) = meta.correlation_id() {
                     if let Some(timestamp) = self.events.remove(source_id) {
-                        if let Some(diff) = lope.meta.timestamp().checked_sub(timestamp) {
+                        if let Some(diff) = meta.timestamp().checked_sub(timestamp) {
                             self.metrics.register_key_to_report_time(diff);
                         }
                     }
                 } else {
                     warn!(
                         "Missing source_event_id for ReportSent event, id: {}",
-                        lope.meta.id()
+                        meta.id()
                     );
                 }
             }

@@ -45,7 +45,7 @@ impl ClientSession {
                     }
                     info!("Received: {}", line.trim());
                     let envelope = serde_json::from_str::<Envelope<CharonEvent>>(&line).unwrap();
-                    if let Err(e) = self.ctx.send(envelope.event).await {
+                    if let Err(e) = self.ctx.send(envelope.event().clone()).await {
                         tracing::warn!("Failed to send to broker: {e}");
                     }
                     line.clear();
@@ -64,7 +64,7 @@ impl ClientSession {
         writer.write_all(b"\n").await.unwrap();
         // writer.flush().await.unwrap();
 
-        !matches!(event.event, CharonEvent::Exit)
+        !matches!(event.event(), CharonEvent::Exit)
     }
 
     pub async fn send(&mut self, event: CharonEvent) -> eyre::Result<()> {

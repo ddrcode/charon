@@ -5,7 +5,7 @@ use charon_lib::{
     stats::CurrentStats,
     util::time::{is_today, next_midnight_instant},
 };
-use maiko::{Context, Meta};
+use maiko::{Context, Envelope, StepAction};
 use tokio::select;
 use tracing::error;
 
@@ -91,8 +91,8 @@ impl maiko::Actor for TypingStats {
         Ok(())
     }
 
-    async fn handle_event(&mut self, event: &Self::Event) -> maiko::Result {
-        match event {
+    async fn handle_event(&mut self, envelope: &Envelope<Self::Event>) -> maiko::Result {
+        match envelope.event() {
             CharonEvent::Exit => self.ctx.stop(),
             CharonEvent::KeyPress(key, _) => {
                 self.wpm.register_key(key);
@@ -104,7 +104,7 @@ impl maiko::Actor for TypingStats {
         Ok(())
     }
 
-    async fn tick(&mut self) -> maiko::Result {
+    async fn step(&mut self) -> maiko::Result<StepAction> {
         select! {
             _ = self.wpm_interval.tick() => {
                 self.wpm.next();
@@ -117,7 +117,7 @@ impl maiko::Actor for TypingStats {
                 self.today_count = 0;
             }
         }
-        Ok(())
+        Ok(StepAction::Yield)
     }
 
     async fn on_shutdown(&mut self) -> maiko::Result {

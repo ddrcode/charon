@@ -1,10 +1,9 @@
 use std::path::Path;
-use std::time::Duration;
 use std::{fs, sync::Arc};
 
 use crate::domain::ActorState;
 use charon_lib::event::CharonEvent;
-use maiko::{Context, Envelope, Meta, StepAction};
+use maiko::{Context, Envelope, StepAction};
 use tokio::net::UnixListener;
 use tokio::sync::mpsc;
 use tracing::info;
@@ -38,16 +37,16 @@ impl IPCServer {
 impl maiko::Actor for IPCServer {
     type Event = CharonEvent;
 
-    async fn handle_envelope(&mut self, lope: &Arc<Envelope<Self::Event>>) -> maiko::Result {
+    async fn handle_event(&mut self, envelope: &Envelope<Self::Event>) -> maiko::Result {
         if let Some(session) = &self.session {
-            if let Err(e) = session.sender.send(lope.clone()).await {
+            if let Err(e) = session.sender.send(Arc::new(envelope.clone())).await {
                 tracing::warn!("Failed to send event to session: {e}");
                 self.session = None;
             }
         }
-        match &lope.event {
+        match envelope.event() {
             // FIXME change dependency on actor name
-            CharonEvent::ModeChange(mode) if lope.meta.actor_name() == "client" => {
+            CharonEvent::ModeChange(mode) if envelope.meta().actor_name() == "client" => {
                 info!("Client requested to change mode to: {mode}");
                 self.state.set_mode(*mode).await;
             }
@@ -77,6 +76,6 @@ impl maiko::Actor for IPCServer {
             });
             self.session = Some(ClientSessionState::new(handle, session_tx));
         }
-        Ok(StepAction::Backoff(Duration::from_millis(1000)))
+        Ok(StepAction::Yield)
     }
 }

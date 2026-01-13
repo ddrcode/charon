@@ -1,7 +1,5 @@
-use std::time::Duration;
-
 use charon_lib::{event::CharonEvent, qmk::QMKEvent};
-use maiko::{Context, StepAction};
+use maiko::{Context, Envelope, StepAction};
 use tracing::debug;
 
 use crate::{domain::ActorState, port::QmkDevice};
@@ -40,8 +38,8 @@ impl QMK {
 impl maiko::Actor for QMK {
     type Event = CharonEvent;
 
-    async fn handle_event(&mut self, event: &Self::Event) -> maiko::Result<()> {
-        if matches!(event, CharonEvent::Exit) {
+    async fn handle_event(&mut self, envelope: &Envelope<Self::Event>) -> maiko::Result<()> {
+        if matches!(envelope.event(), CharonEvent::Exit) {
             self.ctx.stop();
         }
         Ok(())
@@ -51,6 +49,6 @@ impl maiko::Actor for QMK {
         while let Some(qmk_event) = self.device.read_event().await? {
             self.process_qmk_event(qmk_event).await?;
         }
-        Ok(StepAction::Backoff(Duration::from_millis(5)))
+        Ok(StepAction::Yield)
     }
 }

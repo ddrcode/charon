@@ -53,11 +53,11 @@ impl KeyWriter {
 impl maiko::Actor for KeyWriter {
     type Event = CharonEvent;
 
-    async fn handle_envelope(&mut self, lope: &Arc<Envelope<Self::Event>>) -> maiko::Result<()> {
-        match &lope.event {
+    async fn handle_event(&mut self, envelope: &Envelope<Self::Event>) -> maiko::Result<()> {
+        match envelope.event() {
             CharonEvent::HidReport(report) => {
-                self.send_report(report, lope.meta.actor_name());
-                self.send_telemetry(&lope.meta).await?;
+                self.send_report(report, envelope.meta().actor_name());
+                self.send_telemetry(envelope.meta()).await?;
             }
             CharonEvent::Exit => self.ctx.stop(),
             CharonEvent::ModeChange(_) => self.reset(),

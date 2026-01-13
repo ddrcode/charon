@@ -4,7 +4,7 @@ use std::{
 };
 
 use charon_lib::event::CharonEvent;
-use maiko::{Context, StepAction};
+use maiko::{Context, Envelope, StepAction};
 use tokio::process::Command;
 use tracing::{error, info, warn};
 
@@ -80,8 +80,8 @@ impl PowerManager {
 impl maiko::Actor for PowerManager {
     type Event = CharonEvent;
 
-    async fn handle_event(&mut self, event: &Self::Event) -> maiko::Result<()> {
-        match event {
+    async fn handle_event(&mut self, envelope: &Envelope<Self::Event>) -> maiko::Result<()> {
+        match envelope.event() {
             CharonEvent::Exit => self.ctx.stop(),
             CharonEvent::KeyPress(..) if self.asleep => self.handle_awake().await?,
             _ => {}

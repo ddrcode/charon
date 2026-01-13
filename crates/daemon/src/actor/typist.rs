@@ -1,6 +1,6 @@
 use charon_lib::event::{CharonEvent, Mode};
 use deunicode::deunicode_char;
-use maiko::{Context, Meta};
+use maiko::{Context, Envelope};
 use tokio::fs::{read_to_string, remove_file};
 use tracing::{debug, warn};
 
@@ -89,8 +89,9 @@ impl Typist {
 impl maiko::Actor for Typist {
     type Event = CharonEvent;
 
-    async fn handle(&mut self, event: &Self::Event, meta: &Meta) -> maiko::Result<()> {
-        match event {
+    async fn handle_event(&mut self, envelope: &Envelope<Self::Event>) -> maiko::Result<()> {
+        let meta = envelope.meta();
+        match envelope.event() {
             CharonEvent::SendText(txt) => self.send_string(txt, &meta.id()).await?,
             CharonEvent::SendFile(path, remove) => self
                 .send_file(path, *remove, &meta.id())
