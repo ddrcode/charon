@@ -182,9 +182,12 @@ impl App {
             self.should_quit = true;
             return Ok(());
         }
-        let envelope = serde_json::from_str::<Envelope<CharonEvent>>(line.trim())?;
-        self.app_event_tx
-            .send(AppEvent::Backend(envelope.event().clone()))?;
+        let msg_line = line.trim();
+        if !msg_line.is_empty() {
+            let envelope = serde_json::from_str::<Envelope<CharonEvent>>(msg_line)?;
+            self.app_event_tx
+                .send(AppEvent::Backend(envelope.event().clone()))?;
+        }
         Ok(())
     }
 
