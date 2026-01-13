@@ -45,7 +45,7 @@ impl ClientSession {
                     }
                     info!("Received: {}", line.trim());
                     let envelope = serde_json::from_str::<Envelope<CharonEvent>>(&line).unwrap();
-                    if let Err(e) = self.ctx.send(envelope.event().clone()).await {
+                    if let Err(e) = self.ctx.send_envelope(envelope).await {
                         tracing::warn!("Failed to send to broker: {e}");
                     }
                     line.clear();
