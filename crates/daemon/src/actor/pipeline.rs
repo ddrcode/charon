@@ -33,7 +33,7 @@ impl Pipeline {
             self.ctx
                 .send_envelope(Envelope::<CharonEvent>::with_correlation(
                     event,
-                    self.ctx.clone_name(),
+                    self.ctx.actor_id().clone(),
                     correlation_id,
                 ))
                 .await?;

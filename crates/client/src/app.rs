@@ -6,7 +6,7 @@ use std::{borrow::Cow, sync::Arc};
 use charon_lib::event::CharonEvent;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use eyre::OptionExt;
-use maiko::Envelope;
+use maiko::{ActorId, Envelope};
 use ratatui::layout::Rect;
 use tokio::{
     io::{AsyncBufReadExt, AsyncWriteExt, BufReader, BufWriter},
@@ -38,6 +38,7 @@ pub struct App {
     command_rx: mpsc::UnboundedReceiver<Command>,
     sock_writer: Option<BufWriter<OwnedWriteHalf>>,
     prev_tick: Instant,
+    actor_id: ActorId,
 }
 
 impl App {
@@ -55,6 +56,7 @@ impl App {
             command_rx,
             sock_writer: None,
             prev_tick: Instant::now(),
+            actor_id: ActorId::new("client".into()),
         })
     }
 
@@ -233,7 +235,7 @@ impl App {
             .sock_writer
             .as_mut()
             .ok_or_eyre("sock_writer not initialized")?;
-        let event = Envelope::new(payload.clone(), "client");
+        let event = Envelope::new(payload.clone(), self.actor_id.clone());
         let json = serde_json::to_string(&event)?;
         writer.write_all(json.as_bytes()).await?;
         writer.write_all(b"\n").await?;
