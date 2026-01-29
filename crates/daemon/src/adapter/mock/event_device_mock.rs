@@ -25,6 +25,13 @@ impl EventDeviceState {
         let event = InputEvent::new_now(EventType::KEY.0, key_code.code(), 0);
         self.events.push_back(event);
     }
+
+    /// Waits until all queued events have been consumed.
+    pub async fn drain(state: &Arc<Mutex<Self>>) {
+        while !state.lock().await.events.is_empty() {
+            sleep(Duration::from_micros(100)).await;
+        }
+    }
 }
 
 #[derive(Default)]

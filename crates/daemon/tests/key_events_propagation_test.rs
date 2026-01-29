@@ -1,9 +1,9 @@
-use std::{sync::Arc, time::Duration};
+use std::sync::Arc;
 
 use charon_lib::event::{CharonEvent, Mode, Topic as CharonTopic};
 use evdev::KeyCode;
-use maiko::{ActorId, Supervisor, testing::Harness};
-use tokio::{sync::Mutex, time::sleep};
+use maiko::{ActorId, Envelope, Supervisor, testing::Harness};
+use tokio::sync::Mutex;
 
 use charond::{
     actor::KeyScanner,
@@ -11,6 +11,16 @@ use charond::{
     config::CharonConfig,
     domain::ActorState,
 };
+
+/// A no-op actor that subscribes to events for test observation.
+struct Sink;
+
+impl maiko::Actor for Sink {
+    type Event = CharonEvent;
+    async fn handle_event(&mut self, _: &Envelope<Self::Event>) -> maiko::Result<()> {
+        Ok(())
+    }
+}
 
 struct MockKeyboard {
     state: Arc<Mutex<EventDeviceState>>,
@@ -22,13 +32,11 @@ impl MockKeyboard {
     }
 
     async fn key_press(&self, key_code: KeyCode) {
-        let mut state = self.state.lock().await;
-        state.simulate_key_press(key_code);
+        self.state.lock().await.simulate_key_press(key_code);
     }
 
-    async fn key_release(&self, key_code: KeyCode) {
-        let mut state = self.state.lock().await;
-        state.simulate_key_release(key_code);
+    async fn drain(&self) {
+        EventDeviceState::drain(&self.state).await;
     }
 }
 
@@ -52,14 +60,14 @@ async fn setup() -> eyre::Result<TestContext> {
         let keyboard = input.state().clone();
         let scanner = sup.add_actor(
             "KeyScanner",
-            |ctx| {
-                // let async_dev = AsyncFd::new(device).unwrap();
-                KeyScanner::new(ctx, state.clone(), Box::new(input), "test-keyboard".into())
-            },
+            |ctx| KeyScanner::new(ctx, state.clone(), Box::new(input), "test-keyboard".into()),
             [System],
         )?;
         (scanner, keyboard)
     };
+
+    // Sink subscribes to KeyInput to observe events from KeyScanner
+    sup.add_actor("Sink", |_ctx| Sink, [KeyInput])?;
 
     Ok(TestContext {
         sup,
@@ -70,12 +78,13 @@ async fn setup() -> eyre::Result<TestContext> {
 }
 
 #[tokio::test]
-async fn test_key_send() -> eyre::Result<()> {
+async fn test_key_press_emits_event() -> eyre::Result<()> {
     let mut ctx = setup().await?;
     ctx.sup.start().await?;
 
     ctx.test.start_recording().await;
     ctx.keyboard.key_press(KeyCode::KEY_S).await;
+    ctx.keyboard.drain().await;
     ctx.test.stop_recording().await;
 
     let spy = ctx.test.actor(&ctx.scanner);

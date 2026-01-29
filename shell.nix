@@ -12,6 +12,7 @@ pkgs.mkShell {
     pkg-config
     cargo-machete
     nodejs_20
+    just
   ];
 
   # inputsFrom = [ pkgs.hello pkgs.gnutar ];
