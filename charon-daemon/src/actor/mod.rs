@@ -1,4 +1,4 @@
-pub mod ipc_server;
+pub mod ipc_bridge;
 mod key_scanner;
 mod key_writer;
 mod pipeline;

@@ -17,7 +17,7 @@ use tracing_subscriber::FmtSubscriber;
 use crate::{
     actor::{
         KeyScanner, KeyWriter, Pipeline, PowerManager, QMK, Telemetry, TypingStats, Typist,
-        ipc_server::IPCServer,
+        ipc_bridge::IPCServer,
     },
     adapter::{EventDeviceUnix, HIDDeviceUnix, KeymapLoaderYaml, QmkAsyncHidDevice},
     config::CharonConfig,
