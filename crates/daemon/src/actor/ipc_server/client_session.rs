@@ -69,7 +69,7 @@ impl ClientSession {
 
     pub async fn send(&mut self, event: CharonEvent) -> eyre::Result<()> {
         let stream = &mut self.stream;
-        let event = Envelope::new(event, self.ctx.name());
+        let event = Envelope::new(event, self.ctx.actor_id().clone());
         let payload = serde_json::to_string(&event)?;
         stream.write_all(payload.as_bytes()).await?;
         stream.write_all(b"\n").await?;

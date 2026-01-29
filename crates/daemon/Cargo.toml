@@ -4,6 +4,17 @@ version = "0.1.0"
 edition = "2024"
 rust-version = "1.85"
 
+[features]
+testing = ["maiko/test-harness"]
+
+[[test]]
+name = "key_events_propagation_test"
+required-features = ["testing"]
+
+[[test]]
+name = "key_scanner_test"
+required-features = ["testing"]
+
 [dependencies]
 async-trait = "0.1.88"
 evdev.workspace = true

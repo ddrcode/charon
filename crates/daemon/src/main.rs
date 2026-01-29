@@ -53,7 +53,7 @@ async fn main() -> eyre::Result<()> {
                 let input = EventDeviceUnix::new(async_dev);
                 KeyScanner::new(ctx, state.clone(), Box::new(input), name)
             },
-            &[T::System],
+            [T::System],
         )?;
     }
 
@@ -64,7 +64,7 @@ async fn main() -> eyre::Result<()> {
             let dev = HIDDeviceUnix::new(&dev_path);
             KeyWriter::new(ctx, Box::new(dev))
         },
-        &[T::System, T::KeyOutput],
+        [T::System, T::KeyOutput],
     )?;
 
     supervisor.add_actor(
@@ -76,20 +76,20 @@ async fn main() -> eyre::Result<()> {
             ];
             Pipeline::new(ctx, processors)
         },
-        &[T::System, T::KeyInput],
+        [T::System, T::KeyInput],
     )?;
 
     supervisor.add_actor(
         "IPCServer",
         |ctx| IPCServer::new(ctx, state.clone()),
-        &[T::System, T::Stats, T::Monitoring],
+        [T::System, T::Stats, T::Monitoring],
     )?;
 
     if config.sleep_script.is_some() && config.awake_script.is_some() {
         supervisor.add_actor(
             "PowerManager",
             |ctx| PowerManager::new(ctx, state.clone()),
-            &[T::System, T::KeyInput],
+            [T::System, T::KeyInput],
         )?;
     }
 
@@ -107,7 +107,7 @@ async fn main() -> eyre::Result<()> {
         supervisor.add_actor(
             "QMK",
             |ctx| QMK::new(ctx, state.clone(), Box::new(device)),
-            &[T::System],
+            [T::System],
         )?;
     }
 
@@ -121,14 +121,14 @@ async fn main() -> eyre::Result<()> {
         supervisor.add_actor(
             "Telemetry",
             Telemetry::new,
-            &[T::System, T::Telemetry, T::KeyInput, T::Stats],
+            [T::System, T::Telemetry, T::KeyInput, T::Stats],
         )?;
     }
 
     supervisor.add_actor(
         "TypingStats",
         |ctx| TypingStats::new(ctx, state.clone()),
-        &[T::System, T::KeyInput],
+        [T::System, T::KeyInput],
     )?;
 
     let mut sigterm = unix::signal(unix::SignalKind::terminate())?;
