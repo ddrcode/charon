@@ -1,8 +1,7 @@
 [workspace]
 members = [
-    "crates/daemon",
-    "crates/client",
-    "crates/shared",
+    "charon-daemon",
+    "charon-client",
 ]
 resolver = "3"
 
@@ -14,7 +13,6 @@ serde_json = "1.0.140"
 tokio = { version = "1.46.0", features=["full"] }
 tracing = "0.1.41"
 tracing-subscriber = "0.3.19"
-charon-lib = { path = "crates/shared" }
 uuid = { version = "1.17.0", features = ["v4", "serde"] }
 eyre = { version = "0.6.12", default-features = false, features = ["auto-install", "track-caller"] }
 maiko = { version = "0.2.1", path = "../maiko/maiko", features = ["serde"] }

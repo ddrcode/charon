@@ -1,0 +1,71 @@
+{
+  "categories": [
+    {
+      "name": "speed",
+      "quotes": [
+        "Are you being chased?",
+        "Have you been using Keybr lately?",
+        "You are not Dave. Who are you?",
+        "That’s not typing, that’s teleportation!",
+        "Slow down, mortal. Charon can’t keep up.",
+        "Styx never looked so good.",
+        "The river is calm, the keys are not.",
+        "Careful now. You're about to out-type your past.",
+        "Is this a keyboard or a launchpad?",
+        "Your WPM scares even the Fates.",
+        "Some say fast typists see time in keystrokes per thought.",
+        "This must be what sonic boom feels like — but with semicolons.",
+        "We checked. Your keyboard’s warranty just sighed.",
+        "Welcome back, Neo.",
+        "Cry havoc, and let slip the keys of rage!"
+      ]
+    },
+    {
+      "name": "idle",
+      "quotes": [
+        "Charon is rowing, but the boat has no passenger.",
+        "Typing? Not here. Maybe in Greece.",
+        "You are on mute.",
+        "You are clearly not typing. Are you thinking, at least?",
+        "No keys were harmed during this break.",
+        "Maybe Charon should try paddle-boarding instead…",
+        "One does not simply cross the Styx without pressing Enter.",
+        "Charon loves your keyboard more than you do.",
+        "404: Fingers not found.",
+        "I have mixed feelings about your idleness",
+        "Charon wonders if the silence is profound or just lunch.",
+        "No rush. The underworld has no deadlines.",
+        "Keyboard: waiting. CPU: chilling. You: ??",
+        "Even Cerberus took a nap...",
+        "The Styx is mirror-smooth. No ripples of thought.",
+        "Now is the winter of our discontent\nmade eternal by your uncommitted changes."
+      ]
+    },
+    {
+      "name": "charonsay",
+      "quotes": [
+        "Ctrl+S your soul.",
+        "The key to happiness? More keys.",
+        "You think this is a keyboard. It’s a ferry ticket.",
+        "Charon is a fan of modal editing.",
+        "When in doubt, press Esc.",
+        "Shift happens.",
+        "Charon’s favorite key? Return.",
+        "Book to read: \"How to exit Vim\" by Charon de Dvorak.",
+        "There’s no undo in real life. Type wisely.",
+        "A ferry, a function, and a finger walk into a terminal…",
+        "Vim is a lifestyle. Emacs is a commitment.",
+        "Some keys open doors. Others close them. Know the difference.",
+        "Alt-F4 is not a philosophical argument.",
+        "You aren't lost. You're just in a different buffer.",
+        "If life had a leader key, what would yours be?",
+        "Charon doesn’t rage-quit. He rage-rows.",
+        "A host! A host! My kingdom for a host!",
+        "To type, or not to type — that is the recursion.",
+        "Every keystroke crosses the river. Charon counts them all.",
+        "The dead pay with coins. You pay with keystrokes.",
+        "Charon has ferried poets, kings, and semicolons. He judges none."
+      ]
+    }
+  ]
+}
