@@ -3,7 +3,7 @@ mod hid_device_unix;
 mod keymap_loader_yaml;
 mod qmk_async_hid_device;
 
-#[cfg(test)]
+// #[cfg(test)]
 pub mod mock;
 
 pub use event_device_unix::EventDeviceUnix;
