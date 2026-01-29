@@ -27,7 +27,10 @@ impl Default for AppConfig {
             splash_duration: Duration::from_secs(180),
             fast_typing_treshold: 40,
 
-            keyboard_layout_file: PathBuf::from("data/layouts/keychron_q10_ansi.txt"),
+            keyboard_layout_file: PathBuf::from(format!(
+                "{}/data/layouts/keychron_q10_ansi.txt",
+                env!("CARGO_MANIFEST_DIR")
+            )),
             clipboard_cache_file: clip_cache,
 
             password_app: "passepartui",

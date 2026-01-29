@@ -33,8 +33,11 @@ impl Charonsay {
         Box::new(Self {
             ctx,
             state,
-            wisdom_db: WisdomDb::from_file("data/wisdoms.json")
-                .expect("Couldn't load JSON data for WisdomDB"),
+            wisdom_db: WisdomDb::from_file(&format!(
+                "{}/data/wisdoms.json",
+                env!("CARGO_MANIFEST_DIR")
+            ))
+            .expect("Couldn't load JSON data for WisdomDB"),
         })
     }
 

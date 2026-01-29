@@ -51,7 +51,7 @@ pub fn default_stats_wpm_slot_count() -> usize {
 }
 
 pub fn default_keymaps_dir() -> String {
-    String::from("data/keymaps")
+    format!("{}/data/keymaps", env!("CARGO_MANIFEST_DIR"))
 }
 
 pub fn default_host_keymap() -> String {
