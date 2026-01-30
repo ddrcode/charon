@@ -1,6 +1,4 @@
-use std::pin::Pin;
-
-use crate::domain::CharonEvent;
+use crate::domain::{CharonEvent, traits::ProcessorFuture};
 use evdev::KeyCode;
 use maiko::Meta;
 use tracing::error;
@@ -44,15 +42,7 @@ impl KeyEventProcessor {
 }
 
 impl Processor for KeyEventProcessor {
-    fn process<'a, 'b>(
-        &'a mut self,
-        event: CharonEvent,
-        _meta: Meta,
-    ) -> Pin<Box<dyn Future<Output = Vec<CharonEvent>> + Send + 'b>>
-    where
-        'a: 'b,
-        Self: 'b,
-    {
+    fn process<'a>(&'a mut self, event: CharonEvent, _meta: Meta) -> ProcessorFuture<'a> {
         Box::pin(async move {
             match &event {
                 CharonEvent::KeyPress(key, _) => self.handle_key_press(key).await,

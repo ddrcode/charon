@@ -1,3 +1,3 @@
 mod processor;
 
-pub use processor::Processor;
+pub use processor::{Processor, ProcessorFuture};
