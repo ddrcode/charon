@@ -16,7 +16,6 @@ name = "key_scanner_test"
 required-features = ["testing"]
 
 [dependencies]
-async-trait = "0.1.88"
 chrono = "0.4"
 strum = { version = "0.27", features = ["derive"] }
 evdev.workspace = true

@@ -32,7 +32,6 @@ test:
 test-all:
     cargo test -p charond --features testing
     cargo test -p charon-tui
-    cargo test -p charon-lib
 
 # Run daemon tests with harness
 test-daemon:

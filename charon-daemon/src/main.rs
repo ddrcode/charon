@@ -51,7 +51,7 @@ async fn main() -> eyre::Result<()> {
                 let device = evdev::Device::open(device_path).unwrap();
                 let async_dev = AsyncFd::new(device).unwrap();
                 let input = EventDeviceUnix::new(async_dev);
-                KeyScanner::new(ctx, state.clone(), Box::new(input), name)
+                KeyScanner::new(ctx, state.clone(), input, name)
             },
             [T::System],
         )?;
@@ -106,7 +106,7 @@ async fn main() -> eyre::Result<()> {
         let device = QmkAsyncHidDevice::async_new(&config).await;
         supervisor.add_actor(
             "QMK",
-            |ctx| QMK::new(ctx, state.clone(), Box::new(device)),
+            |ctx| QMK::new(ctx, state.clone(), device),
             [T::System],
         )?;
     }

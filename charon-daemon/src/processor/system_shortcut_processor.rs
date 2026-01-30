@@ -1,3 +1,5 @@
+use std::pin::Pin;
+
 use crate::domain::{CharonEvent, Mode};
 use maiko::Meta;
 use tracing::{debug, error, info};
@@ -67,17 +69,26 @@ impl SystemShortcutProcessor {
     }
 }
 
-#[async_trait::async_trait]
 impl Processor for SystemShortcutProcessor {
-    async fn process(&mut self, event: CharonEvent, _meta: Meta) -> Vec<CharonEvent> {
-        match &event {
-            CharonEvent::HidReport(report) => {
-                if self.handle_report(report).await {
-                    self.events.push(event);
+    fn process<'a, 'b>(
+        &'a mut self,
+        event: CharonEvent,
+        _meta: Meta,
+    ) -> Pin<Box<dyn Future<Output = Vec<CharonEvent>> + Send + 'b>>
+    where
+        'a: 'b,
+        Self: 'b,
+    {
+        Box::pin(async move {
+            match &event {
+                CharonEvent::HidReport(report) => {
+                    if self.handle_report(report).await {
+                        self.events.push(event);
+                    }
                 }
+                _ => self.events.push(event),
             }
-            _ => self.events.push(event),
-        }
-        std::mem::take(&mut self.events)
+            std::mem::take(&mut self.events)
+        })
     }
 }

@@ -2,7 +2,6 @@ use crate::domain::qmk::QMKEvent;
 
 use crate::error::CharonError;
 
-#[async_trait::async_trait]
-pub trait QmkDevice: Send {
-    async fn read_event(&mut self) -> Result<Option<QMKEvent>, CharonError>;
+pub trait QmkDevice: Send + 'static {
+    fn read_event(&mut self) -> impl Future<Output = Result<Option<QMKEvent>, CharonError>> + Send;
 }

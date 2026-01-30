@@ -5,15 +5,15 @@ use tracing::debug;
 use crate::{domain::ActorState, port::QmkDevice};
 
 #[allow(dead_code)]
-pub struct QMK {
+pub struct QMK<Q: QmkDevice> {
     ctx: Context<CharonEvent>,
     state: ActorState,
-    device: Box<dyn QmkDevice>,
+    device: Q,
 }
 
 #[allow(dead_code)]
-impl QMK {
-    pub fn new(ctx: Context<CharonEvent>, state: ActorState, device: Box<dyn QmkDevice>) -> Self {
+impl<Q: QmkDevice> QMK<Q> {
+    pub fn new(ctx: Context<CharonEvent>, state: ActorState, device: Q) -> Self {
         Self { ctx, state, device }
     }
 
@@ -35,7 +35,7 @@ impl QMK {
     }
 }
 
-impl maiko::Actor for QMK {
+impl<Q: QmkDevice> maiko::Actor for QMK<Q> {
     type Event = CharonEvent;
 
     async fn handle_event(&mut self, envelope: &Envelope<Self::Event>) -> maiko::Result<()> {

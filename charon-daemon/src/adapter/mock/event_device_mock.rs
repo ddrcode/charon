@@ -45,7 +45,6 @@ impl EventDeviceMock {
     }
 }
 
-#[async_trait::async_trait]
 impl EventDevice for EventDeviceMock {
     async fn next_event(&mut self) -> Option<InputEvent> {
         sleep(Duration::from_millis(1)).await;

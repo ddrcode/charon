@@ -64,7 +64,6 @@ impl QmkAsyncHidDevice {
     }
 }
 
-#[async_trait::async_trait]
 impl RawHidDevice for QmkAsyncHidDevice {
     async fn read_packet(&mut self) -> Result<(usize, [u8; 32]), CharonError> {
         let mut buf = [0u8; 32];
@@ -77,7 +76,6 @@ impl RawHidDevice for QmkAsyncHidDevice {
     }
 }
 
-#[async_trait::async_trait]
 impl QmkDevice for QmkAsyncHidDevice {
     async fn read_event(&mut self) -> Result<Option<QMKEvent>, CharonError> {
         let (size, msg) = self.read_packet().await?;

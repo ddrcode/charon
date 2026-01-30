@@ -1,3 +1,5 @@
+use std::pin::Pin;
+
 use crate::domain::CharonEvent;
 use evdev::KeyCode;
 use maiko::Meta;
@@ -41,14 +43,23 @@ impl KeyEventProcessor {
     }
 }
 
-#[async_trait::async_trait]
 impl Processor for KeyEventProcessor {
-    async fn process(&mut self, event: CharonEvent, _meta: Meta) -> Vec<CharonEvent> {
-        match &event {
-            CharonEvent::KeyPress(key, _) => self.handle_key_press(key).await,
-            CharonEvent::KeyRelease(key, _) => self.handle_key_release(key).await,
-            _ => self.events.push(event),
-        }
-        std::mem::take(&mut self.events)
+    fn process<'a, 'b>(
+        &'a mut self,
+        event: CharonEvent,
+        _meta: Meta,
+    ) -> Pin<Box<dyn Future<Output = Vec<CharonEvent>> + Send + 'b>>
+    where
+        'a: 'b,
+        Self: 'b,
+    {
+        Box::pin(async move {
+            match &event {
+                CharonEvent::KeyPress(key, _) => self.handle_key_press(key).await,
+                CharonEvent::KeyRelease(key, _) => self.handle_key_release(key).await,
+                _ => self.events.push(event),
+            }
+            std::mem::take(&mut self.events)
+        })
     }
 }
