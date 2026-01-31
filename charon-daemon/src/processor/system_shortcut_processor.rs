@@ -1,5 +1,5 @@
 use crate::domain::{CharonEvent, Mode, traits::ProcessorFuture};
-use maiko::Meta;
+use maiko::{Context, Meta};
 use tracing::{debug, error, info};
 
 use crate::{
@@ -10,11 +10,13 @@ use crate::{
 pub struct SystemShortcutProcessor {
     state: ActorState,
     events: Vec<CharonEvent>,
+    ctx: Context<CharonEvent>,
 }
 
 impl SystemShortcutProcessor {
-    pub fn new(state: ActorState) -> Self {
+    pub fn new(ctx: Context<CharonEvent>, state: ActorState) -> Self {
         Self {
+            ctx,
             state,
             events: Vec::new(),
         }
@@ -25,7 +27,7 @@ impl SystemShortcutProcessor {
         let config = self.state.config();
 
         if num == u64::from(&config.quit_shortcut) {
-            self.send_exit().await;
+            self.ctx.stop();
         } else if num == u64::from(&config.toggle_mode_shortcut) {
             self.toggle_mode().await;
         } else if num == u64::from(&config.awake_host_shortcut) {
@@ -36,10 +38,6 @@ impl SystemShortcutProcessor {
 
         self.reset_hid();
         false
-    }
-
-    async fn send_exit(&mut self) {
-        self.events.push(CharonEvent::Exit);
     }
 
     async fn toggle_mode(&mut self) {

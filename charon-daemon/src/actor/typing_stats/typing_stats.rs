@@ -90,7 +90,6 @@ impl maiko::Actor for TypingStats {
 
     async fn handle_event(&mut self, envelope: &Envelope<Self::Event>) -> maiko::Result {
         match envelope.event() {
-            CharonEvent::Exit => self.ctx.stop(),
             CharonEvent::KeyPress(key, _) => {
                 self.wpm.register_key(key);
                 self.total_count += 1;

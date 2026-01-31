@@ -47,11 +47,7 @@ impl maiko::Actor for Pipeline {
     type Event = CharonEvent;
 
     async fn handle_event(&mut self, envelope: &Envelope<Self::Event>) -> maiko::Result<()> {
-        if matches!(envelope.event(), CharonEvent::Exit) {
-            self.ctx.stop();
-        } else {
-            self.process(envelope.event(), envelope.meta()).await?;
-        }
+        self.process(envelope.event(), envelope.meta()).await?;
         Ok(())
     }
 }

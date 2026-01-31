@@ -97,7 +97,6 @@ impl maiko::Actor for Typist {
                 .send_file(path, *remove, &meta.id())
                 .await
                 .expect("File not found"), // FIXME do we want to crash the system because of that?
-            CharonEvent::Exit => self.ctx.stop(),
             _ => {}
         }
         Ok(())

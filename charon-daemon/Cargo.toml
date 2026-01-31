@@ -37,3 +37,4 @@ serde_yaml_bw = "2.1.1"
 eyre.workspace = true
 async-hid = { version = "0.4.4", default-features = false, features = ["tokio"] }
 futures-lite = "2.6.1"
+tokio-util = "0.7.18"

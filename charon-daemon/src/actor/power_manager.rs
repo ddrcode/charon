@@ -83,7 +83,6 @@ impl maiko::Actor for PowerManager {
 
     async fn handle_event(&mut self, envelope: &Envelope<Self::Event>) -> maiko::Result<()> {
         match envelope.event() {
-            CharonEvent::Exit => self.ctx.stop(),
             CharonEvent::KeyPress(..) if self.asleep => self.handle_awake().await?,
             CharonEvent::KeyPress(..) if !self.asleep => self.last_event = Instant::now(),
             _ => {}
