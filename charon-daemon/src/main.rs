@@ -72,7 +72,7 @@ async fn main() -> eyre::Result<()> {
         |ctx| {
             let processors: Vec<Box<dyn Processor + Send + Sync>> = vec![
                 Box::new(KeyEventProcessor::default()),
-                Box::new(SystemShortcutProcessor::new(state.clone())),
+                Box::new(SystemShortcutProcessor::new(ctx.clone(), state.clone())),
             ];
             Pipeline::new(ctx, processors)
         },
@@ -120,7 +120,7 @@ async fn main() -> eyre::Result<()> {
     if config.enable_telemetry {
         supervisor.add_actor(
             "Telemetry",
-            Telemetry::new,
+            |_ctx| Telemetry::new(),
             [T::System, T::Telemetry, T::KeyInput, T::Stats],
         )?;
     }

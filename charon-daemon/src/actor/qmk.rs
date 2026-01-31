@@ -38,13 +38,6 @@ impl<Q: QmkDevice> QMK<Q> {
 impl<Q: QmkDevice> maiko::Actor for QMK<Q> {
     type Event = CharonEvent;
 
-    async fn handle_event(&mut self, envelope: &Envelope<Self::Event>) -> maiko::Result<()> {
-        if matches!(envelope.event(), CharonEvent::Exit) {
-            self.ctx.stop();
-        }
-        Ok(())
-    }
-
     async fn step(&mut self) -> maiko::Result<StepAction> {
         while let Some(qmk_event) = self.device.read_event().await? {
             self.process_qmk_event(qmk_event).await?;

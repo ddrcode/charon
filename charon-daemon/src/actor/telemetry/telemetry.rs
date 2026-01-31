@@ -1,22 +1,20 @@
 use crate::domain::CharonEvent;
 use lru_time_cache::LruCache;
-use maiko::{Context, Envelope, StepAction};
+use maiko::{Envelope, StepAction};
 use std::time::Duration;
 use tracing::warn;
 
 use crate::actor::telemetry::MetricsManager;
 
 pub struct Telemetry {
-    ctx: Context<CharonEvent>,
     events: LruCache<u128, u64>,
     metrics: MetricsManager,
     push_interval: Duration,
 }
 
 impl Telemetry {
-    pub fn new(ctx: Context<CharonEvent>) -> Self {
+    pub fn new() -> Self {
         Self {
-            ctx,
             events: LruCache::with_expiry_duration_and_capacity(Duration::from_secs(10), 1024),
             metrics: MetricsManager::new().expect("Prometheus metrics should initialize correctly"),
             push_interval: Duration::from_secs(15),
@@ -54,7 +52,6 @@ impl maiko::Actor for Telemetry {
             CharonEvent::CurrentStats(stats) => {
                 self.metrics.register_wpm(stats.wpm);
             }
-            CharonEvent::Exit => self.ctx.stop(),
             _ => {}
         }
         Ok(())

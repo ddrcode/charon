@@ -129,9 +129,6 @@ impl<D: EventDevice> maiko::Actor for KeyScanner<D> {
 
     async fn handle_event(&mut self, envelope: &Envelope<Self::Event>) -> maiko::Result<()> {
         match envelope.event() {
-            CharonEvent::Exit => {
-                self.ctx.stop();
-            }
             CharonEvent::ModeChange(mode) => {
                 self.toggle_grabbing(mode);
             }

@@ -17,7 +17,6 @@ pub enum CharonEvent {
 
     // system events
     ModeChange(Mode),
-    Exit,
     Sleep,
     WakeUp,
 

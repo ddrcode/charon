@@ -6,6 +6,7 @@ use crate::domain::CharonEvent;
 use maiko::{Context, Envelope, StepAction};
 use tokio::net::UnixListener;
 use tokio::sync::mpsc;
+use tokio_util::sync::CancellationToken;
 use tracing::info;
 
 use super::{ClientSession, ClientSessionState};
@@ -15,6 +16,7 @@ pub struct IPCServer {
     state: ActorState,
     listener: UnixListener,
     session: Option<ClientSessionState>,
+    cancel_token: Arc<CancellationToken>,
 }
 
 impl IPCServer {
@@ -30,6 +32,7 @@ impl IPCServer {
             state,
             session: None,
             listener,
+            cancel_token: Arc::new(CancellationToken::new()),
         }
     }
 }
@@ -50,7 +53,6 @@ impl maiko::Actor for IPCServer {
                 info!("Client requested to change mode to: {mode}");
                 self.state.set_mode(*mode).await;
             }
-            CharonEvent::Exit => self.ctx.stop(),
             _ => {}
         }
         Ok(())
@@ -69,7 +71,12 @@ impl maiko::Actor for IPCServer {
             let mode = self.state.mode().await;
             let (session_tx, session_rx) =
                 mpsc::channel::<Arc<Envelope<CharonEvent>>>(channel_size);
-            let mut session = ClientSession::new(stream, self.ctx.clone(), session_rx);
+            let mut session = ClientSession::new(
+                stream,
+                self.ctx.clone(),
+                session_rx,
+                self.cancel_token.clone(),
+            );
             let handle = tokio::spawn(async move {
                 session.init(mode).await;
                 session.run().await;
@@ -77,5 +84,10 @@ impl maiko::Actor for IPCServer {
             self.session = Some(ClientSessionState::new(handle, session_tx));
         }
         Ok(StepAction::Yield)
+    }
+
+    async fn on_shutdown(&mut self) -> maiko::Result<()> {
+        self.cancel_token.cancel();
+        Ok(())
     }
 }

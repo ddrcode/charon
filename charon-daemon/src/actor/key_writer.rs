@@ -59,7 +59,6 @@ impl maiko::Actor for KeyWriter {
                 self.send_report(report, envelope.meta().actor_name());
                 self.send_telemetry(envelope.meta()).await?;
             }
-            CharonEvent::Exit => self.ctx.stop(),
             CharonEvent::ModeChange(_) => self.reset(),
             _ => {}
         }
