@@ -58,23 +58,9 @@ impl AppManager {
                     return None;
                 }
 
-                // In pass-through mode, let the controller handle layer events
                 if self.mode == Mode::PassThrough {
-                    if let Some(new_app) = self.pass_through.handle_event(m) {
-                        if self.has_app(new_app) {
-                            info!("PassThrough controller switching to: {new_app}");
-                            self.active_id = new_app;
-
-                            if let Some(app) = self.apps.get_mut(&self.active_id) {
-                                app.update(&AppEvent::Activate).await;
-
-                                // If switching to keymap, send the pending layer
-                                if let Some(layer) = self.pass_through.pending_layer() {
-                                    app.update(&AppEvent::ShowLayer(layer)).await;
-                                }
-                            }
-                            return Some(Command::Render);
-                        }
+                    if let Some(cmd) = self.handle_pass_through(m).await {
+                        return Some(cmd);
                     }
                 }
 
@@ -86,6 +72,27 @@ impl AppManager {
                 }
             }
         }
+    }
+
+    async fn handle_pass_through(&mut self, event: &AppEvent) -> Option<Command> {
+        let new_app = self.pass_through.handle_event(event)?;
+
+        if !self.has_app(new_app) {
+            return None;
+        }
+
+        info!("PassThrough controller switching to: {new_app}");
+        self.active_id = new_app;
+
+        if let Some(app) = self.apps.get_mut(&self.active_id) {
+            app.update(&AppEvent::Activate).await;
+
+            if let Some(layer) = self.pass_through.pending_layer() {
+                app.update(&AppEvent::ShowLayer(layer)).await;
+            }
+        }
+
+        Some(Command::Render)
     }
 
     pub fn has_app(&self, app: &'static str) -> bool {

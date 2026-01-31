@@ -12,7 +12,6 @@ use ratatui::{
 use tokio::fs::read_to_string;
 use tracing::error;
 
-use charond::domain::{qmk::QMKEvent, CharonEvent};
 
 use super::{keycode_label::keycode_label, qmk_keymap::QmkKeymap, KeyboardLayout};
 use crate::domain::{AppEvent, Command, Context, traits::UiApp};
@@ -138,8 +137,7 @@ impl UiApp for Keymap {
                 None
             }
             AppEvent::Key(key) => self.handle_key(*key),
-            AppEvent::Backend(CharonEvent::QMKEvent(QMKEvent::LayerChange(layer, _)))
-            | AppEvent::ShowLayer(layer) => {
+            AppEvent::ShowLayer(layer) => {
                 self.set_layer(*layer as usize);
                 Some(Command::Render)
             }
