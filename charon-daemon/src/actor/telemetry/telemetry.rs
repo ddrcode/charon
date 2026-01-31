@@ -62,3 +62,9 @@ impl maiko::Actor for Telemetry {
         Ok(StepAction::Backoff(self.push_interval))
     }
 }
+
+impl Default for Telemetry {
+    fn default() -> Self {
+        Self::new()
+    }
+}

@@ -25,7 +25,6 @@ impl From<&CharonEvent> for Topic {
             CurrentStats(_) => Stats,
 
             ModeChange(_) => System,
-            Exit => System,
             Sleep => System,
             WakeUp => System,
 

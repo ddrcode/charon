@@ -1,5 +1,5 @@
 use crate::domain::{CharonEvent, qmk::QMKEvent};
-use maiko::{Context, Envelope, StepAction};
+use maiko::{Context, StepAction};
 use tracing::debug;
 
 use crate::{domain::ActorState, port::QmkDevice};

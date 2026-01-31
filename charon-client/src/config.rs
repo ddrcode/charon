@@ -10,6 +10,7 @@ pub struct AppConfig {
 
     pub clipboard_cache_file: PathBuf,
     pub keyboard_layout_file: PathBuf,
+    pub keymap_file: PathBuf,
 
     pub password_app: &'static str,
     pub editor_app: &'static str,
@@ -29,6 +30,10 @@ impl Default for AppConfig {
 
             keyboard_layout_file: PathBuf::from(format!(
                 "{}/data/layouts/keychron_q10_ansi.txt",
+                env!("CARGO_MANIFEST_DIR")
+            )),
+            keymap_file: PathBuf::from(format!(
+                "{}/data/keymaps/keychron_10_ansi.json",
                 env!("CARGO_MANIFEST_DIR")
             )),
             clipboard_cache_file: clip_cache,

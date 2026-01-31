@@ -11,6 +11,7 @@ pub enum AppEvent {
     Tick(Duration),
     Key(KeyEvent),
     Backend(CharonEvent),
+    ShowLayer(u8),
     Quit,
     Resize(u16, u16),
     ReturnFromExternal(Option<std::process::ExitStatus>),
