@@ -66,14 +66,14 @@ impl AppManager {
                             self.active_id = new_app;
 
                             if let Some(app) = self.apps.get_mut(&self.active_id) {
-                                // Send Activate first
                                 app.update(&AppEvent::Activate).await;
 
                                 // If switching to keymap, send the pending layer
                                 if let Some(layer) = self.pass_through.pending_layer() {
-                                    return app.update(&AppEvent::ShowLayer(layer)).await;
+                                    app.update(&AppEvent::ShowLayer(layer)).await;
                                 }
                             }
+                            return Some(Command::Render);
                         }
                     }
                 }
