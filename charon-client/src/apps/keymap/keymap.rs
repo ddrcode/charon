@@ -86,17 +86,16 @@ impl Keymap {
     }
 
     fn layer_title(&self) -> String {
-        let layer_info = if let Some(ref keymap) = self.qmk_keymap {
+        if let Some(ref keymap) = self.qmk_keymap {
             format!(
-                "Layer {}/{} - {}",
+                "Keyboard Layout: Layer {}/{} - {}",
                 self.current_layer + 1,
                 keymap.layer_count(),
                 &keymap.keymap
             )
         } else {
-            "No keymap loaded".to_string()
-        };
-        format!("Keyboard Layout: {}  [←/→ layers] [ESC exit]", layer_info)
+            "Keyboard Layout: No keymap loaded".to_string()
+        }
     }
 
     fn handle_key(&mut self, key: KeyEvent) -> Option<Command> {
@@ -135,9 +134,19 @@ impl UiApp for Keymap {
     fn render(&self, f: &mut Frame) {
         let rows = Layout::default()
             .direction(Direction::Vertical)
-            .constraints(vec![Constraint::Length(2), Constraint::Percentage(99)])
+            .constraints(vec![
+                Constraint::Length(2),
+                Constraint::Fill(1),
+                Constraint::Length(1),
+            ])
             .split(f.area());
 
+        let footer = Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints([Constraint::Fill(1), Constraint::Fill(1)])
+            .split(rows[2]);
+
+        // Keyboard layout
         let mut lines: Vec<Line> = Vec::new();
         let mut line = Line::default();
         for (part, is_key) in self.layout.parts() {
@@ -159,7 +168,12 @@ impl UiApp for Keymap {
         let p = Paragraph::new(Text::from(lines));
         f.render_widget(p, rows[1]);
 
+        // Title
         let title = Paragraph::new(self.layer_title().bold());
         f.render_widget(title, rows[0]);
+
+        // Footer navigation
+        f.render_widget(" ←/→ Layers".gray(), footer[0]);
+        f.render_widget("ESC Exit".gray().into_right_aligned_line(), footer[1]);
     }
 }

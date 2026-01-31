@@ -67,10 +67,10 @@ pub fn keycode_label(code: &str, max_len: usize) -> String {
         "KC_RSFT" | "KC_RIGHT_SHIFT" => "SFT",
         "KC_LCTL" | "KC_LEFT_CTRL" => "CTL",
         "KC_RCTL" | "KC_RIGHT_CTRL" => "CTL",
-        "KC_LALT" | "KC_LEFT_ALT" => "ALT",
-        "KC_RALT" | "KC_RIGHT_ALT" => "ALT",
-        "KC_LGUI" | "KC_LEFT_GUI" => "GUI",
-        "KC_RGUI" | "KC_RIGHT_GUI" => "GUI",
+        "KC_LALT" | "KC_LEFT_ALT" => "⌥",
+        "KC_RALT" | "KC_RIGHT_ALT" => "⌥",
+        "KC_LGUI" | "KC_LEFT_GUI" => "⌘",
+        "KC_RGUI" | "KC_RIGHT_GUI" => "⌘",
 
         // QMK special
         "QK_BOOT" | "RESET" => "RST",
