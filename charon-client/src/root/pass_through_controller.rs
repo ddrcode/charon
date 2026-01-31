@@ -1,6 +1,6 @@
 use std::time::{Duration, Instant};
 
-use charond::domain::{qmk::QMKEvent, CharonEvent};
+use charond::domain::{CharonEvent, qmk::QMKEvent};
 
 use crate::domain::AppEvent;
 

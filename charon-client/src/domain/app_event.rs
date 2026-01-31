@@ -11,7 +11,6 @@ pub enum AppEvent {
     Tick(Duration),
     Key(KeyEvent),
     Backend(CharonEvent),
-    /// UI-level request to display a specific layer (used by PassThroughController)
     ShowLayer(u8),
     Quit,
     Resize(u16, u16),

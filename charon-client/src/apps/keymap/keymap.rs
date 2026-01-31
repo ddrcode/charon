@@ -12,8 +12,7 @@ use ratatui::{
 use tokio::fs::read_to_string;
 use tracing::error;
 
-
-use super::{keycode_label::keycode_label, qmk_keymap::QmkKeymap, KeyboardLayout};
+use super::{KeyboardLayout, keycode_label::keycode_label, qmk_keymap::QmkKeymap};
 use crate::domain::{AppEvent, Command, Context, traits::UiApp};
 
 pub struct Keymap {
