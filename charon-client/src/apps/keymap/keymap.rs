@@ -12,6 +12,8 @@ use ratatui::{
 use tokio::fs::read_to_string;
 use tracing::error;
 
+use charond::domain::{qmk::QMKEvent, CharonEvent};
+
 use super::{keycode_label::keycode_label, qmk_keymap::QmkKeymap, KeyboardLayout};
 use crate::domain::{AppEvent, Command, Context, traits::UiApp};
 
@@ -66,6 +68,15 @@ impl Keymap {
             let max_len = self.layout.key(i).len;
             let label = keycode_label(keycode, max_len);
             self.layout.set_label(i, &label);
+        }
+    }
+
+    fn set_layer(&mut self, layer: usize) {
+        if let Some(ref keymap) = self.qmk_keymap {
+            if layer < keymap.layer_count() && layer != self.current_layer {
+                self.current_layer = layer;
+                self.apply_layer_labels();
+            }
         }
     }
 
@@ -127,6 +138,10 @@ impl UiApp for Keymap {
                 None
             }
             AppEvent::Key(key) => self.handle_key(*key),
+            AppEvent::Backend(CharonEvent::QMKEvent(QMKEvent::LayerChange(layer, _))) => {
+                self.set_layer(*layer as usize);
+                Some(Command::Render)
+            }
             _ => None,
         }
     }
