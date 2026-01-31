@@ -6,7 +6,8 @@ use super::{super::Mode, QMKRecord};
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum QMKEvent {
     Echo([u8; 32]),
-    LayerChange(u8),
+    /// Layer change event. (layer_id, is_default_layer)
+    LayerChange(u8, bool),
     KeyEvent(QMKRecord),
     ModeChange(Mode),
     ToggleMode,
@@ -18,9 +19,10 @@ impl QMKEvent {
         let mut bytes = [0u8; 32];
         match self {
             Echo(b) => return b,
-            LayerChange(layer) => {
+            LayerChange(layer, is_default) => {
                 bytes[0] = 0x02;
                 bytes[1] = layer;
+                bytes[2] = is_default as u8;
             }
             KeyEvent(qmkrecord) => {
                 bytes[0] = 0x03;
@@ -49,7 +51,7 @@ impl TryFrom<[u8; 32]> for QMKEvent {
         let to_u16 = |start| u16::from_le_bytes([bytes[start], bytes[start + 1]]);
         let event = match bytes[0] {
             0x01 => QMKEvent::Echo(bytes),
-            0x02 => QMKEvent::LayerChange(bytes[1]),
+            0x02 => QMKEvent::LayerChange(bytes[1], bytes[2] != 0),
             0x03 => {
                 QMKEvent::KeyEvent(QMKRecord::new(to_u16(1), bytes[3] == 1, bytes[4], bytes[5]))
             }

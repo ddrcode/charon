@@ -65,7 +65,11 @@ impl PassThroughController {
     /// Process an event and return the app ID to switch to, if any
     pub fn handle_event(&mut self, event: &AppEvent) -> Option<&'static str> {
         match event {
-            AppEvent::Backend(CharonEvent::QMKEvent(QMKEvent::LayerChange(layer))) => {
+            AppEvent::Backend(CharonEvent::QMKEvent(QMKEvent::LayerChange(layer, is_default))) => {
+                // Ignore default layer changes (e.g., QWERTY <-> Colemak)
+                if *is_default {
+                    return None;
+                }
                 self.on_layer_change(*layer)
             }
             AppEvent::Tick(_) => self.check_hesitation_timer(),
