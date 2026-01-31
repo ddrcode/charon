@@ -138,7 +138,8 @@ impl UiApp for Keymap {
                 None
             }
             AppEvent::Key(key) => self.handle_key(*key),
-            AppEvent::Backend(CharonEvent::QMKEvent(QMKEvent::LayerChange(layer, _))) => {
+            AppEvent::Backend(CharonEvent::QMKEvent(QMKEvent::LayerChange(layer, _)))
+            | AppEvent::ShowLayer(layer) => {
                 self.set_layer(*layer as usize);
                 Some(Command::Render)
             }

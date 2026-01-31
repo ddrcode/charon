@@ -64,9 +64,15 @@ impl AppManager {
                         if self.has_app(new_app) {
                             info!("PassThrough controller switching to: {new_app}");
                             self.active_id = new_app;
-                            // Send Activate to the new app
+
                             if let Some(app) = self.apps.get_mut(&self.active_id) {
-                                return app.update(&AppEvent::Activate).await;
+                                // Send Activate first
+                                app.update(&AppEvent::Activate).await;
+
+                                // If switching to keymap, send the pending layer
+                                if let Some(layer) = self.pass_through.pending_layer() {
+                                    return app.update(&AppEvent::ShowLayer(layer)).await;
+                                }
                             }
                         }
                     }
