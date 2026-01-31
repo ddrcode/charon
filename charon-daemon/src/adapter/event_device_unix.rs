@@ -19,7 +19,6 @@ impl EventDeviceUnix {
     }
 }
 
-#[async_trait::async_trait]
 impl EventDevice for EventDeviceUnix {
     async fn next_event(&mut self) -> Option<InputEvent> {
         loop {

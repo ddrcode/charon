@@ -202,7 +202,6 @@ name = "charond"
 version = "0.1.0"
 dependencies = [
  "async-hid",
- "async-trait",
  "chrono",
  "deunicode",
  "evdev",

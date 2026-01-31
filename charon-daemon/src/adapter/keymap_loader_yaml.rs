@@ -62,7 +62,6 @@ impl KeymapLoaderYaml {
     }
 }
 
-#[async_trait::async_trait]
 impl KeymapLoader for KeymapLoaderYaml {
     async fn load_keymap(&self, name: &str) -> Result<Keymap, CharonError> {
         let mut keymaps: Vec<Keymap> = Vec::new();

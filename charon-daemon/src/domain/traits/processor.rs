@@ -1,7 +1,11 @@
+use std::pin::Pin;
+
 use crate::domain::CharonEvent;
 use maiko::Meta;
 
-#[async_trait::async_trait]
+pub type ProcessorFuture<'a> = Pin<Box<dyn Future<Output = Vec<CharonEvent>> + Send + 'a>>;
+
+// #[async_trait::async_trait]
 pub trait Processor: Send + Sync {
-    async fn process(&mut self, event: CharonEvent, meta: Meta) -> Vec<CharonEvent>;
+    fn process<'a>(&'a mut self, event: CharonEvent, meta: Meta) -> ProcessorFuture<'a>;
 }

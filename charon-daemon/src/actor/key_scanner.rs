@@ -14,14 +14,14 @@ use tracing::{debug, error, warn};
 /// or not (in-app). The intention is that if in pass-through mode
 /// the key events should be send only to the host, while when in in-app mode
 /// the keyboard is available to Charon device.
-pub struct KeyScanner {
+pub struct KeyScanner<D: EventDevice> {
     ctx: Context<CharonEvent>,
 
     /// Actor's state
     state: ActorState,
 
     /// System input device (/dev/input)
-    input: Box<dyn EventDevice>,
+    input: D,
 
     /// Keyboard name added to every key event. Uses alias (if defined in config file)
     /// or device name as in /dev/input/by-id/
@@ -36,11 +36,11 @@ pub struct KeyScanner {
     keyboard_state: HashSet<u16>,
 }
 
-impl KeyScanner {
+impl<D: EventDevice> KeyScanner<D> {
     pub fn new(
         ctx: Context<CharonEvent>,
         state: ActorState,
-        input: Box<dyn EventDevice>,
+        input: D,
         keyboard_name: String,
     ) -> Self {
         KeyScanner {
@@ -113,13 +113,13 @@ impl KeyScanner {
     }
 }
 
-impl Drop for KeyScanner {
+impl<D: EventDevice> Drop for KeyScanner<D> {
     fn drop(&mut self) {
         self.ungrab();
     }
 }
 
-impl maiko::Actor for KeyScanner {
+impl<D: EventDevice> maiko::Actor for KeyScanner<D> {
     type Event = CharonEvent;
 
     async fn on_start(&mut self) -> maiko::Result<()> {

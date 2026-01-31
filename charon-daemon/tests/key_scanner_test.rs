@@ -80,7 +80,7 @@ async fn setup_with_mode(initial_mode: Mode) -> eyre::Result<TestContext> {
         let keyboard = input.state().clone();
         sup.add_actor(
             "KeyScanner",
-            |ctx| KeyScanner::new(ctx, state.clone(), Box::new(input), "test-keyboard".into()),
+            |ctx| KeyScanner::new(ctx, state.clone(), input, "test-keyboard".into()),
             [System],
         )?;
         keyboard
