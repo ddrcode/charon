@@ -2,7 +2,7 @@
 use crate::domain::CharonEvent;
 use maiko::{Context, Envelope, Meta};
 use std::sync::Arc;
-use tracing::{debug, error};
+use tracing::error;
 
 use crate::port::HIDDevice;
 
@@ -26,7 +26,6 @@ impl KeyWriter {
             self.reset();
             self.prev_sender = Arc::from(sender);
         }
-        debug!("Writing report to HID controller: {:?}", report);
         if let Err(err) = self.device.send_report(report) {
             error!("Error while sending HID report: {err}");
         }
