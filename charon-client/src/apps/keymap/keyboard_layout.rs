@@ -65,7 +65,7 @@ impl KeyboardLayout {
                 body.push(ch);
             } else if is_key(prev_ch) {
                 let trimmed = body.trim();
-                if trimmed.is_empty() {
+                if !trimmed.is_empty() {
                     keys.push(Key {
                         row,
                         col,
