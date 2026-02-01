@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
 pub mod ipc_bridge;
 mod key_scanner;
 mod key_writer;

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
 use std::sync::Arc;
 
 use charond::domain::CharonEvent;
@@ -80,10 +81,8 @@ impl Charonsay {
             }
 
             AppEvent::Tick(dur) => {
-                if state.time_to_idle <= *dur {
-                    if state.view != WisdomCategory::Idle {
-                        return Transition::ToIdle;
-                    }
+                if state.time_to_idle <= *dur && state.view != WisdomCategory::Idle {
+                    return Transition::ToIdle;
                 }
                 if state.time_to_next <= *dur {
                     if state.view == WisdomCategory::Splash {

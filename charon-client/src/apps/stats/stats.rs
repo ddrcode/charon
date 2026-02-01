@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
 use std::{borrow::Cow, collections::HashMap, sync::Arc};
 
 use crossterm::event::{KeyCode, KeyModifiers};
@@ -162,11 +163,11 @@ impl UiApp for Stats {
 
         match self.state.stat_type {
             StatType::Wpm | StatType::TotalKeyPress => {
-                LineChartRenderer::new(&self.state, self.title().into()).render(f, layout[0]);
+                LineChartRenderer::new(&self.state, self.title()).render(f, layout[0]);
             }
             StatType::KeyFrequency => {
                 if let StatData::Frequency(ref freqs) = self.state.data {
-                    KeyHeatmapRenderer::new(freqs, self.title().into()).render(f, layout[0]);
+                    KeyHeatmapRenderer::new(freqs, self.title()).render(f, layout[0]);
                 }
             }
         }

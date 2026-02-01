@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
 #[derive(Debug, Default, Clone, Copy, PartialEq)]
 pub enum WisdomCategory {
     #[default]

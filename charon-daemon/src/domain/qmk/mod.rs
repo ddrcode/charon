@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
 mod qmk_event;
 mod qmk_record;
 mod qmk_request;

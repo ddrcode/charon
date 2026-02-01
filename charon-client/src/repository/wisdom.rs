@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
 use rand::prelude::IndexedRandom;
 use serde::Deserialize;
 use std::{collections::HashMap, fs};

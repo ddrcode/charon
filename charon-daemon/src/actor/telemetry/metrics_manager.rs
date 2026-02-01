@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
 use evdev::KeyCode;
 use prometheus::{
     GaugeVec, Histogram, IntCounterVec, Registry, histogram_opts, labels, opts, push_metrics,

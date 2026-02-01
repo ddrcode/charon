@@ -150,6 +150,11 @@ The default password manager used by Charon (although it can be integrated with 
 The ASCII-art comes from the amazing repository on that website. A great ASCII-gem.
 
 
+## License
+
+Charon is licensed under the [GNU General Public License v3.0](LICENSE).
+
+
 ## Bonus: Pancakes from the Underworld
 
 Charon doesn’t just ferry your keystrokes. Here’s what fuels him:

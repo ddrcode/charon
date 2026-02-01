@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
 use std::{borrow::Cow, process::ExitStatus};
 
 use ratatui::Frame;
@@ -71,8 +72,8 @@ where
     fn render(&self, f: &mut Frame) {
         notification(
             f,
-            "Please wait".into(),
-            "Sending text...\nPress <[magic key]> to interrupt".into(),
+            "Please wait",
+            "Sending text...\nPress <[magic key]> to interrupt",
         );
     }
 }

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
 mod key_heatmap_renderer;
 mod line_chart_renderer;
 mod stat_data;

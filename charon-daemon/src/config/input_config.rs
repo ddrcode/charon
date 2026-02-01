@@ -1,4 +1,5 @@
-use std::{borrow::Cow, path::PathBuf};
+// SPDX-License-Identifier: GPL-3.0-or-later
+use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 
@@ -7,7 +8,7 @@ pub enum InputConfig {
     #[default]
     Auto,
     Path(PathBuf),
-    Name(Cow<'static, str>),
-    OneOf(Vec<Cow<'static, str>>),
-    Use(Cow<'static, str>),
+    Name(String),
+    OneOf(Vec<String>),
+    Use(String),
 }

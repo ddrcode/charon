@@ -1,6 +1,7 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
 use std::{fmt, mem};
 
-const ARROWS: &'static str = "↑←↓→";
+const ARROWS: &str = "↑←↓→";
 
 #[derive(Default)]
 pub(crate) struct KeyboardLayout {
@@ -10,7 +11,9 @@ pub(crate) struct KeyboardLayout {
 
 #[derive(Debug, Clone)]
 pub(crate) struct Key {
+    #[allow(dead_code)] // useful for future key highlighting
     pub row: usize,
+    #[allow(dead_code)] // useful for future key highlighting
     pub col: usize,
     pub len: usize,
     pub lab: String,
@@ -62,7 +65,7 @@ impl KeyboardLayout {
                 body.push(ch);
             } else if is_key(prev_ch) {
                 let trimmed = body.trim();
-                if trimmed.len() > 0 {
+                if !trimmed.is_empty() {
                     keys.push(Key {
                         row,
                         col,
@@ -97,6 +100,7 @@ impl KeyboardLayout {
         self.keys.len()
     }
 
+    #[allow(dead_code)] // useful for keymap switching
     pub fn clear(&mut self) {
         self.keys.iter_mut().for_each(|key| {
             key.lab.clear();
@@ -111,9 +115,9 @@ impl KeyboardLayout {
     }
 
     pub fn set_label(&mut self, key_id: usize, label: &str) {
-        self.keys
-            .get_mut(key_id)
-            .map(|key| key.lab = String::from(label));
+        if let Some(key) = self.keys.get_mut(key_id) {
+            key.lab = String::from(label);
+        }
     }
 }
 

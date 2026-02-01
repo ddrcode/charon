@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
 use evdev::{EventType, InputEvent, KeyCode};
 use std::{collections::VecDeque, sync::Arc};
 use tokio::{

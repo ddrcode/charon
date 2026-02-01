@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
 use std::sync::Arc;
 
 use crossterm::event::{KeyCode, KeyModifiers};
@@ -106,7 +107,7 @@ impl UiApp for Menu {
             Constraint::Length(item_width),
             Constraint::Length(item_hmargin),
         ]
-        .repeat(hcount as usize)
+        .repeat(hcount)
         .into_iter()
         .take(hcount * 2 - 1);
 
@@ -118,7 +119,7 @@ impl UiApp for Menu {
                     .direction(Direction::Horizontal)
                     .constraints(constraints.clone())
                     .split(*row)
-                    .into_iter()
+                    .iter()
                     .step_by(2)
                     .copied()
                     .collect::<Vec<Rect>>() // not &Rect
@@ -126,7 +127,7 @@ impl UiApp for Menu {
             .collect();
 
         for (app, area) in self.items.iter().zip(row_layouts.into_iter().flatten()) {
-            self.render_app_icon(f, app, area.clone());
+            self.render_app_icon(f, app, area);
         }
     }
 }

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
 use std::time::{Duration, Instant};
 
 use charond::domain::{CharonEvent, qmk::QMKEvent};
@@ -96,10 +97,7 @@ impl PassThroughController {
     }
 
     fn check_hesitation_timer(&mut self) -> Option<&'static str> {
-        let Some(changed_at) = self.layer_change_at else {
-            return None;
-        };
-
+        let changed_at = self.layer_change_at?;
         if changed_at.elapsed() >= self.hesitation_duration {
             // Hesitation period passed - show layer preview
             self.layer_change_at = None;

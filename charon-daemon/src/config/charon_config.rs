@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
@@ -87,7 +88,7 @@ impl CharonConfig {
                         .map(|dev| {
                             let mut config = self.clone();
                             config.keyboards = None;
-                            config.keyboard = InputConfig::Name(dev.name.clone().into());
+                            config.keyboard = InputConfig::Name(dev.name.clone());
                             (dev.alias.clone(), config)
                         })
                         .collect()
@@ -105,9 +106,7 @@ impl CharonConfig {
         let InputConfig::Use(ref alias) = self.keyboard else {
             return None;
         };
-        self.keyboards
-            .as_ref()
-            .map(|kbs| kbs.groups.get(alias.as_ref()))?
+        self.keyboards.as_ref().map(|kbs| kbs.groups.get(alias))?
     }
 }
 

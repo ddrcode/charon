@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
 use crate::domain::qmk::QMKEvent;
 use async_hid::{AsyncHidRead, DeviceReaderWriter, HidBackend};
 use futures_lite::StreamExt;

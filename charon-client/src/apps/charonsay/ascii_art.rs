@@ -1,4 +1,5 @@
-pub const LOGO: &'static str = "
+// SPDX-License-Identifier: GPL-3.0-or-later
+pub const LOGO: &str = "
  _______  __   __  _______  ______    _______  __    _
 |       ||  | |  ||   _   ||    _ |  |       ||  |  | |
 |       ||  |_|  ||  |_|  ||   | ||  |   _   ||   |_| |
@@ -12,7 +13,7 @@ pub const LOGO: &'static str = "
 ";
 
 // source: https://ascii.co.uk/art/charon
-pub const _CHARON: &'static str = r#"
+pub const _CHARON: &str = r#"
                                     _._
                                   _/,__\,
                                __/ _/o'o
@@ -36,7 +37,7 @@ e,e / //  /___/|           |/     \/\        \\
         ~~~~~~~~~~~~~~    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~    //"#;
 
 // source: https://ascii.co.uk/art/cerberus
-pub const CERBERUS: &'static str = r"
+pub const CERBERUS: &str = r"
             /\_/\____,
   ,___/\_/\ \  ~     /
   \     ~  \ )   XXX
@@ -52,7 +53,7 @@ pub const CERBERUS: &'static str = r"
 ";
 
 // source: https://ascii.co.uk/art
-pub const GOAT: &'static str = r"
+pub const GOAT: &str = r"
              ,,~~--___---,
             /            .~,
       /  _,~             )
@@ -64,7 +65,7 @@ pub const GOAT: &'static str = r"
 ";
 
 // source: https://ascii.co.uk/art
-pub const BOAT: &'static str = r"
+pub const BOAT: &str = r"
             (\
               \_O
           _____\/)_____

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
 mod device_entry;
 mod keyboard_config;
 mod keyboard_group;

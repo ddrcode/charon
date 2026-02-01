@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
 use evdev::InputEvent;
 
 pub trait EventDevice: Send + 'static {
