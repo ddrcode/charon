@@ -72,8 +72,8 @@ where
     fn render(&self, f: &mut Frame) {
         notification(
             f,
-            "Please wait".into(),
-            "Sending text...\nPress <[magic key]> to interrupt".into(),
+            "Please wait",
+            "Sending text...\nPress <[magic key]> to interrupt",
         );
     }
 }

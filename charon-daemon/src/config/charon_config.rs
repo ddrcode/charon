@@ -88,7 +88,7 @@ impl CharonConfig {
                         .map(|dev| {
                             let mut config = self.clone();
                             config.keyboards = None;
-                            config.keyboard = InputConfig::Name(dev.name.clone().into());
+                            config.keyboard = InputConfig::Name(dev.name.clone());
                             (dev.alias.clone(), config)
                         })
                         .collect()
@@ -106,9 +106,7 @@ impl CharonConfig {
         let InputConfig::Use(ref alias) = self.keyboard else {
             return None;
         };
-        self.keyboards
-            .as_ref()
-            .map(|kbs| kbs.groups.get(alias))?
+        self.keyboards.as_ref().map(|kbs| kbs.groups.get(alias))?
     }
 }
 

@@ -7,6 +7,7 @@ use tokio::fs::read_to_string;
 pub struct QmkKeymap {
     pub keyboard: String,
     pub keymap: String,
+    #[allow(dead_code)] // useful for physical layout matching
     pub layout: String,
     pub layers: Vec<Vec<String>>,
 }

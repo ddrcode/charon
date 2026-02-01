@@ -15,12 +15,12 @@ use super::{StatType, State};
 pub struct LineChartRenderer<'a> {
     state: &'a State,
     title: String,
-    data: Cow<'a, Vec<Vec<(f64, f64)>>>,
+    data: Cow<'a, [Vec<(f64, f64)>]>,
 }
 
 impl<'a> LineChartRenderer<'a> {
     pub fn new(state: &'a State, title: String) -> Self {
-        let data: Cow<'a, Vec<Vec<(f64, f64)>>> = match state.data {
+        let data: Cow<'a, [Vec<(f64, f64)>]> = match state.data {
             super::StatData::TimeSeries(ref ts) => Cow::Borrowed(ts),
             _ => Cow::Owned(Vec::new()),
         };

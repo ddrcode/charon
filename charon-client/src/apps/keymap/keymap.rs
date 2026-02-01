@@ -98,10 +98,11 @@ impl Keymap {
     fn layer_title(&self) -> String {
         if let Some(ref keymap) = self.qmk_keymap {
             format!(
-                "Keyboard Layout: Layer {}/{} - {}",
+                "{} [{}]: Layer {}/{}",
+                &keymap.keyboard,
+                &keymap.keymap,
                 self.current_layer + 1,
                 keymap.layer_count(),
-                &keymap.keymap
             )
         } else {
             "Keyboard Layout: No keymap loaded".to_string()

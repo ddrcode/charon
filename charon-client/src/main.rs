@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
+#![allow(clippy::module_inception)]
+
 pub mod app;
 pub mod apps;
 pub mod components;
@@ -60,7 +62,7 @@ async fn main() -> eyre::Result<()> {
 }
 
 fn menu_items() -> Vec<MenuItem> {
-    vec![
+    [
         ("Editor", '\u{ed39}', "e"),
         ("Stats", '\u{f04c5}', "s"),
         ("Passwords", '\u{f07f5}', "p"),

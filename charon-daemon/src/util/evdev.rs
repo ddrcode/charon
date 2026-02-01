@@ -1,4 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
+//! Input device discovery utilities. Currently unused but needed for future multi-keyboard support.
+#![allow(dead_code)]
+
 use std::{
     fs::{self, canonicalize, exists},
     path::PathBuf,

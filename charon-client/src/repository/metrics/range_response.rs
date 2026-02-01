@@ -49,7 +49,7 @@ impl RangeResponse {
                     serde_json::Value::String(s) => s.clone(),
                     _ => String::from("unknown"),
                 };
-                let val = if let Some((_, val)) = r.values.get(0) {
+                let val = if let Some((_, val)) = r.values.first() {
                     val.parse().ok()
                 } else {
                     None

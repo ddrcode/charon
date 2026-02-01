@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-use std::{collections::HashMap, convert::identity};
+use std::collections::HashMap;
 
 #[derive(Debug)]
 pub enum StatData {
@@ -15,6 +15,6 @@ impl Default for StatData {
 
 impl From<Vec<Option<Vec<(f64, f64)>>>> for StatData {
     fn from(data: Vec<Option<Vec<(f64, f64)>>>) -> Self {
-        StatData::TimeSeries(data.into_iter().filter_map(identity).collect())
+        StatData::TimeSeries(data.into_iter().flatten().collect())
     }
 }

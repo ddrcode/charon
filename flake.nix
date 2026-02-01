@@ -31,6 +31,7 @@
           just
           pkg-config
           openssl
+          perl  # needed for vendored openssl build
         ];
 
         # Linux-specific: cross-compilation toolchain for RP5
@@ -38,10 +39,10 @@
           pkgsCross.aarch64-multiplatform.stdenv.cc
         ];
 
-        # Darwin-specific packages (cross-compile via cargo-cross or Docker)
+        # Darwin-specific: use Zig as cross-linker (no Docker needed)
         darwinPackages = with pkgs; [
-          # For actual cross-compilation on macOS, use `cross` tool with Docker
-          # or build directly on RP5
+          zig
+          cargo-zigbuild
         ];
 
       in {
@@ -53,6 +54,10 @@
           shellHook = ''
             export DEBUG=1
 
+            # Zig cache directories (avoid Nix store conflicts)
+            export ZIG_LOCAL_CACHE_DIR="$HOME/.cache/zig"
+            export ZIG_GLOBAL_CACHE_DIR="$HOME/.cache/zig-global"
+
             # For Linux cross-compilation to RP5
             ${pkgs.lib.optionalString pkgs.stdenv.isLinux ''
               export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER="${pkgs.pkgsCross.aarch64-multiplatform.stdenv.cc}/bin/aarch64-unknown-linux-gnu-gcc"
@@ -62,8 +67,7 @@
             echo "  Local target: ${system}"
             echo "  Cross target: aarch64-unknown-linux-gnu (RP5)"
             ${pkgs.lib.optionalString pkgs.stdenv.isDarwin ''
-              echo "  Note: Cross-compile to RP5 from macOS requires Docker + cross"
-              echo "        Or build directly on the RP5"
+              echo "  Cross-compile: cargo zigbuild --target aarch64-unknown-linux-gnu --release"
             ''}
           '';
 

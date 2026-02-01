@@ -21,6 +21,7 @@ futures-lite = "2.6.1"
 lru_time_cache = "0.11.11"
 maiko.workspace = true
 prometheus = { version = "0.14.0", features = ["push"] }
+openssl = { version = "0.10", features = ["vendored"] }
 serde.workspace = true
 serde_json.workspace = true
 serde_yaml_bw = "2.5.2"
