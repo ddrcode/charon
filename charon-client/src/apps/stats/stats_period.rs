@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
 #[derive(Debug, Default, PartialEq, Clone, Copy)]
 pub enum StatsPeriod {
     #[default]

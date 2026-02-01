@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
 use ratatui::layout::Rect;
 
 pub fn centered_area(area: Rect, width: u16, height: u16) -> Rect {

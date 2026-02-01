@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
 mod app_manager;
 mod pass_through_controller;
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
 pub const LOGO: &'static str = "
  _______  __   __  _______  ______    _______  __    _
 |       ||  | |  ||   _   ||    _ |  |       ||  |  | |

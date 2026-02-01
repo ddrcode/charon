@@ -5,6 +5,9 @@ members = [
 ]
 resolver = "3"
 
+[workspace.package]
+license = "GPL-3.0-or-later"
+
 [workspace.dependencies]
 chrono = "0.4.43"
 evdev = { version = "0.13.2", features = ["serde", "tokio"] }

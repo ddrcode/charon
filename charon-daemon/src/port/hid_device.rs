@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
 pub trait HIDDevice: Send + Sync {
     fn send_report(&mut self, report: &[u8; 8]) -> std::io::Result<()>;
 

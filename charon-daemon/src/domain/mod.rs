@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
 mod actor_state;
 mod charon_event;
 mod hid_keycode;

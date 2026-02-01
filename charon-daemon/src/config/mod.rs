@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
 mod charon_config;
 pub(crate) mod defaults;
 mod input_config;

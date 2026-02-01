@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
 mod event_device;
 mod hid_device;
 mod keymap_loader;

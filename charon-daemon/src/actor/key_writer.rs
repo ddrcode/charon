@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
 use crate::domain::CharonEvent;
 use maiko::{Context, Envelope, Meta};
 use std::sync::Arc;

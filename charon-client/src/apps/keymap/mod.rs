@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
 mod keyboard_layout;
 mod keycode_label;
 mod keymap;

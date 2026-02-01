@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
 /// Convert QMK keycode string to a display label.
 /// The `max_len` parameter hints at available space for the label.
 pub fn keycode_label(code: &str, max_len: usize) -> String {

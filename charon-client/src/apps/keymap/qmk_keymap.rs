@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
 use serde::Deserialize;
 use std::path::Path;
 use tokio::fs::read_to_string;

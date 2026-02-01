@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
 use std::{borrow::Cow, collections::HashMap, sync::Arc};
 
 use crossterm::event::{KeyCode, KeyModifiers};

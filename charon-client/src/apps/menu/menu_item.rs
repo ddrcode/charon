@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
 pub struct MenuItem {
     pub name: String,
     pub icon: char,

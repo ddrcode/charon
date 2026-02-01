@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
 mod event_device_unix;
 mod hid_device_unix;
 mod keymap_loader_yaml;

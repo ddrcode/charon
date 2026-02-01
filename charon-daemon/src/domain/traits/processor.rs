@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
 use std::pin::Pin;
 
 use crate::domain::CharonEvent;

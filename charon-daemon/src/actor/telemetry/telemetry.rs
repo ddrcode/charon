@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
 use crate::domain::CharonEvent;
 use lru_time_cache::LruCache;
 use maiko::{Envelope, StepAction};

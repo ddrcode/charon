@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
 mod metrics;
 mod query_builder;
 mod range_response;

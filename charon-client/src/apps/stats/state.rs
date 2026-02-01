@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
 use chrono::{Days, Months, offset::LocalResult, prelude::*};
 use tracing::warn;
 

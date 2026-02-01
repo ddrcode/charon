@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
 mod typing_stats;
 mod wpm_counter;
 
