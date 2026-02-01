@@ -1,4 +1,3 @@
-use std::borrow::Cow;
 use std::collections::HashMap;
 
 use ratatui::{
@@ -9,11 +8,11 @@ use ratatui::{
 
 pub struct KeyHeatmapRenderer<'a> {
     pub key_counts: &'a HashMap<String, f64>,
-    pub title: Cow<'static, str>,
+    pub title: String,
 }
 
 impl<'a> KeyHeatmapRenderer<'a> {
-    pub fn new(key_counts: &'a HashMap<String, f64>, title: Cow<'static, str>) -> Self {
+    pub fn new(key_counts: &'a HashMap<String, f64>, title: String) -> Self {
         Self { key_counts, title }
     }
 

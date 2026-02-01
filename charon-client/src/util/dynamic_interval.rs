@@ -36,7 +36,7 @@ impl DynamicInterval {
         if let Some(instant) = self.next_refresh {
             tokio::time::sleep_until(instant).await;
         } else {
-            futures::future::pending::<()>().await;
+            std::future::pending::<()>().await;
         }
     }
 

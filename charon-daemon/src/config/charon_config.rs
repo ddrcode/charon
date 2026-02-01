@@ -107,7 +107,7 @@ impl CharonConfig {
         };
         self.keyboards
             .as_ref()
-            .map(|kbs| kbs.groups.get(alias.as_ref()))?
+            .map(|kbs| kbs.groups.get(alias))?
     }
 }
 
