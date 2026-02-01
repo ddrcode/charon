@@ -1253,6 +1253,8 @@ dependencies = [
 [[package]]
 name = "maiko"
 version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "34393923b7dc6c4c14013afaf3dc84b3e796e0e0ef919fdbaa60572bc0058b08"
 dependencies = [
  "maiko-macros",
  "serde",
@@ -1266,6 +1268,8 @@ dependencies = [
 [[package]]
 name = "maiko-macros"
 version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9f7c24604707b979de38ebc6d832390dfcb0557bf2d8c0a9259fef99f30e8394"
 dependencies = [
  "quote",
  "syn 2.0.114",

@@ -1,8 +1,12 @@
 [package]
 name = "charon-tui"
-version = "0.1.0"
-edition = "2024"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
 license.workspace = true
+authors.workspace = true
+repository.workspace = true
+description = "Charon TUI client - keyboard companion interface"
 
 [dependencies]
 async-trait = "0.1.89"
@@ -24,4 +28,4 @@ tokio-stream = "0.1"
 tracing.workspace = true
 tracing-appender = "0.2.4"
 tracing-subscriber = { workspace = true, features = ["env-filter"] }
-tokio-util = "0.7.15"
+tokio-util.workspace = true

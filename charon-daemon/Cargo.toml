@@ -1,20 +1,15 @@
 [package]
 name = "charond"
-version = "0.1.0"
-edition = "2024"
-rust-version = "1.85"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
 license.workspace = true
+authors.workspace = true
+repository.workspace = true
+description = "Charon daemon - keyboard pass-through service"
 
 [features]
 testing = ["maiko/test-harness"]
-
-[[test]]
-name = "key_events_propagation_test"
-required-features = ["testing"]
-
-[[test]]
-name = "key_scanner_test"
-required-features = ["testing"]
 
 [dependencies]
 async-hid = { version = "0.4.4", default-features = false, features = ["tokio"] }
@@ -27,13 +22,21 @@ lru_time_cache = "0.11.11"
 maiko.workspace = true
 prometheus = { version = "0.14.0", features = ["push"] }
 serde.workspace = true
-serde_json.workspace=true
+serde_json.workspace = true
 serde_yaml_bw = "2.5.2"
 strum.workspace = true
 thiserror.workspace = true
 tokio = { workspace = true, features = ["process", "signal"] }
-tokio-util = "0.7.18"
+tokio-util.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
 toml = "0.9.11"
 wake-on-lan = "0.2.0"
+
+[[test]]
+name = "key_events_propagation_test"
+required-features = ["testing"]
+
+[[test]]
+name = "key_scanner_test"
+required-features = ["testing"]
