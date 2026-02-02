@@ -44,7 +44,7 @@ impl ExternalApp for Editor {
     }
 
     fn path_to_app(&self) -> Cow<'static, str> {
-        self.ctx.config.editor_app.into()
+        self.ctx.config.editor_app.clone().into()
     }
 
     fn app_args(&self) -> Vec<String> {
