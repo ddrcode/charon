@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
+use std::{fs::read_to_string, path::PathBuf};
+use tracing::{debug, warn};
 
 use super::{InputConfig, defaults};
 use crate::{
@@ -107,6 +108,26 @@ impl CharonConfig {
             return None;
         };
         self.keyboards.as_ref().map(|kbs| kbs.groups.get(alias))?
+    }
+
+    pub fn from_file() -> eyre::Result<Self> {
+        let mut path = PathBuf::new();
+        path.push(std::env::var("XDG_CONFIG_HOME")?);
+        path.push("charon/charon.toml");
+
+        if !path.exists() {
+            warn!(
+                "Couldn't find config file at {:?}. Starting with default configuration",
+                path
+            );
+            return Ok(CharonConfig::default());
+        }
+
+        debug!("Found config file: {:?}", path);
+        let config_str = read_to_string(path)?;
+        let config: CharonConfig = toml::from_str(&config_str)?;
+
+        Ok(config)
     }
 }
 

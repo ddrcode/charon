@@ -28,4 +28,5 @@ tokio-stream = "0.1"
 tracing.workspace = true
 tracing-appender = "0.2.4"
 tracing-subscriber = { workspace = true, features = ["env-filter"] }
+toml = "0.9.11"
 tokio-util.workspace = true

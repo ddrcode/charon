@@ -10,6 +10,7 @@ pub enum Topic {
     Stats,
     Monitoring,
     Telemetry,
+    Keyboard,
 }
 
 impl From<&CharonEvent> for Topic {
@@ -32,6 +33,8 @@ impl From<&CharonEvent> for Topic {
             ReportSent => Telemetry,
 
             QMKEvent(..) => Monitoring,
+
+            KeyboardAttached(..) => Keyboard,
         }
     }
 }

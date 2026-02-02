@@ -34,7 +34,7 @@ async fn main() -> eyre::Result<()> {
     init_logging();
 
     let ctx = &Arc::new(Context {
-        config: AppConfig::default(),
+        config: AppConfig::from_file()?,
     });
 
     let apps: HashMap<&'static str, Box<dyn UiApp + Send + Sync>> = vec![

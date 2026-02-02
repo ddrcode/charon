@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-use std::{path::PathBuf, time::Duration};
+use serde::{Deserialize, Serialize};
+use std::{fs::read_to_string, path::PathBuf, time::Duration};
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AppConfig {
     pub daemon_socket: PathBuf,
 
@@ -13,8 +15,30 @@ pub struct AppConfig {
     pub keyboard_layout_file: PathBuf,
     pub keymap_file: PathBuf,
 
-    pub password_app: &'static str,
-    pub editor_app: &'static str,
+    pub password_app: String,
+    pub editor_app: String,
+}
+
+impl AppConfig {
+    pub fn from_file() -> eyre::Result<Self> {
+        let mut path = PathBuf::new();
+        path.push(std::env::var("XDG_CONFIG_HOME")?);
+        path.push("charon/tui.toml");
+
+        if !path.exists() {
+            tracing::warn!(
+                "Couldn't find config file at {:?}. Starting with default configuration",
+                path
+            );
+            return Ok(AppConfig::default());
+        }
+
+        tracing::debug!("Found config file: {:?}", path);
+        let config_str = read_to_string(path)?;
+        let config: AppConfig = toml::from_str(&config_str)?;
+
+        Ok(config)
+    }
 }
 
 impl Default for AppConfig {
@@ -39,8 +63,8 @@ impl Default for AppConfig {
             )),
             clipboard_cache_file: clip_cache,
 
-            password_app: "passepartui",
-            editor_app: "nvim",
+            password_app: "passepartui".into(),
+            editor_app: "nvim".into(),
         }
     }
 }
