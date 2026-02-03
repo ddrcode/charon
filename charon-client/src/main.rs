@@ -3,6 +3,7 @@
 
 pub mod app;
 pub mod apps;
+mod cli;
 pub mod components;
 pub mod config;
 pub mod domain;
@@ -13,6 +14,7 @@ pub mod util;
 
 use std::{collections::HashMap, sync::Arc};
 
+use clap::Parser;
 use tracing::error;
 use tracing_appender::rolling;
 use tracing_subscriber::EnvFilter;
@@ -33,8 +35,10 @@ use crate::{
 async fn main() -> eyre::Result<()> {
     init_logging();
 
+    let args = cli::Cli::parse();
+
     let ctx = &Arc::new(Context {
-        config: AppConfig::from_file()?,
+        config: AppConfig::from_file(args.config)?,
     });
 
     let apps: HashMap<&'static str, Box<dyn UiApp + Send + Sync>> = vec![
@@ -69,7 +73,7 @@ fn menu_items() -> Vec<MenuItem> {
         ("Calendar", '\u{eab0}', "l"),
         ("Calculator", '\u{f00ec}', "c"),
         ("Keymaps", '\u{f030c}', "k"),
-        ("Restart", '\u{f0709}', "r"),
+        ("Upgrade", '\u{f0709}', "u"),
         ("Quit", '\u{f0a48}', "q"),
     ]
     .iter()

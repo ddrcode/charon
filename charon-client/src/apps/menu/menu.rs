@@ -69,7 +69,7 @@ impl UiApp for Menu {
                     KeyCode::Char('k') => Command::RunApp("keymap"),
                     KeyCode::Char('p') => Command::RunApp("password"),
                     KeyCode::Char('q') => Command::Quit,
-                    KeyCode::Char('r') => Command::Restart,
+                    KeyCode::Char('u') => Command::Upgrade,
                     KeyCode::Char('s') => Command::RunApp("stats"),
                     _ => return None,
                 };

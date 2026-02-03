@@ -18,14 +18,11 @@ pub struct AppConfig {
     pub keyboard_layouts_dir: PathBuf,
     pub keymaps_dir: PathBuf,
     pub wisdoms_file: PathBuf,
+    pub upgrade_script: PathBuf,
 }
 
 impl AppConfig {
-    pub fn from_file() -> eyre::Result<Self> {
-        let mut path = PathBuf::new();
-        path.push(std::env::var("XDG_CONFIG_HOME")?);
-        path.push("charon/tui.toml");
-
+    pub fn from_file(path: PathBuf) -> eyre::Result<Self> {
         if !path.exists() {
             tracing::warn!(
                 "Couldn't find config file at {:?}. Starting with default configuration",
@@ -69,6 +66,8 @@ impl Default for AppConfig {
             password_app: "passepartui".into(),
             editor_app: "nvim".into(),
             wisdoms_file: PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("data/wisdoms.json"),
+            upgrade_script: PathBuf::from(std::env::var("HOME").unwrap_or_else(|_| "/tmp".into()))
+                .join(".local/charon.service/upgrade.sh"),
         }
     }
 }

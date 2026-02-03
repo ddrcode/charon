@@ -8,7 +8,7 @@ use strum::Display;
 #[non_exhaustive]
 pub enum Command {
     Quit,
-    Restart,
+    Upgrade,
     ExitApp,
     Render,
     RunApp(&'static str),

@@ -64,7 +64,7 @@ impl App {
             .frame_rate(1.0);
         tui.enter()?;
 
-        let sock = UnixStream::connect(&self.ctx.config.daemon_socket).await?;
+        let sock = self.connect_to_daemon().await?;
         let (reader, writer) = sock.into_split();
         self.sock_writer = Some(BufWriter::new(writer));
         let mut reader = BufReader::new(reader);
@@ -80,7 +80,7 @@ impl App {
                     // tui.mouse(true);
                     tui.enter()?;
                 }
-                TickAction::Quit | TickAction::Restart => {
+                TickAction::Quit | TickAction::Upgrade => {
                     tui.stop()?;
                     break;
                 }
@@ -88,14 +88,15 @@ impl App {
             }
         }
         tui.exit()?;
-        if action == TickAction::Restart {
-            info!("Restarting client");
-            let _ = spawn_blocking(|| {
-                std::process::Command::new(std::env::current_exe().unwrap())
-                    .args(std::env::args().skip(1))
-                    .status()
-            })
-            .await?;
+        if action == TickAction::Upgrade {
+            info!(
+                "Running upgrade script: {:?}",
+                self.ctx.config.upgrade_script
+            );
+            use std::os::unix::process::CommandExt;
+            let err = std::process::Command::new(&self.ctx.config.upgrade_script).exec();
+            // exec() only returns on error
+            return Err(err.into());
         }
         Ok(())
     }
@@ -190,7 +191,7 @@ impl App {
             Command::SendEvent(event) => self.send_to_daemon(&event).await?,
             Command::Quit => action = TickAction::Quit,
             Command::ExitApp => self.switch_app("menu")?,
-            Command::Restart => action = TickAction::Restart,
+            Command::Upgrade => action = TickAction::Upgrade,
             Command::RunApp(app) => self.switch_app(app)?,
             Command::RunExternal(path, args) => self.run_external(path, args, tui).await?,
         }
@@ -289,5 +290,21 @@ impl App {
             .send(AppEvent::ReturnFromExternal(status))?;
 
         Ok(())
+    }
+
+    async fn connect_to_daemon(&self) -> eyre::Result<UnixStream> {
+        let socket_path = &self.ctx.config.daemon_socket;
+        loop {
+            match UnixStream::connect(socket_path).await {
+                Ok(stream) => {
+                    info!("Connected to daemon at {:?}", socket_path);
+                    return Ok(stream);
+                }
+                Err(e) => {
+                    info!("Waiting for daemon at {:?}... ({})", socket_path, e);
+                    tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+                }
+            }
+        }
     }
 }
