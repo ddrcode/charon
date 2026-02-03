@@ -23,7 +23,7 @@ use tokio::{
 use tracing::{debug, error, info, warn};
 
 use crate::{
-    domain::{AppEvent, Command, Context},
+    domain::{AppEvent, Command, Context, TickAction},
     root::AppManager,
     tui::{Event as TuiEvent, Tui},
 };
@@ -31,8 +31,6 @@ use crate::{
 pub struct App {
     ctx: Arc<Context>,
     app_mngr: AppManager,
-    should_quit: bool,
-    should_suspend: bool,
     app_event_tx: mpsc::UnboundedSender<AppEvent>,
     app_event_rx: mpsc::UnboundedReceiver<AppEvent>,
     command_tx: mpsc::UnboundedSender<Command>,
@@ -49,8 +47,6 @@ impl App {
         Ok(Self {
             ctx,
             app_mngr,
-            should_quit: false,
-            should_suspend: false,
             app_event_tx,
             app_event_rx,
             command_tx,
@@ -72,53 +68,64 @@ impl App {
         let (reader, writer) = sock.into_split();
         self.sock_writer = Some(BufWriter::new(writer));
         let mut reader = BufReader::new(reader);
+        let mut action;
 
         loop {
-            self.tick(&mut tui, &mut reader).await?;
-            if self.should_suspend {
-                tui.suspend()?;
-                self.command_tx.send(Command::ResumeApp)?;
-                self.command_tx.send(Command::ClearScreen)?;
-                // tui.mouse(true);
-                tui.enter()?;
-            } else if self.should_quit {
-                tui.stop()?;
-                break;
+            action = self.tick(&mut tui, &mut reader).await?;
+            match action {
+                TickAction::Suspend => {
+                    tui.suspend()?;
+                    self.command_tx.send(Command::ResumeApp)?;
+                    self.command_tx.send(Command::ClearScreen)?;
+                    // tui.mouse(true);
+                    tui.enter()?;
+                }
+                TickAction::Quit | TickAction::Restart => {
+                    tui.stop()?;
+                    break;
+                }
+                _ => {}
             }
         }
         tui.exit()?;
+        if action == TickAction::Restart {
+            info!("Restarting client");
+            let _ = spawn_blocking(|| {
+                std::process::Command::new(std::env::current_exe().unwrap())
+                    .args(std::env::args().skip(1))
+                    .status()
+            })
+            .await?;
+        }
         Ok(())
-    }
-
-    pub fn stop(&mut self) {
-        self.should_quit = true;
     }
 
     pub async fn tick(
         &mut self,
         tui: &mut Tui,
         reader: &mut BufReader<OwnedReadHalf>,
-    ) -> eyre::Result<()> {
+    ) -> eyre::Result<TickAction> {
         let mut line = String::new();
+        let action: TickAction;
         select! {
             event = tui.next_event() => {
                 let event = event.ok_or_eyre("TUI event channel closed")?;
-                self.handle_tui_event(event).await?;
+                action = self.handle_tui_event(event).await?;
             }
             event = self.app_event_rx.recv() => {
                 let event = event.ok_or_eyre("App event channel closed")?;
-                self.handle_app_event(event, tui).await?;
+                action = self.handle_app_event(event, tui).await?;
             }
             command = self.command_rx.recv() => {
                 let command = command.ok_or_eyre("Command event channel closed")?;
-                self.handle_command(command, tui).await?;
+                action = self.handle_command(command, tui).await?;
             }
             line_res = reader.read_line(&mut line) => {
                 let bytes = line_res?;
-                self.handle_daemon_event(bytes, line).await?;
+                action = self.handle_daemon_event(bytes, line).await?;
             }
         }
-        Ok(())
+        Ok(action)
     }
 
     fn render(&mut self, tui: &mut Tui) -> eyre::Result<()> {
@@ -126,7 +133,7 @@ impl App {
         Ok(())
     }
 
-    async fn handle_tui_event(&mut self, event: TuiEvent) -> eyre::Result<()> {
+    async fn handle_tui_event(&mut self, event: TuiEvent) -> eyre::Result<TickAction> {
         let app_event_tx = self.app_event_tx.clone();
         let command_tx = self.command_tx.clone();
         match event {
@@ -134,13 +141,18 @@ impl App {
             TuiEvent::Tick => self.handle_tick()?,
             TuiEvent::Render => command_tx.send(Command::Render)?,
             TuiEvent::Resize(x, y) => app_event_tx.send(AppEvent::Resize(x, y))?,
-            TuiEvent::Key(key) => self.handle_key_event(key)?,
+            TuiEvent::Key(key) => return self.handle_key_event(key),
             _ => {}
         }
-        Ok(())
+        Ok(TickAction::None)
     }
 
-    async fn handle_app_event(&mut self, event: AppEvent, tui: &mut Tui) -> eyre::Result<()> {
+    async fn handle_app_event(
+        &mut self,
+        event: AppEvent,
+        tui: &mut Tui,
+    ) -> eyre::Result<TickAction> {
+        let mut action = TickAction::default();
         if !matches!(
             event,
             AppEvent::Tick(..) | AppEvent::Backend(CharonEvent::CurrentStats(..))
@@ -148,7 +160,7 @@ impl App {
             debug!("{event:?}");
         }
         match event {
-            AppEvent::Quit => self.should_quit = true,
+            AppEvent::Quit => action = TickAction::Quit,
             AppEvent::Resize(w, h) => self.handle_resize(tui, w, h)?,
             _ => {}
         }
@@ -156,34 +168,39 @@ impl App {
         if let Some(cmd) = self.app_mngr.update(&event).await {
             self.command_tx.send(cmd)?;
         }
-        Ok(())
+        Ok(action)
     }
 
-    async fn handle_command(&mut self, command: Command, tui: &mut Tui) -> eyre::Result<()> {
+    async fn handle_command(
+        &mut self,
+        command: Command,
+        tui: &mut Tui,
+    ) -> eyre::Result<TickAction> {
+        let mut action = TickAction::default();
         match command {
             Command::SuspendTUI => tui.exit()?,
             Command::ResumeTUI => {
                 tui.enter()?;
                 tui.terminal.clear()?;
             }
-            Command::SuspendApp => self.should_suspend = true,
-            Command::ResumeApp => self.should_suspend = false,
+            Command::SuspendApp => action = TickAction::Suspend,
+            Command::ResumeApp => action = TickAction::Resume,
             Command::ClearScreen => tui.terminal.clear()?,
             Command::Render => self.render(tui)?,
             Command::SendEvent(event) => self.send_to_daemon(&event).await?,
-            Command::Quit => self.should_quit = true,
+            Command::Quit => action = TickAction::Quit,
             Command::ExitApp => self.switch_app("menu")?,
+            Command::Restart => action = TickAction::Restart,
             Command::RunApp(app) => self.switch_app(app)?,
             Command::RunExternal(path, args) => self.run_external(path, args, tui).await?,
         }
-        Ok(())
+        Ok(action)
     }
 
-    async fn handle_daemon_event(&mut self, size: usize, line: String) -> eyre::Result<()> {
+    async fn handle_daemon_event(&mut self, size: usize, line: String) -> eyre::Result<TickAction> {
         if size == 0 {
             warn!("Connection closed by daemon");
-            self.should_quit = true;
-            return Ok(());
+            return Ok(TickAction::Quit);
         }
         let msg_line = line.trim();
         if !msg_line.is_empty() {
@@ -191,7 +208,7 @@ impl App {
             self.app_event_tx
                 .send(AppEvent::Backend(envelope.event().clone()))?;
         }
-        Ok(())
+        Ok(TickAction::None)
     }
 
     fn handle_resize(&mut self, tui: &mut Tui, w: u16, h: u16) -> eyre::Result<()> {
@@ -208,19 +225,20 @@ impl App {
         Ok(())
     }
 
-    fn handle_key_event(&mut self, key: KeyEvent) -> eyre::Result<()> {
+    fn handle_key_event(&mut self, key: KeyEvent) -> eyre::Result<TickAction> {
+        let mut action = TickAction::default();
         match (key.code, key.modifiers) {
             (KeyCode::Char('c'), KeyModifiers::CONTROL) => {
                 info!("Quitting on Ctrl+C");
-                self.should_quit = true;
+                action = TickAction::Quit;
             }
             (KeyCode::Char('z'), KeyModifiers::CONTROL) => {
                 info!("Suspending");
-                self.should_suspend = true;
+                action = TickAction::Suspend;
             }
             _ => self.app_event_tx.send(AppEvent::Key(key))?,
         }
-        Ok(())
+        Ok(action)
     }
 
     fn switch_app(&mut self, name: &'static str) -> eyre::Result<()> {

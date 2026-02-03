@@ -66,10 +66,10 @@ fn menu_items() -> Vec<MenuItem> {
         ("Editor", '\u{ed39}', "e"),
         ("Stats", '\u{f04c5}', "s"),
         ("Passwords", '\u{f07f5}', "p"),
-        ("Calendar", '\u{f07f5}', "l"),
-        ("Calculator", '\u{f07f5}', "c"),
-        ("Keymaps", '\u{f07f5}', "k"),
-        ("Game", '\u{f07f5}', "g"),
+        ("Calendar", '\u{eab0}', "l"),
+        ("Calculator", '\u{f00ec}', "c"),
+        ("Keymaps", '\u{f030c}', "k"),
+        ("Restart", '\u{f0709}', "r"),
         ("Quit", '\u{f0a48}', "q"),
     ]
     .iter()

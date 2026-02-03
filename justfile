@@ -56,8 +56,8 @@ build-rp5-client:
 
 # Deploy binaries to RP5 (set RP5_HOST env var or defaults to charon.local)
 deploy: build-rp5
-    scp target/{{rp5_target}}/release/charond {{rp5_host}}:~/Downloads
-    scp target/{{rp5_target}}/release/charon-tui {{rp5_host}}:~/Downloads
+    scp target/{{rp5_target}}/release/charond {{rp5_host}}:~/.local/bin
+    scp target/{{rp5_target}}/release/charon-tui {{rp5_host}}:~/.local/bin
     @echo "Deployed to {{rp5_host}}"
 
 # ---------- Test ----------
