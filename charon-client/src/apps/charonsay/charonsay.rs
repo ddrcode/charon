@@ -31,14 +31,11 @@ pub struct Charonsay {
 impl Charonsay {
     pub fn new_box(ctx: Arc<Context>) -> Box<dyn UiApp + Send + Sync> {
         let state = State::from_config(&ctx.config);
+        let wisdoms = ctx.config.wisdoms_file.clone();
         Box::new(Self {
             ctx,
             state,
-            wisdom_db: WisdomDb::from_file(&format!(
-                "{}/data/wisdoms.json",
-                env!("CARGO_MANIFEST_DIR")
-            ))
-            .expect("Couldn't load JSON data for WisdomDB"),
+            wisdom_db: WisdomDb::from_file(&wisdoms).expect("Couldn't load JSON data for WisdomDB"),
         })
     }
 

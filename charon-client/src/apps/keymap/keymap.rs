@@ -35,7 +35,7 @@ impl Keymap {
 
     async fn load_layout(&mut self) {
         // Load physical layout
-        if let Ok(layout) = read_to_string(self.ctx.config.keyboard_layout_file.clone())
+        if let Ok(layout) = read_to_string(self.ctx.config.keyboard_layout_path())
             .await
             .inspect_err(|err| error!("Error loading layout file: {err}"))
         {
