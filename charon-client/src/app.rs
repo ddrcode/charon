@@ -96,8 +96,7 @@ impl App {
             );
             use std::os::unix::process::CommandExt;
             let err = std::process::Command::new(&self.ctx.config.upgrade_script).exec();
-            // exec() only returns on error
-            return Err(err.into());
+            return Err(err.into()); // exec() only returns on error
         }
         Ok(())
     }
@@ -186,7 +185,7 @@ impl App {
                 tui.terminal.clear()?;
             }
             Command::SuspendApp => action = TickAction::Suspend,
-            Command::ResumeApp => action = TickAction::Resume,
+            Command::ResumeApp => {}
             Command::ClearScreen => tui.terminal.clear()?,
             Command::Render => self.render(tui)?,
             Command::SendEvent(event) => self.send_to_daemon(&event).await?,

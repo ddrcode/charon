@@ -8,11 +8,15 @@ part of Charon's logic.
 
 ## Folders
 
+- `charon`: systemd service files and helper scripts for running Charon in user space.
+  Includes the daemon service unit, desktop entry for TUI autostart, and scripts for
+  running and restarting Charon.
+
 - `telemetry`: configuration of [Prometheus](https://prometheus.io/) and
   [Pushgateway](https://github.com/prometheus/pushgateway).
   This is crucial for collecting any statistics while typing - like WPM, key-presses
   count etc. The entire telemetry functionality can be disabled in the config file
-  (`enbale_telemetry` option), but when enabled, Prometheus must be configured
+  (`enable_telemetry` option), but when enabled, Prometheus must be configured.
 
 - `qmk`: important only when Charon works with a QMK-powered programmable keyboard
   and only when [Raw HID](https://docs.qmk.fm/features/rawhid) is enabled on the keyboard

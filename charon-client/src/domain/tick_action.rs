@@ -5,7 +5,6 @@ pub enum TickAction {
     Quit,
     Upgrade,
     Suspend,
-    Resume,
     #[default]
     None,
 }

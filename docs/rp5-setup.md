@@ -183,21 +183,20 @@ sudo nano /etc/udev/rules.d/99-charon-input.rules
 ```
 
 ```
-# Allow charon group to access input devices
+# Allow input group to access input devices
 SUBSYSTEM=="input", GROUP="input", MODE="0660"
 
 # Allow access to HID gadget
 KERNEL=="hidg*", GROUP="input", MODE="0660"
 ```
 
-Create a `charon` user and add to required groups:
+Add your user to the input group:
 
 ```bash
-sudo useradd -r -s /bin/false charon
-sudo usermod -a -G input charon
+sudo usermod -a -G input $USER
 ```
 
-Reload udev:
+Reload udev and log out/in for group changes to take effect:
 
 ```bash
 sudo udevadm control --reload
@@ -229,22 +228,41 @@ The binaries will be at:
 - `target/release/charond` - the daemon
 - `target/release/charon-tui` - the TUI client
 
-Install them:
+---
+
+## Step 7: Install Charon (User Space)
+
+Charon runs as a user-space service, making updates and debugging easier. Create the service directory and install binaries:
 
 ```bash
-sudo cp target/release/charond /usr/local/bin/
-sudo cp target/release/charon-tui /usr/local/bin/
+mkdir -p ~/.local/charon.service
+mkdir -p ~/.local/bin
+mkdir -p ~/.config/charon
+
+cp target/release/charond ~/.local/charon.service/
+cp target/release/charon-tui ~/.local/charon.service/
+
+# Also keep copies in ~/.local/bin for easy access
+cp target/release/charond ~/.local/bin/
+cp target/release/charon-tui ~/.local/bin/
+```
+
+Copy the helper scripts from `setup/charon/`:
+
+```bash
+cp setup/charon/run-charon-tui.sh ~/.local/charon.service/
+cp setup/charon/restart-charon.sh ~/.local/charon.service/
+chmod +x ~/.local/charon.service/*.sh
 ```
 
 ---
 
-## Step 7: Configure Charon
+## Step 8: Configure Charon
 
-Create the configuration directory and file:
+Create the daemon configuration:
 
 ```bash
-sudo mkdir -p /etc/charon
-sudo nano /etc/charon/config.toml
+nano ~/.config/charon/config.toml
 ```
 
 Minimal configuration:
@@ -267,6 +285,17 @@ layout = "en_us"
 enabled = false
 ```
 
+Create the TUI client configuration:
+
+```bash
+nano ~/.config/charon/tui.toml
+```
+
+```toml
+# Point to the restart script for in-app upgrades
+upgrade_script = "~/.local/charon.service/restart-charon.sh"
+```
+
 To find your keyboard device:
 
 ```bash
@@ -275,49 +304,68 @@ ls -la /dev/input/by-id/ | grep kbd
 
 ---
 
-## Step 8: Create Systemd Services
+## Step 9: Create User Systemd Service
 
-### Daemon service
+Copy the service file:
 
 ```bash
-sudo nano /etc/systemd/system/charond.service
+mkdir -p ~/.config/systemd/user
+cp setup/charon/charond.service ~/.config/systemd/user/
 ```
+
+Or create it manually at `~/.config/systemd/user/charond.service`:
 
 ```ini
 [Unit]
-Description=Charon Keyboard Daemon
-After=charon-gadget.service
-Requires=charon-gadget.service
+Description=Charon Daemon
+Wants=network-online.target
+After=network-online.target
 
 [Service]
 Type=simple
-User=charon
-ExecStart=/usr/local/bin/charond --config /etc/charon/config.toml
+ExecStartPre=/usr/bin/sleep 1
+ExecStart=%h/.local/charon.service/charond
 Restart=on-failure
-RestartSec=5
+RestartSec=3
+
+StandardOutput=append:%h/.local/charon.service/charond-stdout.log
+StandardError=append:%h/.local/charon.service/charond-error.log
 
 [Install]
-WantedBy=multi-user.target
+WantedBy=default.target
 ```
 
 Enable and start:
 
 ```bash
-sudo systemctl daemon-reload
-sudo systemctl enable charond.service
-sudo systemctl start charond.service
+systemctl --user daemon-reload
+systemctl --user enable charond.service
+systemctl --user start charond.service
 ```
 
 Check status:
 
 ```bash
-sudo systemctl status charond.service
-sudo journalctl -u charond.service -f
+systemctl --user status charond.service
+tail -f ~/.local/charon.service/charond-stdout.log
 ```
 
 ---
 
-## Step 9: Connect and Test
+## Step 10: Auto-start TUI Client (Optional)
+
+If you have a display attached and want the TUI to start automatically at login, copy the desktop entry:
+
+```bash
+mkdir -p ~/.config/autostart
+cp setup/charon/charon-client.desktop ~/.config/autostart/
+```
+
+This uses Kitty terminal in fullscreen mode. Edit the file if you prefer a different terminal emulator.
+
+---
+
+## Step 11: Connect and Test
 
 1. Connect a USB keyboard to one of the RP5's USB-A ports
 2. Connect the RP5's USB-C port to your host computer
@@ -350,11 +398,13 @@ lsmod | grep dwc2
 
 ### Permission denied errors
 
-Ensure the charon user has correct group memberships:
+Ensure your user has correct group memberships:
 
 ```bash
-groups charon
+groups $USER
 ```
+
+You should see `input` in the list. If not, run `sudo usermod -a -G input $USER` and log out/in.
 
 Check device permissions:
 
@@ -368,7 +418,10 @@ ls -la /dev/hidg0
 Check charond logs:
 
 ```bash
-sudo journalctl -u charond.service -f
+tail -f ~/.local/charon.service/charond-stdout.log
+tail -f ~/.local/charon.service/charond-error.log
+# or
+journalctl --user -u charond.service -f
 ```
 
 Test input device manually:

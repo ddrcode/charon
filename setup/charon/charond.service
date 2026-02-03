@@ -1,0 +1,19 @@
+# Copy this file to ~/.config/systemd/user/charond.service
+
+[Unit]
+Description=Charon Daemon
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+ExecStartPre=/usr/bin/sleep 1
+ExecStart=%h/.local/charon.service/charond
+Restart=on-failure
+RestartSec=3
+
+StandardOutput=append:%h/.local/charon.service/charond-stdout.log
+StandardError=append:%h/.local/charon.service/charond-error.log
+
+[Install]
+WantedBy=default.target

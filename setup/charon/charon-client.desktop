@@ -1,0 +1,10 @@
+# Copy this file to ~/.config/autostart/ to enable autostart of
+# the Charon TUI client in a fullscreen terminal window using Kitty.
+
+[Desktop Entry]
+Type=Application
+Name=Charon Client
+Exec=kitty --hold --start-as=fullscreen -e /home/charon/.local/charon.service/run-charon-tui.sh
+Hidden=false
+X-GNOME-Autostart-enabled=true
+
