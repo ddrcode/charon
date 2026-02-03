@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 use evdev::KeyCode;
 use thiserror;
+use tokio::task::JoinError;
 
 #[derive(Debug, thiserror::Error)]
 pub enum CharonError {
@@ -39,6 +40,9 @@ pub enum CharonError {
 
     #[error("RawHid error: {0}")]
     RawHidError(#[from] async_hid::HidError),
+
+    #[error("Join error: {0}")]
+    JoinError(#[from] JoinError),
 }
 
 impl From<CharonError> for maiko::Error {

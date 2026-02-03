@@ -6,14 +6,14 @@ use tracing::error;
 
 use crate::port::HIDDevice;
 
-pub struct KeyWriter {
+pub struct KeyWriter<D: HIDDevice> {
     ctx: Context<CharonEvent>,
-    device: Box<dyn HIDDevice + Send + Sync>,
+    device: D,
     prev_sender: Arc<str>,
 }
 
-impl KeyWriter {
-    pub fn new(ctx: Context<CharonEvent>, device: Box<dyn HIDDevice + Send + Sync>) -> Self {
+impl<D: HIDDevice> KeyWriter<D> {
+    pub fn new(ctx: Context<CharonEvent>, device: D) -> Self {
         Self {
             ctx,
             device,
@@ -50,7 +50,7 @@ impl KeyWriter {
     }
 }
 
-impl maiko::Actor for KeyWriter {
+impl<D: HIDDevice> maiko::Actor for KeyWriter<D> {
     type Event = CharonEvent;
 
     async fn handle_event(&mut self, envelope: &Envelope<Self::Event>) -> maiko::Result<()> {

@@ -1,29 +1,27 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-use crate::domain::CharonEvent;
+use crate::{domain::CharonEvent, port::Metrics};
 use lru_time_cache::LruCache;
 use maiko::{Envelope, StepAction};
 use std::time::Duration;
 use tracing::warn;
 
-use crate::actor::telemetry::MetricsManager;
-
-pub struct Telemetry {
+pub struct Telemetry<M: Metrics> {
     events: LruCache<u128, u64>,
-    metrics: MetricsManager,
+    metrics: M,
     push_interval: Duration,
 }
 
-impl Telemetry {
-    pub fn new() -> Self {
+impl<M: Metrics> Telemetry<M> {
+    pub fn new(metrics: M) -> Self {
         Self {
             events: LruCache::with_expiry_duration_and_capacity(Duration::from_secs(10), 1024),
-            metrics: MetricsManager::new().expect("Prometheus metrics should initialize correctly"),
+            metrics,
             push_interval: Duration::from_secs(15),
         }
     }
 }
 
-impl maiko::Actor for Telemetry {
+impl<M: Metrics> maiko::Actor for Telemetry<M> {
     type Event = CharonEvent;
 
     async fn handle_event(&mut self, envelope: &Envelope<Self::Event>) -> maiko::Result {
@@ -59,13 +57,9 @@ impl maiko::Actor for Telemetry {
     }
 
     async fn step(&mut self) -> maiko::Result<StepAction> {
-        self.metrics.push().await;
+        if let Err(e) = self.metrics.flush().await {
+            tracing::error!("Sending telemetry failed: {e}");
+        }
         Ok(StepAction::Backoff(self.push_interval))
-    }
-}
-
-impl Default for Telemetry {
-    fn default() -> Self {
-        Self::new()
     }
 }

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 use rand::prelude::IndexedRandom;
 use serde::Deserialize;
-use std::{collections::HashMap, fs};
+use std::{collections::HashMap, fs, path::Path};
 
 type DB = HashMap<String, Vec<String>>;
 
@@ -22,7 +22,7 @@ pub struct WisdomDb {
 }
 
 impl WisdomDb {
-    pub fn from_file(path: &str) -> std::io::Result<WisdomDb> {
+    pub fn from_file(path: &Path) -> std::io::Result<WisdomDb> {
         let contents = fs::read_to_string(path)?;
         let db: WisdomData = serde_json::from_str(&contents)?;
         let db: DB = db

@@ -35,7 +35,7 @@ impl Keymap {
 
     async fn load_layout(&mut self) {
         // Load physical layout
-        if let Ok(layout) = read_to_string(self.ctx.config.keyboard_layout_file.clone())
+        if let Ok(layout) = read_to_string(self.ctx.config.keyboard_layout_path())
             .await
             .inspect_err(|err| error!("Error loading layout file: {err}"))
         {
@@ -43,7 +43,7 @@ impl Keymap {
         }
 
         // Load QMK keymap
-        if let Ok(keymap) = QmkKeymap::load(&self.ctx.config.keymap_file).await {
+        if let Ok(keymap) = QmkKeymap::load(&self.ctx.config.keymap_path()).await {
             self.qmk_keymap = Some(keymap);
             self.current_layer = 0;
             self.apply_layer_labels();

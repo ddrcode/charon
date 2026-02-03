@@ -8,11 +8,13 @@ pub mod port;
 pub mod processor;
 pub mod util;
 
-use crate::domain::{Mode, Topic as T};
+use crate::{
+    adapter::PrometheusMetrics,
+    domain::{Mode, Topic as T},
+};
 use maiko::Supervisor;
-use std::{fs::read_to_string, path::PathBuf, sync::Arc};
+use std::sync::Arc;
 use tokio::{self, io::unix::AsyncFd, signal::unix};
-use tracing::{debug, info, warn};
 use tracing_subscriber::FmtSubscriber;
 
 use crate::{
@@ -33,7 +35,7 @@ use crate::{
 async fn main() -> eyre::Result<()> {
     init_logging();
 
-    let config = Arc::new(get_config().expect("Failed loading config file"));
+    let config = Arc::new(CharonConfig::from_file().expect("Failed loading config file"));
     let state = ActorState::new(Mode::PassThrough, config.clone());
     let keymap = KeymapLoaderYaml::new(&config.keymaps_dir)
         .load_keymap(&config.host_keymap)
@@ -63,7 +65,7 @@ async fn main() -> eyre::Result<()> {
         |ctx| {
             let dev_path = config.hid_keyboard.clone();
             let dev = HIDDeviceUnix::new(&dev_path);
-            KeyWriter::new(ctx, Box::new(dev))
+            KeyWriter::new(ctx, dev)
         },
         [T::System, T::KeyOutput],
     )?;
@@ -119,9 +121,10 @@ async fn main() -> eyre::Result<()> {
     )?;
 
     if config.enable_telemetry {
+        let prometheus = PrometheusMetrics::new()?;
         supervisor.add_actor(
             "Telemetry",
-            |_ctx| Telemetry::new(),
+            |_ctx| Telemetry::new(prometheus),
             [T::System, T::Telemetry, T::KeyInput, T::Stats],
         )?;
     }
@@ -138,39 +141,19 @@ async fn main() -> eyre::Result<()> {
         _ = supervisor.run() => {},
         // _ = daemon.run() => {},
         _ = tokio::signal::ctrl_c() => {
-            info!("Received Ctrl+C, shutting down...");
+            tracing::info!("Received Ctrl+C, shutting down...");
             // daemon.stop().await;
         },
         _ = sigterm.recv() => {
-            info!("Received SIGTERM, shutting down...");
+            tracing::info!("Received SIGTERM, shutting down...");
             // daemon.stop().await;
         }
     }
 
     supervisor.stop().await?;
 
-    info!("Charon says goodbye. Hades is waiting...");
+    tracing::info!("Charon says goodbye. Hades is waiting...");
     Ok(())
-}
-
-fn get_config() -> eyre::Result<CharonConfig> {
-    let mut path = PathBuf::new();
-    path.push(std::env::var("XDG_CONFIG_HOME")?);
-    path.push("charon/charon.toml");
-
-    if !path.exists() {
-        warn!(
-            "Couldn't find config file at {:?}. Starting with default configuration",
-            path
-        );
-        return Ok(CharonConfig::default());
-    }
-
-    debug!("Found config file: {:?}", path);
-    let config_str = read_to_string(path)?;
-    let config: CharonConfig = toml::from_str(&config_str)?;
-
-    Ok(config)
 }
 
 fn init_logging() {

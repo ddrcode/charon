@@ -31,13 +31,13 @@
           just
           pkg-config
           openssl
-          perl  # needed for vendored openssl build
+          perl # needed for vendored openssl build
         ];
 
         # Linux-specific: cross-compilation toolchain for RP5
-        linuxCrossPackages = with pkgs; [
-          pkgsCross.aarch64-multiplatform.stdenv.cc
-        ];
+        # Note: We don't add the cross-compiler to packages directly as it pollutes CC/etc.
+        # Instead, we reference it only in CARGO_TARGET_* env vars below.
+        aarch64Cc = pkgs.pkgsCross.aarch64-multiplatform.stdenv.cc;
 
         # Darwin-specific: use Zig as cross-linker (no Docker needed)
         darwinPackages = with pkgs; [
@@ -45,10 +45,10 @@
           cargo-zigbuild
         ];
 
-      in {
+      in
+      {
         devShells.default = pkgs.mkShell {
           packages = commonPackages
-            ++ pkgs.lib.optionals pkgs.stdenv.isLinux linuxCrossPackages
             ++ pkgs.lib.optionals pkgs.stdenv.isDarwin darwinPackages;
 
           shellHook = ''
@@ -60,7 +60,8 @@
 
             # For Linux cross-compilation to RP5
             ${pkgs.lib.optionalString pkgs.stdenv.isLinux ''
-              export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER="${pkgs.pkgsCross.aarch64-multiplatform.stdenv.cc}/bin/aarch64-unknown-linux-gnu-gcc"
+              export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER="${aarch64Cc}/bin/aarch64-unknown-linux-gnu-gcc"
+              export CC_aarch64_unknown_linux_gnu="${aarch64Cc}/bin/aarch64-unknown-linux-gnu-gcc"
             ''}
 
             echo "Charon development environment"

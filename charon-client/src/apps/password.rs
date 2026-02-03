@@ -49,7 +49,7 @@ impl ExternalApp for Password {
     }
 
     fn path_to_app(&self) -> Cow<'static, str> {
-        self.ctx.config.password_app.into()
+        self.ctx.config.password_app.clone().into()
     }
 
     async fn on_start(&mut self) -> eyre::Result<()> {

@@ -3,17 +3,19 @@ use evdev::KeyCode;
 use prometheus::{
     GaugeVec, Histogram, IntCounterVec, Registry, histogram_opts, labels, opts, push_metrics,
 };
-use tokio::task::{JoinHandle, spawn_blocking};
+use tokio::task::spawn_blocking;
 use tracing::error;
 
-pub struct MetricsManager {
+use crate::{error::CharonError, port::Metrics};
+
+pub struct PrometheusMetrics {
     registry: Registry,
     keypress_counter: IntCounterVec,
     key_latency_histogram: Histogram,
     wpm_gauge: GaugeVec,
 }
 
-impl MetricsManager {
+impl PrometheusMetrics {
     pub fn new() -> prometheus::Result<Self> {
         let registry = Registry::new();
 
@@ -45,7 +47,14 @@ impl MetricsManager {
         })
     }
 
-    pub fn register_key_event(&self, key: &KeyCode, keyboard: &str) {
+    fn key_name(&self, key: &KeyCode) -> String {
+        let txt = format!("{key:?}");
+        txt.replace("KEY_", "")
+    }
+}
+
+impl Metrics for PrometheusMetrics {
+    fn register_key_event(&self, key: &KeyCode, keyboard: &str) {
         self.keypress_counter
             .with_label_values(&[
                 "ytropek".into(),
@@ -56,39 +65,18 @@ impl MetricsManager {
             .inc();
     }
 
-    pub fn register_key_to_report_time(&self, time: u64) {
+    fn register_key_to_report_time(&self, time: u64) {
         self.key_latency_histogram
             .observe((time as f64) / 1_000_000_000.0);
     }
 
-    pub fn register_wpm(&self, wpm: u16) {
+    fn register_wpm(&self, wpm: u16) {
         self.wpm_gauge
             .with_label_values(&["ytropek", "KeychronQ10", "qwerty"])
             .set(wpm.into());
     }
 
-    // pub async fn start_server(&self) {
-    // use warp::{Filter, http::StatusCode};
-    // let metrics_route = warp::path("metrics").map(|| {
-    //     let mut buffer = Vec::new();
-    //     let encoder = TextEncoder::new();
-    //     let metrics = prometheus::gather();
-    //     encoder.encode(&metrics, &mut buffer).unwrap();
-    //     warp::http::Response::builder()
-    //         .header("Content-Type", encoder.format_type())
-    //         .body(buffer)
-    // });
-    //
-    // warp::serve(metrics_route).run(([127, 0, 0, 1], 9095)).await;
-    // }
-    //
-    // pub async fn stop_server(&self) {
-    // if let Some(tx) = self.shutdown_trigger.lock().unwrap().take() {
-    //     let _ = tx.send(()); // Signal shutdown
-    // }
-    // }
-
-    pub async fn push(&self) -> JoinHandle<()> {
+    async fn flush(&mut self) -> Result<(), CharonError> {
         let reg = self.registry.gather();
 
         spawn_blocking(move || {
@@ -97,10 +85,8 @@ impl MetricsManager {
                 error!("Error while pushing metrics: {err}");
             }
         })
-    }
+        .await?;
 
-    fn key_name(&self, key: &KeyCode) -> String {
-        let txt = format!("{key:?}");
-        txt.replace("KEY_", "")
+        Ok(())
     }
 }

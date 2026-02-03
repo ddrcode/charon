@@ -8,21 +8,25 @@ use super::{qmk::QMKEvent, stats::CurrentStats};
 #[derive(maiko::Event, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[non_exhaustive]
 pub enum CharonEvent {
+    // Typing
     KeyPress(KeyCode, String),
     KeyRelease(KeyCode, String),
     HidReport([u8; 8]),
     SendText(String),
     SendFile(String, bool),
     TextSent,
-    CurrentStats(CurrentStats),
 
-    // system events
+    // Keyboard
+    KeyboardAttached(String),
+
+    // Stats and telemetry
+    CurrentStats(CurrentStats),
+    ReportSent,
+
+    // System events
     ModeChange(Mode),
     Sleep,
     WakeUp,
-
-    // telemetry events
-    ReportSent,
 
     // QMK
     QMKEvent(QMKEvent),
