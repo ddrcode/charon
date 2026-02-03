@@ -1,5 +1,7 @@
 # Charon setup files
 
+For complete Raspberry Pi 5 setup instructions, see [docs/rp5-setup.md](../docs/rp5-setup.md).
+
 This folder contains files that configure or create external services used by Charon.
 They are all optional, although some of them, like `telemetry`, are related to important
 part of Charon's logic.

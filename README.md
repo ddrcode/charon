@@ -134,6 +134,10 @@ You’re very welcome to get involved.
 Open issues, suggest features, or just come say hi in Discussions.
 No pressure, no CLA, just curiosity and a bit of ghostly magic.
 
+## Getting Started
+
+See the [Raspberry Pi 5 Setup Guide](docs/rp5-setup.md) for complete instructions on setting up Charon on your Pi.
+
 ## Testing your devices
 
 Use `evtest <input_file>`

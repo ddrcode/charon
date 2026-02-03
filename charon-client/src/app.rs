@@ -23,6 +23,7 @@ use tokio::{
 use tracing::{debug, error, info, warn};
 
 use crate::{
+    components::notification,
     domain::{AppEvent, Command, Context, TickAction},
     root::AppManager,
     tui::{Event as TuiEvent, Tui},
@@ -64,7 +65,7 @@ impl App {
             .frame_rate(1.0);
         tui.enter()?;
 
-        let sock = self.connect_to_daemon().await?;
+        let sock = self.connect_to_daemon(&mut tui).await?;
         let (reader, writer) = sock.into_split();
         self.sock_writer = Some(BufWriter::new(writer));
         let mut reader = BufReader::new(reader);
@@ -292,7 +293,7 @@ impl App {
         Ok(())
     }
 
-    async fn connect_to_daemon(&self) -> eyre::Result<UnixStream> {
+    async fn connect_to_daemon(&self, tui: &mut Tui) -> eyre::Result<UnixStream> {
         let socket_path = &self.ctx.config.daemon_socket;
         loop {
             match UnixStream::connect(socket_path).await {
@@ -302,6 +303,9 @@ impl App {
                 }
                 Err(e) => {
                     info!("Waiting for daemon at {:?}... ({})", socket_path, e);
+                    tui.draw(|f| {
+                        notification(f, "Starting", "\nWaiting for Charon backend to start.\n")
+                    })?;
                     tokio::time::sleep(std::time::Duration::from_millis(500)).await;
                 }
             }
