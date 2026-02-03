@@ -34,6 +34,8 @@ This guide walks you through setting up a Raspberry Pi 5 as a USB HID gadget for
 
 The RP5 needs to act as a USB HID device (keyboard) to the host computer. This requires enabling the `dwc2` USB driver in gadget mode.
 
+> **Alternative:** For a simpler setup, check out [HIDPi](https://github.com/rikka-chunibyo/HIDPi) which automates most of the gadget configuration. The manual steps below are provided for reference and customization.
+
 ### Enable dwc2 overlay
 
 Edit `/boot/firmware/config.txt`:
