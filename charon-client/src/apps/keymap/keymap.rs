@@ -43,7 +43,7 @@ impl Keymap {
         }
 
         // Load QMK keymap
-        if let Ok(keymap) = QmkKeymap::load(&self.ctx.config.keymap_file).await {
+        if let Ok(keymap) = QmkKeymap::load(&self.ctx.config.keymap_path()).await {
             self.qmk_keymap = Some(keymap);
             self.current_layer = 0;
             self.apply_layer_labels();
