@@ -42,7 +42,7 @@ struct TestContext {
 }
 
 async fn setup() -> eyre::Result<TestContext> {
-    use CharonTopic::*;
+    use CharonTopic as T;
     let config = CharonConfig::default();
     let state = ActorState::new(Mode::PassThrough, Arc::new(config));
 
@@ -55,7 +55,7 @@ async fn setup() -> eyre::Result<TestContext> {
         let scanner = sup.add_actor(
             "KeyScanner",
             |ctx| KeyScanner::new(ctx, state.clone(), input, "test-keyboard".into()),
-            [System],
+            [T::System],
         )?;
         (scanner, keyboard)
     };
@@ -69,7 +69,7 @@ async fn setup() -> eyre::Result<TestContext> {
             ];
             Pipeline::new(ctx, processors)
         },
-        [System, KeyInput],
+        [T::System, T::KeyInput],
     )?;
 
     sup.add_actor(
@@ -79,7 +79,7 @@ async fn setup() -> eyre::Result<TestContext> {
             let dev = HidDeviceMock::new(state);
             KeyWriter::new(ctx, dev)
         },
-        [System, KeyOutput],
+        [T::System, T::KeyOutput],
     )?;
 
     sup.add_actor(
@@ -88,7 +88,7 @@ async fn setup() -> eyre::Result<TestContext> {
             let state = Arc::new(StdMutex::new(MetricsState::default()));
             Telemetry::new(MetricsMock::new(state))
         },
-        [System, Telemetry, KeyInput, Stats],
+        [T::System, T::Telemetry, T::KeyInput, T::Stats],
     )?;
 
     Ok(TestContext {
@@ -102,6 +102,9 @@ async fn setup() -> eyre::Result<TestContext> {
 #[tokio::test]
 async fn test_key_press_emits_event() -> eyre::Result<()> {
     let mut ctx = setup().await?;
+
+    eprintln!("{}", ctx.sup.to_mermaid());
+
     ctx.sup.start().await?;
 
     ctx.test.start_recording().await;

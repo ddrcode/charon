@@ -29,3 +29,11 @@ impl HIDDevice for HidDeviceMock {
         Ok(())
     }
 }
+
+impl Default for HidDeviceMock {
+    fn default() -> Self {
+        Self {
+            state: Arc::new(Mutex::new(VecDeque::new())),
+        }
+    }
+}

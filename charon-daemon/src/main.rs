@@ -9,7 +9,7 @@ pub mod processor;
 pub mod util;
 
 use crate::{
-    adapter::PrometheusMetrics,
+    adapter::{PrometheusMetrics, mock::HidDeviceMock},
     domain::{Mode, Topic as T},
 };
 use maiko::Supervisor;
@@ -63,8 +63,9 @@ async fn main() -> eyre::Result<()> {
     supervisor.add_actor(
         "KeyWriter",
         |ctx| {
-            let dev_path = config.hid_keyboard.clone();
-            let dev = HIDDeviceUnix::new(&dev_path);
+            // let dev_path = config.hid_keyboard.clone();
+            // let dev = HIDDeviceUnix::new(&dev_path);
+            let dev = HidDeviceMock::default();
             KeyWriter::new(ctx, dev)
         },
         [T::System, T::KeyOutput],
@@ -135,24 +136,26 @@ async fn main() -> eyre::Result<()> {
         [T::System, T::KeyInput],
     )?;
 
-    let mut sigterm = unix::signal(unix::SignalKind::terminate())?;
+    println!("{}", supervisor.to_mermaid());
 
-    tokio::select! {
-        _ = supervisor.run() => {},
-        // _ = daemon.run() => {},
-        _ = tokio::signal::ctrl_c() => {
-            tracing::info!("Received Ctrl+C, shutting down...");
-            // daemon.stop().await;
-        },
-        _ = sigterm.recv() => {
-            tracing::info!("Received SIGTERM, shutting down...");
-            // daemon.stop().await;
-        }
-    }
-
-    supervisor.stop().await?;
-
-    tracing::info!("Charon says goodbye. Hades is waiting...");
+    // let mut sigterm = unix::signal(unix::SignalKind::terminate())?;
+    //
+    // tokio::select! {
+    //     _ = supervisor.run() => {},
+    //     // _ = daemon.run() => {},
+    //     _ = tokio::signal::ctrl_c() => {
+    //         tracing::info!("Received Ctrl+C, shutting down...");
+    //         // daemon.stop().await;
+    //     },
+    //     _ = sigterm.recv() => {
+    //         tracing::info!("Received SIGTERM, shutting down...");
+    //         // daemon.stop().await;
+    //     }
+    // }
+    //
+    // supervisor.stop().await?;
+    //
+    // tracing::info!("Charon says goodbye. Hades is waiting...");
     Ok(())
 }
 
