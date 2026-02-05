@@ -1,34 +1,27 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-use std::sync::Arc;
-
-use charond::domain::{CharonEvent, Mode, Topic as CharonTopic};
-use evdev::KeyCode;
-use maiko::{ActorId, Envelope, Supervisor, testing::Harness};
-use tokio::sync::Mutex;
-
-use charond::{
-    actor::KeyScanner,
-    adapter::mock::{EventDeviceMock, EventDeviceState},
-    config::CharonConfig,
-    domain::ActorState,
+use std::{
+    collections::VecDeque,
+    sync::{Arc, Mutex as StdMutex},
 };
 
-/// A no-op actor that subscribes to events for test observation.
-struct Sink;
+use evdev::KeyCode;
+use maiko::{ActorId, Envelope, Supervisor, testing::Harness};
+use tokio::sync::Mutex as TokioMutex;
 
-impl maiko::Actor for Sink {
-    type Event = CharonEvent;
-    async fn handle_event(&mut self, _: &Envelope<Self::Event>) -> maiko::Result<()> {
-        Ok(())
-    }
-}
+use charond::{
+    actor::{KeyScanner, KeyWriter, Pipeline, Telemetry},
+    adapter::mock::{EventDeviceMock, EventDeviceState, HidDeviceMock, MetricsMock, MetricsState},
+    config::CharonConfig,
+    domain::{ActorState, CharonEvent, Mode, Topic as CharonTopic, traits::Processor},
+    processor::{KeyEventProcessor, SystemShortcutProcessor},
+};
 
 struct MockKeyboard {
-    state: Arc<Mutex<EventDeviceState>>,
+    state: Arc<TokioMutex<EventDeviceState>>,
 }
 
 impl MockKeyboard {
-    fn new(state: Arc<Mutex<EventDeviceState>>) -> Self {
+    fn new(state: Arc<TokioMutex<EventDeviceState>>) -> Self {
         Self { state }
     }
 
@@ -67,8 +60,36 @@ async fn setup() -> eyre::Result<TestContext> {
         (scanner, keyboard)
     };
 
-    // Sink subscribes to KeyInput to observe events from KeyScanner
-    sup.add_actor("Sink", |_ctx| Sink, [KeyInput])?;
+    sup.add_actor(
+        "KeyEventPipeline",
+        |ctx| {
+            let processors: Vec<Box<dyn Processor + Send + Sync>> = vec![
+                Box::new(KeyEventProcessor::default()),
+                Box::new(SystemShortcutProcessor::new(ctx.clone(), state.clone())),
+            ];
+            Pipeline::new(ctx, processors)
+        },
+        [System, KeyInput],
+    )?;
+
+    sup.add_actor(
+        "KeyWriter",
+        |ctx| {
+            let state = Arc::new(StdMutex::new(VecDeque::with_capacity(64)));
+            let dev = HidDeviceMock::new(state);
+            KeyWriter::new(ctx, dev)
+        },
+        [System, KeyOutput],
+    )?;
+
+    sup.add_actor(
+        "Telemetry",
+        |_ctx| {
+            let state = Arc::new(StdMutex::new(MetricsState::default()));
+            Telemetry::new(MetricsMock::new(state))
+        },
+        [System, Telemetry, KeyInput, Stats],
+    )?;
 
     Ok(TestContext {
         sup,

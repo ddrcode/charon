@@ -24,3 +24,9 @@ impl From<HidReport> for [u8; 8] {
         report.to_bytes()
     }
 }
+
+impl From<&[u8; 8]> for HidReport {
+    fn from(value: &[u8; 8]) -> Self {
+        HidReport::new(*value)
+    }
+}

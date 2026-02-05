@@ -4,26 +4,33 @@ use evdev::KeyCode;
 
 use crate::{error::CharonError, port::Metrics};
 
+#[derive(Debug, Default, Clone)]
 pub struct MetricsState {
-    wpm_counter: usize,
-    last_wpm: u16,
+    pub wpm_counter: usize,
+    pub last_wpm: u16,
 
-    key_events_counter: usize,
-    last_key_event: KeyCode,
+    pub key_events_counter: usize,
+    pub last_key_event: Option<KeyCode>,
 
-    key_to_report_time_counter: usize,
-    last_key_to_report_time: u64,
+    pub key_to_report_time_counter: usize,
+    pub last_key_to_report_time: u64,
 }
 
 pub struct MetricsMock {
     state: Arc<Mutex<MetricsState>>,
 }
 
+impl MetricsMock {
+    pub fn new(state: Arc<Mutex<MetricsState>>) -> Self {
+        Self { state }
+    }
+}
+
 impl Metrics for MetricsMock {
     fn register_key_event(&self, key: &evdev::KeyCode, _keyboard: &str) {
         if let Ok(mut state) = self.state.lock() {
             state.key_events_counter += 1;
-            state.last_key_event = *key;
+            state.last_key_event = Some(*key);
         }
     }
 
