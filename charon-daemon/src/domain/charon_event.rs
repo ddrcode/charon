@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 use evdev::KeyCode;
+use maiko::{Event, Label};
 use serde::{Deserialize, Serialize};
 
 use super::{Mode, Topic};
 use super::{qmk::QMKEvent, stats::CurrentStats};
 
-#[derive(maiko::Event, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Event, Label, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[non_exhaustive]
 pub enum CharonEvent {
     // Typing

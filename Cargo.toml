@@ -18,7 +18,7 @@ description = "A USB keyboard pass-through device with TUI"
 chrono = "0.4.43"
 evdev = { version = "0.13.2", features = ["serde", "tokio"] }
 eyre = { version = "0.6.12", default-features = false, features = ["auto-install", "track-caller"] }
-maiko = { version = "0.2.2", features = ["serde"], path="../maiko/maiko" }
+maiko = { version = "0.2.3", features = ["serde"], path="../maiko/maiko" }
 serde = { version = "1.0.219", features = ["serde_derive"] }
 serde_json = "1.0.149"
 strum = { version = "0.27.2", features = ["derive"] }
