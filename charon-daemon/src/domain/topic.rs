@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 // SPDX-License-Identifier: GPL-3.0-or-later
 use super::CharonEvent;
 
@@ -45,5 +47,18 @@ impl maiko::Topic<CharonEvent> for Topic {
         Self: Sized,
     {
         Self::from(event)
+    }
+
+    fn name(&self) -> Cow<'static, str> {
+        match self {
+            Topic::System => "system".into(),
+            Topic::TextInput => "text_input".into(),
+            Topic::KeyInput => "key_input".into(),
+            Topic::KeyOutput => "key_output".into(),
+            Topic::Stats => "stats".into(),
+            Topic::Monitoring => "monitoring".into(),
+            Topic::Telemetry => "telemetry".into(),
+            Topic::Keyboard => "keyboard".into(),
+        }
     }
 }

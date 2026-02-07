@@ -69,7 +69,7 @@ async fn setup() -> eyre::Result<TestContext> {
             ];
             Pipeline::new(ctx, processors)
         },
-        [T::System, T::KeyInput],
+        [T::KeyInput],
     )?;
 
     sup.add_actor(
