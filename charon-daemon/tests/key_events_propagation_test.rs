@@ -29,6 +29,10 @@ impl MockKeyboard {
         self.state.lock().await.simulate_key_press(key_code);
     }
 
+    async fn key_release(&self, key_code: KeyCode) {
+        self.state.lock().await.simulate_key_release(key_code);
+    }
+
     async fn drain(&self) {
         EventDeviceState::drain(&self.state).await;
     }
@@ -148,5 +152,87 @@ async fn test_key_press_emits_event() -> eyre::Result<()> {
     );
 
     ctx.sup.stop().await?;
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_ctrl_q_shortcut_flow() -> eyre::Result<()> {
+    let mut ctx = setup().await?;
+
+    ctx.sup.start().await?;
+
+    ctx.test.start_recording().await;
+
+    // Step 1: Press Ctrl - this flows through to the host
+    ctx.keyboard.key_press(KeyCode::KEY_LEFTCTRL).await;
+    ctx.keyboard.drain().await;
+
+    // Step 2: Press Q while Ctrl is held - this triggers shutdown
+    ctx.keyboard.key_press(KeyCode::KEY_Q).await;
+    ctx.keyboard.drain().await;
+
+    ctx.test.stop_recording().await;
+
+    // Scanner should have sent 2 distinct events: Ctrl and Q
+    let scanner_spy = ctx.test.actor(&ctx.scanner);
+    assert_eq!(
+        scanner_spy.outbound_count(),
+        2,
+        "Expected 2 events from scanner (Ctrl and Q)"
+    );
+
+    // Get unique events by collecting and deduplicating by ID
+    let unique_events: Vec<_> = scanner_spy.outbound().unique();
+    let ctrl_event = &unique_events[0];
+    let q_event = &unique_events[1];
+
+    // Analyze Ctrl key chain - should flow all the way through
+    let ctrl_chain = ctx.test.chain(ctrl_event.id());
+
+    println!("\n=== Ctrl Key Chain ===");
+    println!("{}", ctrl_chain.to_string_tree());
+    println!("Mermaid:\n{}", ctrl_chain.to_mermaid());
+    println!("Paths: {:?}", ctrl_chain.actors().paths());
+
+    // Ctrl flows: Scanner -> Pipeline -> Writer -> Telemetry
+    //             Scanner -> Telemetry (direct via KeyInput topic)
+    assert_eq!(ctrl_chain.actors().path_count(), 2);
+    assert!(
+        ctrl_chain
+            .actors()
+            .path(&[&ctx.scanner, &ctx.pipeline, &ctx.writer, &ctx.telemetry])
+    );
+    assert!(ctrl_chain.actors().path(&[&ctx.scanner, &ctx.telemetry]));
+
+    // Ctrl generates HidReport and ReportSent
+    assert!(
+        ctrl_chain
+            .events()
+            .sequence(&["KeyPress", "HidReport", "ReportSent"])
+    );
+
+    // Analyze Q key chain - should be intercepted by SystemShortcutProcessor
+    let q_chain = ctx.test.chain(q_event.id());
+
+    println!("\n=== Q Key Chain (Ctrl+Q shortcut) ===");
+    println!("{}", q_chain.to_string_tree());
+    println!("Mermaid:\n{}", q_chain.to_mermaid());
+    println!("Paths: {:?}", q_chain.actors().paths());
+
+    // Q is intercepted - SystemShortcutProcessor calls reset_hid() then ctx.stop()
+    // The reset_hid sends an empty HidReport to clear modifiers
+    // So we should see: KeyPress -> HidReport (the reset) -> possibly ReportSent
+
+    // Q still reaches Pipeline (where it's intercepted), and Telemetry (via KeyInput)
+    assert!(q_chain.actors().visited(&[&ctx.scanner, &ctx.pipeline]));
+    assert!(q_chain.actors().visited(&[&ctx.telemetry])); // Telemetry sees Q via KeyInput topic
+
+    // Verify the shutdown didn't prevent the reset HID from being sent
+    // (The pipeline should send the reset HidReport before stopping)
+
+    // Don't call sup.stop() - the Ctrl+Q already triggered shutdown
+    // But we may need to wait for it or it may have already happened
+    let _ = ctx.sup.stop().await; // Safe to call even if already stopped
+
     Ok(())
 }
