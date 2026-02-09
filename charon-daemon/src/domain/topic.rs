@@ -40,3 +40,12 @@ impl From<&CharonEvent> for Topic {
         }
     }
 }
+
+impl maiko::Topic<CharonEvent> for Topic {
+    fn from_event(event: &CharonEvent) -> Self
+    where
+        Self: Sized,
+    {
+        Self::from(event)
+    }
+}

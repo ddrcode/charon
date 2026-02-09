@@ -5,7 +5,7 @@ use std::{
 };
 
 use evdev::KeyCode;
-use maiko::{ActorId, Envelope, Supervisor, testing::Harness};
+use maiko::{ActorId, Envelope, Label, Supervisor, testing::Harness};
 use tokio::sync::Mutex as TokioMutex;
 
 use charond::{
@@ -38,7 +38,11 @@ struct TestContext {
     sup: Supervisor<CharonEvent, CharonTopic>,
     test: Harness<CharonEvent, CharonTopic>,
     keyboard: MockKeyboard,
+
     scanner: ActorId,
+    pipeline: ActorId,
+    writer: ActorId,
+    telemetry: ActorId,
 }
 
 async fn setup() -> eyre::Result<TestContext> {
@@ -60,7 +64,7 @@ async fn setup() -> eyre::Result<TestContext> {
         (scanner, keyboard)
     };
 
-    sup.add_actor(
+    let pipeline = sup.add_actor(
         "KeyEventPipeline",
         |ctx| {
             let processors: Vec<Box<dyn Processor + Send + Sync>> = vec![
@@ -72,7 +76,7 @@ async fn setup() -> eyre::Result<TestContext> {
         [T::KeyInput],
     )?;
 
-    sup.add_actor(
+    let writer = sup.add_actor(
         "KeyWriter",
         |ctx| {
             let state = Arc::new(StdMutex::new(VecDeque::with_capacity(64)));
@@ -82,7 +86,7 @@ async fn setup() -> eyre::Result<TestContext> {
         [T::System, T::KeyOutput],
     )?;
 
-    sup.add_actor(
+    let telemetry = sup.add_actor(
         "Telemetry",
         |_ctx| {
             let state = Arc::new(StdMutex::new(MetricsState::default()));
@@ -96,6 +100,9 @@ async fn setup() -> eyre::Result<TestContext> {
         keyboard: MockKeyboard::new(keyboard_state),
         test,
         scanner,
+        pipeline,
+        writer,
+        telemetry,
     })
 }
 
@@ -103,7 +110,7 @@ async fn setup() -> eyre::Result<TestContext> {
 async fn test_key_press_emits_event() -> eyre::Result<()> {
     let mut ctx = setup().await?;
 
-    eprintln!("{}", ctx.sup.to_mermaid());
+    println!("{}", ctx.sup.to_mermaid());
 
     ctx.sup.start().await?;
 
@@ -114,6 +121,24 @@ async fn test_key_press_emits_event() -> eyre::Result<()> {
 
     let spy = ctx.test.actor(&ctx.scanner);
     assert_eq!(1, spy.outbound_count());
+    let event = spy.last_sent().unwrap();
+    let chain = ctx.test.chain(event.id());
+
+    println!("{:?}", chain.actors().ordered_receivers());
+
+    println!(
+        "Events: {:?}",
+        chain
+            .chain_entries()
+            .map(|e| String::from(e.payload().label()))
+            .collect::<Vec<String>>()
+            .join(", ")
+    );
+
+    assert!(chain.events().contains(event.id()));
+    assert!(chain.actors().visited_all(&[&ctx.pipeline, &ctx.writer]));
+
+    assert!(chain.events().sequence(&["KeyPress", "HidRecord"]));
 
     ctx.sup.stop().await?;
     Ok(())
