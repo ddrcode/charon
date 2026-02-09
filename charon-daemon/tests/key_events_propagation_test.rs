@@ -124,21 +124,28 @@ async fn test_key_press_emits_event() -> eyre::Result<()> {
     let event = spy.last_sent().unwrap();
     let chain = ctx.test.chain(event.id());
 
-    println!("{:?}", chain.actors().ordered_receivers());
+    println!("\nActor chain for KeyPress S:");
+    println!("{:?}", chain.actors().all());
 
-    println!(
-        "Events: {:?}",
-        chain
-            .chain_entries()
-            .map(|e| String::from(e.payload().label()))
-            .collect::<Vec<String>>()
-            .join(", ")
-    );
+    println!("\nMermaid diagram:");
+    println!("{}", chain.to_mermaid());
+
+    print!("\nEvent chain for KeyPress S: {}", chain.to_string_tree());
 
     assert!(chain.events().contains(event.id()));
-    assert!(chain.actors().visited_all(&[&ctx.pipeline, &ctx.writer]));
+    assert_eq!(chain.actors().path_count(), 2);
+    assert!(chain.actors().path(&[&ctx.scanner, &ctx.telemetry]));
+    assert!(
+        chain
+            .actors()
+            .path(&[&ctx.scanner, &ctx.pipeline, &ctx.writer, &ctx.telemetry])
+    );
 
-    assert!(chain.events().sequence(&["KeyPress", "HidRecord"]));
+    assert!(
+        chain
+            .events()
+            .sequence(&["KeyPress", "HidReport", "ReportSent"])
+    );
 
     ctx.sup.stop().await?;
     Ok(())
