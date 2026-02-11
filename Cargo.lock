@@ -1372,6 +1372,7 @@ version = "0.2.3"
 dependencies = [
  "maiko-macros",
  "serde",
+ "serde_json",
  "thiserror 2.0.18",
  "tokio",
  "tokio-util",

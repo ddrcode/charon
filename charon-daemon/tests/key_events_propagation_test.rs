@@ -124,7 +124,7 @@ async fn test_key_press_emits_event() -> eyre::Result<()> {
     ctx.test.stop_recording().await;
 
     let spy = ctx.test.actor(&ctx.scanner);
-    assert_eq!(1, spy.outbound_count());
+    assert_eq!(1, spy.events_sent());
     let event = spy.last_sent().unwrap();
     let chain = ctx.test.chain(event.id());
 
@@ -138,17 +138,17 @@ async fn test_key_press_emits_event() -> eyre::Result<()> {
 
     assert!(chain.events().contains(event.id()));
     assert_eq!(chain.actors().path_count(), 2);
-    assert!(chain.actors().path(&[&ctx.scanner, &ctx.telemetry]));
+    assert!(chain.actors().segment(&[&ctx.scanner, &ctx.telemetry]));
     assert!(
         chain
             .actors()
-            .path(&[&ctx.scanner, &ctx.pipeline, &ctx.writer, &ctx.telemetry])
+            .exact(&[&ctx.scanner, &ctx.pipeline, &ctx.writer, &ctx.telemetry])
     );
 
     assert!(
         chain
             .events()
-            .sequence(&["KeyPress", "HidReport", "ReportSent"])
+            .segment(&["KeyPress", "HidReport", "ReportSent"])
     );
 
     ctx.sup.stop().await?;
@@ -176,13 +176,13 @@ async fn test_ctrl_q_shortcut_flow() -> eyre::Result<()> {
     // Scanner should have sent 2 distinct events: Ctrl and Q
     let scanner_spy = ctx.test.actor(&ctx.scanner);
     assert_eq!(
-        scanner_spy.outbound_count(),
+        scanner_spy.events_sent(),
         2,
         "Expected 2 events from scanner (Ctrl and Q)"
     );
 
     // Get unique events by collecting and deduplicating by ID
-    let unique_events: Vec<_> = scanner_spy.outbound().unique();
+    let unique_events: Vec<_> = scanner_spy.outbound().collect();
     let ctrl_event = &unique_events[0];
     let q_event = &unique_events[1];
 
@@ -200,15 +200,15 @@ async fn test_ctrl_q_shortcut_flow() -> eyre::Result<()> {
     assert!(
         ctrl_chain
             .actors()
-            .path(&[&ctx.scanner, &ctx.pipeline, &ctx.writer, &ctx.telemetry])
+            .exact(&[&ctx.scanner, &ctx.pipeline, &ctx.writer, &ctx.telemetry])
     );
-    assert!(ctrl_chain.actors().path(&[&ctx.scanner, &ctx.telemetry]));
+    assert!(ctrl_chain.actors().exact(&[&ctx.scanner, &ctx.telemetry]));
 
     // Ctrl generates HidReport and ReportSent
     assert!(
         ctrl_chain
             .events()
-            .sequence(&["KeyPress", "HidReport", "ReportSent"])
+            .segment(&["KeyPress", "HidReport", "ReportSent"])
     );
 
     // Analyze Q key chain - should be intercepted by SystemShortcutProcessor
