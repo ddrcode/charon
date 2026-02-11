@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 use crate::domain::{CharonEvent, Mode};
 use deunicode::deunicode_char;
-use maiko::{Context, Envelope};
+use maiko::{Context, Envelope, EventId};
 use tokio::fs::{read_to_string, remove_file};
 use tracing::{debug, warn};
 
@@ -42,12 +42,17 @@ impl Typist {
         None
     }
 
-    pub async fn send_char(&mut self, c: char) -> maiko::Result<()> {
+    pub async fn send_char(&mut self, c: char, source_id: &EventId) -> maiko::Result<()> {
         if let Some(report) = self.keymap.report(c).or_else(|| self.to_ascii_report(c)) {
-            self.ctx.send(CharonEvent::HidReport(report.into())).await?;
+            self.ctx
+                .send_with_correlation(CharonEvent::HidReport(report.into()), *source_id)
+                .await?;
             tokio::time::sleep(self.speed).await;
             self.ctx
-                .send(CharonEvent::HidReport(HidReport::default().into()))
+                .send_with_correlation(
+                    CharonEvent::HidReport(HidReport::default().into()),
+                    *source_id,
+                )
                 .await?;
             tokio::time::sleep(self.speed).await;
         } else {
@@ -56,9 +61,9 @@ impl Typist {
         Ok(())
     }
 
-    pub async fn send_string(&mut self, s: &str, source_id: &u128) -> maiko::Result<()> {
+    pub async fn send_string(&mut self, s: &str, source_id: &EventId) -> maiko::Result<()> {
         for c in s.chars() {
-            self.send_char(c).await?;
+            self.send_char(c, source_id).await?;
             if self.state.mode().await == Mode::PassThrough {
                 warn!("Sending text interrupted by mode change");
                 return Ok(());
