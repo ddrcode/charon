@@ -19,20 +19,21 @@ impl<Q: QmkDevice> QMK<Q> {
     }
 
     async fn process_qmk_event(&mut self, qmk_event: QMKEvent) -> maiko::Result {
-        let event = match qmk_event {
+        match qmk_event {
             QMKEvent::ToggleMode => {
                 let new_mode = self.state.mode().toggle();
                 debug!("Switching mode to {:?}", new_mode);
                 self.state.set_mode(new_mode);
-                CharonEvent::ModeChange(new_mode)
             }
             QMKEvent::ModeChange(mode) => {
                 self.state.set_mode(mode);
-                CharonEvent::ModeChange(mode)
             }
-            e => CharonEvent::QMKEvent(e),
-        };
-        self.ctx.send(event).await
+            e => {
+                let event = CharonEvent::QMKEvent(e);
+                self.ctx.send(event).await?;
+            }
+        }
+        Ok(())
     }
 }
 

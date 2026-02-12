@@ -54,13 +54,9 @@ impl<D: HIDDevice> maiko::Actor for KeyWriter<D> {
     type Event = CharonEvent;
 
     async fn handle_event(&mut self, envelope: &Envelope<Self::Event>) -> maiko::Result<()> {
-        match envelope.event() {
-            CharonEvent::HidReport(report) => {
-                self.send_report(report, envelope.meta().actor_name());
-                self.send_telemetry(envelope.meta()).await?;
-            }
-            CharonEvent::ModeChange(_) => self.reset(),
-            _ => {}
+        if let CharonEvent::HidReport(report) = envelope.event() {
+            self.send_report(report, envelope.meta().actor_name());
+            self.send_telemetry(envelope.meta()).await?;
         }
         Ok(())
     }

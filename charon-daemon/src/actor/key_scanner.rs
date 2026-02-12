@@ -125,7 +125,7 @@ impl<D: EventDevice> maiko::Actor for KeyScanner<D> {
     type Event = CharonEvent;
 
     async fn on_start(&mut self) -> maiko::Result<()> {
-        let mode = self.mode_rx.borrow().clone();
+        let mode = *self.mode_rx.borrow();
         self.toggle_grabbing(&mode);
         Ok(())
     }

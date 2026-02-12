@@ -65,7 +65,7 @@ async fn main() -> eyre::Result<()> {
             let dev = HIDDeviceUnix::new(&dev_path);
             KeyWriter::new(ctx, dev)
         },
-        [T::System, T::KeyOutput],
+        [T::KeyOutput],
     )?;
 
     supervisor.add_actor(
@@ -77,20 +77,20 @@ async fn main() -> eyre::Result<()> {
             ];
             Pipeline::new(ctx, processors)
         },
-        [T::System, T::KeyInput],
+        [T::KeyInput],
     )?;
 
     supervisor.add_actor(
         "IPCServer",
         |ctx| IPCServer::new(ctx, state.clone()),
-        [T::System, T::Stats, T::Monitoring],
+        [T::Client, T::Stats, T::Monitoring],
     )?;
 
     if config.sleep_script.is_some() && config.awake_script.is_some() {
         supervisor.add_actor(
             "PowerManager",
             |ctx| PowerManager::new(ctx, state.clone()),
-            [T::System, T::KeyInput],
+            [T::KeyInput],
         )?;
     }
 
@@ -108,14 +108,14 @@ async fn main() -> eyre::Result<()> {
         supervisor.add_actor(
             "QMK",
             |ctx| QMK::new(ctx, state.clone(), device),
-            [T::System],
+            Subscribe::none(),
         )?;
     }
 
     supervisor.add_actor(
         "Typist",
         |ctx| Typist::new(ctx, state.clone(), keymap),
-        &[T::System, T::TextInput],
+        &[T::TextInput],
     )?;
 
     if config.enable_telemetry {
@@ -123,14 +123,14 @@ async fn main() -> eyre::Result<()> {
         supervisor.add_actor(
             "Telemetry",
             |_ctx| Telemetry::new(prometheus),
-            [T::System, T::Telemetry, T::KeyInput, T::Stats],
+            [T::Telemetry, T::KeyInput, T::Stats],
         )?;
     }
 
     supervisor.add_actor(
         "TypingStats",
         |ctx| TypingStats::new(ctx, state.clone()),
-        [T::System, T::KeyInput],
+        [T::KeyInput],
     )?;
 
     println!("{}", supervisor.to_mermaid());

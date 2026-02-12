@@ -5,7 +5,6 @@ use super::CharonEvent;
 
 #[derive(Debug, PartialEq, Eq, Clone, Hash, Label)]
 pub enum Topic {
-    System,
     TextInput,
     KeyInput,
     KeyOutput,
@@ -13,6 +12,7 @@ pub enum Topic {
     Monitoring,
     Telemetry,
     Keyboard,
+    Client,
 }
 
 impl From<&CharonEvent> for Topic {
@@ -28,9 +28,9 @@ impl From<&CharonEvent> for Topic {
             TextSent => Monitoring,
             CurrentStats(_) => Stats,
 
-            ModeChange(_) => System,
-            Sleep => System,
-            WakeUp => System,
+            ModeChange(_) => Client,
+            Sleep => Client,
+            WakeUp => Client,
 
             ReportSent => Telemetry,
 
