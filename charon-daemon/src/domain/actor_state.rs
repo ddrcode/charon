@@ -2,37 +2,40 @@
 use std::sync::Arc;
 
 use super::Mode;
-use tokio::sync::RwLock;
+use tokio::sync::watch;
 
 use crate::config::CharonConfig;
 
 #[derive(Clone)]
 pub struct ActorState {
-    mode: Arc<RwLock<Mode>>,
+    mode_tx: watch::Sender<Mode>,
+    mode_rx: watch::Receiver<Mode>,
     config: Arc<CharonConfig>,
 }
 
 impl ActorState {
     pub fn new(mode: Mode, config: Arc<CharonConfig>) -> Self {
+        let (mode_tx, mode_rx) = watch::channel(mode);
         Self {
-            mode: Arc::new(RwLock::new(mode)),
+            mode_tx,
+            mode_rx,
             config,
         }
     }
 
-    pub async fn mode(&self) -> Mode {
-        *self.mode.read().await
+    pub fn mode(&self) -> Mode {
+        *self.mode_rx.borrow()
     }
 
-    pub async fn set_mode(&mut self, mode: Mode) {
-        *self.mode.write().await = mode;
+    pub fn set_mode(&self, mode: Mode) {
+        let _ = self.mode_tx.send(mode);
+    }
+
+    pub fn mode_receiver(&self) -> watch::Receiver<Mode> {
+        self.mode_rx.clone()
     }
 
     pub fn config(&self) -> &CharonConfig {
         &self.config
-    }
-
-    pub fn clone_mode(&self) -> Arc<RwLock<Mode>> {
-        self.mode.clone()
     }
 }

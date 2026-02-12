@@ -8,7 +8,7 @@ pub mod port;
 pub mod processor;
 pub mod util;
 
-use maiko::Supervisor;
+use maiko::{Subscribe, Supervisor};
 use std::sync::Arc;
 use tokio::{self, io::unix::AsyncFd, signal::unix};
 use tracing_subscriber::FmtSubscriber;
@@ -54,7 +54,7 @@ async fn main() -> eyre::Result<()> {
                 let input = EventDeviceUnix::new(async_dev);
                 KeyScanner::new(ctx, state.clone(), input, name)
             },
-            [T::System],
+            Subscribe::none(),
         )?;
     }
 

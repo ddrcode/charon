@@ -2,7 +2,8 @@
 use std::collections::HashSet;
 
 use crate::domain::{CharonEvent, Mode};
-use maiko::{Context, Envelope, StepAction};
+use maiko::{Context, StepAction};
+use tokio::{select, sync::watch};
 
 use crate::{domain::ActorState, port::EventDevice};
 use evdev::{EventSummary, InputEvent};
@@ -18,8 +19,8 @@ use tracing::{debug, error, warn};
 pub struct KeyScanner<D: EventDevice> {
     ctx: Context<CharonEvent>,
 
-    /// Actor's state
-    state: ActorState,
+    /// Mode
+    mode_rx: watch::Receiver<Mode>,
 
     /// System input device (/dev/input)
     input: D,
@@ -46,7 +47,7 @@ impl<D: EventDevice> KeyScanner<D> {
     ) -> Self {
         KeyScanner {
             ctx,
-            state,
+            mode_rx: state.mode_receiver(),
             input,
             keyboard_name,
             should_handle_grab: None,
@@ -124,34 +125,29 @@ impl<D: EventDevice> maiko::Actor for KeyScanner<D> {
     type Event = CharonEvent;
 
     async fn on_start(&mut self) -> maiko::Result<()> {
-        self.toggle_grabbing(&self.state.mode().await);
-        Ok(())
-    }
-
-    async fn handle_event(&mut self, envelope: &Envelope<Self::Event>) -> maiko::Result<()> {
-        match envelope.event() {
-            CharonEvent::ModeChange(mode) => {
-                self.toggle_grabbing(mode);
-            }
-            other => {
-                debug!("Unhandled event: {:?}", other);
-            }
-        }
+        let mode = self.mode_rx.borrow().clone();
+        self.toggle_grabbing(&mode);
         Ok(())
     }
 
     async fn step(&mut self) -> maiko::Result<StepAction> {
-        while let Some(event) = self.input.next_event().await {
-            self.handle_device_event(event).await?;
+        select! {
+            Ok(()) = self.mode_rx.changed() => {
+                let mode = *self.mode_rx.borrow_and_update();
+                self.toggle_grabbing(&mode);
+            }
+            Some(event) = self.input.next_event() => {
+                self.handle_device_event(event).await?;
 
-            // grab/ungrab only when all keys are released
-            if self.should_handle_grab.is_some() && self.keyboard_state.is_empty() {
-                if let Some(mode) = self.should_handle_grab {
-                    self.toggle_grabbing(&mode);
+                // grab/ungrab only when all keys are released
+                if self.should_handle_grab.is_some() && self.keyboard_state.is_empty() {
+                    if let Some(mode) = self.should_handle_grab {
+                        self.toggle_grabbing(&mode);
+                    }
                 }
             }
         }
-        Ok(StepAction::Yield)
+        Ok(StepAction::Continue)
     }
 
     fn on_error(&self, error: maiko::Error) -> maiko::Result<()> {

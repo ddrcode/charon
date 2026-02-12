@@ -52,7 +52,7 @@ impl maiko::Actor for IPCServer {
             // FIXME change dependency on actor name
             CharonEvent::ModeChange(mode) if envelope.meta().actor_name() == "client" => {
                 info!("Client requested to change mode to: {mode}");
-                self.state.set_mode(*mode).await;
+                self.state.set_mode(*mode);
             }
             _ => {}
         }
@@ -69,7 +69,7 @@ impl maiko::Actor for IPCServer {
             // }
 
             let channel_size = self.state.config().channel_size;
-            let mode = self.state.mode().await;
+            let mode = self.state.mode();
             let (session_tx, session_rx) =
                 mpsc::channel::<Arc<Envelope<CharonEvent>>>(channel_size);
             let mut session = ClientSession::new(

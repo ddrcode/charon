@@ -64,7 +64,7 @@ impl Typist {
     pub async fn send_string(&mut self, s: &str, source_id: &EventId) -> maiko::Result<()> {
         for c in s.chars() {
             self.send_char(c, source_id).await?;
-            if self.state.mode().await == Mode::PassThrough {
+            if self.state.mode() == Mode::PassThrough {
                 warn!("Sending text interrupted by mode change");
                 return Ok(());
             }

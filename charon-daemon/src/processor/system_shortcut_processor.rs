@@ -34,7 +34,7 @@ impl SystemShortcutProcessor {
         } else if num == u64::from(&config.awake_host_shortcut) {
             self.wake_up_host();
         } else {
-            return self.state.mode().await == Mode::PassThrough;
+            return self.state.mode() == Mode::PassThrough;
         }
 
         self.reset_hid();
@@ -42,9 +42,9 @@ impl SystemShortcutProcessor {
     }
 
     async fn toggle_mode(&mut self) {
-        let new_mode = self.state.mode().await.toggle();
+        let new_mode = self.state.mode().toggle();
         debug!("Switching mode to {:?}", new_mode);
-        self.state.set_mode(new_mode).await;
+        self.state.set_mode(new_mode);
         let payload = CharonEvent::ModeChange(new_mode);
         self.events.push(payload);
     }
