@@ -14,13 +14,13 @@ async fn test_key_press_emits_event() -> eyre::Result<()> {
 
     ctx.sup.start().await?;
 
-    ctx.test.start_recording().await;
+    ctx.test.record().await;
     ctx.keyboard.key_press(KeyCode::KEY_S).await;
     ctx.keyboard.drain().await;
-    ctx.test.stop_recording().await;
+    ctx.test.settle().await;
 
     let spy = ctx.test.actor(&ctx.scanner);
-    assert_eq!(1, spy.events_sent());
+    assert_eq!(2, spy.receiver_count());
     let event = spy.last_sent().unwrap();
     let chain = ctx.test.chain(event.id());
 
@@ -56,8 +56,7 @@ async fn test_ctrl_q_shortcut_flow() -> eyre::Result<()> {
     let mut ctx = setup().await?;
 
     ctx.sup.start().await?;
-
-    ctx.test.start_recording().await;
+    ctx.test.record().await;
 
     // Step 1: Press Ctrl - this flows through to the host
     ctx.keyboard.key_press(KeyCode::KEY_LEFTCTRL).await;
@@ -67,12 +66,12 @@ async fn test_ctrl_q_shortcut_flow() -> eyre::Result<()> {
     ctx.keyboard.key_press(KeyCode::KEY_Q).await;
     ctx.keyboard.drain().await;
 
-    ctx.test.stop_recording().await;
+    ctx.test.settle().await;
 
     // Scanner should have sent 2 distinct events: Ctrl and Q
     let scanner_spy = ctx.test.actor(&ctx.scanner);
     assert_eq!(
-        scanner_spy.events_sent(),
+        scanner_spy.receiver_count(),
         2,
         "Expected 2 events from scanner (Ctrl and Q)"
     );

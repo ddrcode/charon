@@ -14,7 +14,8 @@ use charond::{
     port::KeymapLoader,
     processor::{KeyEventProcessor, SystemShortcutProcessor},
 };
-use maiko::{Actor, Supervisor, testing::Harness};
+use maiko::{Actor, Subscribe, Supervisor, monitors::Tracer, testing::Harness};
+use tracing_subscriber::FmtSubscriber;
 
 use crate::common::MockKeyboard;
 
@@ -27,6 +28,8 @@ impl Actor for MockedClient {
 
 pub async fn setup() -> eyre::Result<TestContext> {
     use CharonTopic as T;
+    init_logging();
+
     let config = CharonConfig::default();
     let keymap = KeymapLoaderYaml::new(&config.keymaps_dir)
         .load_keymap(&config.host_keymap)
@@ -42,7 +45,7 @@ pub async fn setup() -> eyre::Result<TestContext> {
         let scanner = sup.add_actor(
             "KeyScanner",
             |ctx| KeyScanner::new(ctx, state.clone(), input, "test-keyboard".into()),
-            [T::System],
+            Subscribe::none(),
         )?;
         (scanner, keyboard)
     };
@@ -66,34 +69,39 @@ pub async fn setup() -> eyre::Result<TestContext> {
             let dev = HidDeviceMock::new(state);
             KeyWriter::new(ctx, dev)
         },
-        [T::System, T::KeyOutput],
+        [T::KeyOutput],
     )?;
 
-    let telemetry = sup.add_actor(
-        "Telemetry",
-        |_ctx| {
-            let state = Arc::new(StdMutex::new(MetricsState::default()));
-            Telemetry::new(MetricsMock::new(state))
-        },
-        [T::System, T::Telemetry, T::KeyInput, T::Stats],
-    )?;
+    let (telemetry, metrics) = {
+        let state = Arc::new(StdMutex::new(MetricsState::default()));
+        let actor = sup.add_actor(
+            "Telemetry",
+            |_ctx| Telemetry::new(MetricsMock::new(state.clone())),
+            [T::Telemetry, T::KeyInput, T::Stats],
+        )?;
+        (actor, state)
+    };
 
     let typist = sup.add_actor(
         "Typist",
-        |ctx| Typist::new(ctx, state, keymap),
-        &[T::System, T::TextInput],
+        |ctx| Typist::new(ctx, state.clone(), keymap),
+        [T::TextInput],
     )?;
 
     let client = sup.add_actor(
         "Client",
         |_ctx| MockedClient,
-        [T::System, T::Stats, T::Monitoring],
+        [T::Client, T::Stats, T::Monitoring],
     )?;
+
+    sup.monitors().add(Tracer).await;
 
     Ok(TestContext {
         sup,
         keyboard: MockKeyboard::new(keyboard_state),
         test,
+        state,
+        metrics,
         scanner,
         pipeline,
         writer,
@@ -101,4 +109,22 @@ pub async fn setup() -> eyre::Result<TestContext> {
         typist,
         client,
     })
+}
+
+fn init_logging() {
+    use std::sync::Once;
+    static INIT: Once = Once::new();
+    INIT.call_once(|| {
+        let subscriber = FmtSubscriber::builder()
+            .with_max_level(tracing::Level::TRACE)
+            .with_target(false)
+            .compact()
+            .pretty()
+            .without_time()
+            .with_file(true)
+            .finish();
+
+        tracing::subscriber::set_global_default(subscriber)
+            .expect("Setting default subscriber failed");
+    });
 }

@@ -1,66 +1,30 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
+mod common;
+
 use std::sync::Arc;
 
 use charond::domain::{CharonEvent, Mode, Topic as CharonTopic};
 use evdev::KeyCode;
-use maiko::{ActorId, Envelope, Supervisor, testing::Harness};
-use tokio::sync::Mutex;
+use maiko::{ActorId, Supervisor, testing::Harness};
 
 use charond::{
-    actor::KeyScanner,
-    adapter::mock::{EventDeviceMock, EventDeviceState},
-    config::CharonConfig,
-    domain::ActorState,
+    actor::KeyScanner, adapter::mock::EventDeviceMock, config::CharonConfig, domain::ActorState,
 };
+
+use crate::common::MockKeyboard;
 
 /// A no-op actor that subscribes to events for test observation.
 struct Sink;
 
 impl maiko::Actor for Sink {
     type Event = CharonEvent;
-    async fn handle_event(&mut self, _: &Envelope<Self::Event>) -> maiko::Result<()> {
-        Ok(())
-    }
-}
-
-struct MockKeyboard {
-    state: Arc<Mutex<EventDeviceState>>,
-}
-
-impl MockKeyboard {
-    fn new(state: Arc<Mutex<EventDeviceState>>) -> Self {
-        Self { state }
-    }
-
-    async fn key_press(&self, key_code: KeyCode) {
-        self.state.lock().await.simulate_key_press(key_code);
-    }
-
-    async fn key_release(&self, key_code: KeyCode) {
-        self.state.lock().await.simulate_key_release(key_code);
-    }
-
-    async fn drain(&self) {
-        EventDeviceState::drain(&self.state).await;
-    }
-
-    async fn is_grabbed(&self) -> bool {
-        self.state.lock().await.grabbed
-    }
-
-    async fn grab_calls(&self) -> u16 {
-        self.state.lock().await.grab_calls
-    }
-
-    async fn ungrab_calls(&self) -> u16 {
-        self.state.lock().await.ungrab_calls
-    }
 }
 
 struct TestContext {
     sup: Supervisor<CharonEvent, CharonTopic>,
     test: Harness<CharonEvent, CharonTopic>,
     keyboard: MockKeyboard,
+    state: ActorState,
     sink: ActorId,
 }
 
@@ -82,7 +46,7 @@ async fn setup_with_mode(initial_mode: Mode) -> eyre::Result<TestContext> {
         sup.add_actor(
             "KeyScanner",
             |ctx| KeyScanner::new(ctx, state.clone(), input, "test-keyboard".into()),
-            [System],
+            [],
         )?;
         keyboard
     };
@@ -93,17 +57,16 @@ async fn setup_with_mode(initial_mode: Mode) -> eyre::Result<TestContext> {
         sup,
         keyboard: MockKeyboard::new(keyboard_state),
         test,
+        state,
         sink,
     })
 }
 
 impl TestContext {
-    async fn switch_mode(&self, mode: Mode) -> maiko::Result<()> {
-        self.test
-            .send_as(&self.sink, CharonEvent::ModeChange(mode))
-            .await?;
+    async fn switch_mode(&self, mode: Mode) {
+        self.state.set_mode(mode);
+        // Give KeyScanner's step() loop time to pick up the watch change
         tokio::time::sleep(tokio::time::Duration::from_millis(5)).await;
-        Ok(())
     }
 }
 
@@ -130,7 +93,7 @@ async fn test_delayed_ungrab_after_key_release() -> eyre::Result<()> {
 
     // Switch to InApp mode while key is held
     // Device should remain grabbed until key is released
-    ctx.switch_mode(Mode::InApp).await?;
+    ctx.switch_mode(Mode::InApp).await;
 
     assert!(
         ctx.keyboard.is_grabbed().await,
@@ -149,12 +112,12 @@ async fn test_delayed_ungrab_after_key_release() -> eyre::Result<()> {
     assert_eq!(1, ctx.keyboard.ungrab_calls().await);
 
     // Switching to same mode again shouldn't trigger another ungrab
-    ctx.switch_mode(Mode::InApp).await?;
+    ctx.switch_mode(Mode::InApp).await;
     assert!(!ctx.keyboard.is_grabbed().await);
     assert_eq!(1, ctx.keyboard.ungrab_calls().await);
 
     // Switch back to PassThrough - should grab immediately (no keys pressed)
-    ctx.switch_mode(Mode::PassThrough).await?;
+    ctx.switch_mode(Mode::PassThrough).await;
 
     assert!(ctx.keyboard.is_grabbed().await);
     assert_eq!(1, ctx.keyboard.ungrab_calls().await);
@@ -179,7 +142,7 @@ async fn test_ungrab_waits_for_all_keys_released() -> eyre::Result<()> {
     ctx.keyboard.drain().await;
 
     // Switch to InApp mode
-    ctx.switch_mode(Mode::InApp).await?;
+    ctx.switch_mode(Mode::InApp).await;
 
     // Release S, but Ctrl still held - should stay grabbed
     ctx.keyboard.key_release(KeyCode::KEY_S).await;
@@ -219,7 +182,7 @@ async fn test_no_grab_when_starting_in_app_mode() -> eyre::Result<()> {
     assert_eq!(0, ctx.keyboard.grab_calls().await);
 
     // Switch to PassThrough - should grab
-    ctx.switch_mode(Mode::PassThrough).await?;
+    ctx.switch_mode(Mode::PassThrough).await;
 
     assert!(ctx.keyboard.is_grabbed().await);
     assert_eq!(1, ctx.keyboard.grab_calls().await);
@@ -241,7 +204,7 @@ async fn test_key_press_during_pending_ungrab() -> eyre::Result<()> {
     ctx.keyboard.drain().await;
 
     // Switch to InApp - ungrab is now pending
-    ctx.switch_mode(Mode::InApp).await?;
+    ctx.switch_mode(Mode::InApp).await;
     assert!(ctx.keyboard.is_grabbed().await);
 
     // Press another key while ungrab is pending

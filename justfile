@@ -91,7 +91,7 @@ fmt-check:
 
 # Run clippy
 clippy:
-    cargo clippy --workspace -- -D warnings
+    cargo clippy --workspace --all-features -- -D warnings
 
 # Run all checks (fmt + clippy)
 check: fmt-check clippy

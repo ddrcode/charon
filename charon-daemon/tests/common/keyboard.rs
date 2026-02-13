@@ -24,4 +24,16 @@ impl MockKeyboard {
     pub async fn drain(&self) {
         EventDeviceState::drain(&self.state).await;
     }
+
+    pub async fn is_grabbed(&self) -> bool {
+        self.state.lock().await.grabbed
+    }
+
+    pub async fn grab_calls(&self) -> u16 {
+        self.state.lock().await.grab_calls
+    }
+
+    pub async fn ungrab_calls(&self) -> u16 {
+        self.state.lock().await.ungrab_calls
+    }
 }
