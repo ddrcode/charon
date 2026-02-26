@@ -39,7 +39,11 @@ async fn main() -> eyre::Result<()> {
         .load_keymap(&config.host_keymap)
         .await?;
 
-    let mut supervisor = Supervisor::default();
+    let mut supervisor = Supervisor::new(
+        maiko::Config::default()
+            .with_default_actor_channel_capacity(128)
+            .with_broker_channel_capacity(1024),
+    );
 
     for (name, config) in config.get_config_per_keyboard() {
         supervisor.add_actor(
@@ -58,15 +62,15 @@ async fn main() -> eyre::Result<()> {
         )?;
     }
 
-    supervisor.add_actor(
-        "KeyWriter",
-        |ctx| {
+    supervisor
+        .build_actor("KeyWriter", |ctx| {
             let dev_path = config.hid_keyboard.clone();
             let dev = HIDDeviceUnix::new(&dev_path);
             KeyWriter::new(ctx, dev)
-        },
-        [T::KeyOutput],
-    )?;
+        })
+        .topics([T::KeyOutput])
+        .channel_capacity(1024)
+        .build()?;
 
     supervisor.add_actor(
         "KeyEventPipeline",

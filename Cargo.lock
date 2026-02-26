@@ -1368,8 +1368,9 @@ dependencies = [
 
 [[package]]
 name = "maiko"
-version = "0.2.3"
+version = "0.2.5"
 dependencies = [
+ "futures-util",
  "maiko-macros",
  "serde",
  "serde_json",
@@ -1382,7 +1383,7 @@ dependencies = [
 
 [[package]]
 name = "maiko-macros"
-version = "0.2.3"
+version = "0.2.5"
 dependencies = [
  "quote",
  "syn 2.0.114",

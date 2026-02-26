@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-use maiko::Label;
+use maiko::{Label, OverflowPolicy};
 
 use super::CharonEvent;
 
@@ -47,5 +47,18 @@ impl maiko::Topic<CharonEvent> for Topic {
         Self: Sized,
     {
         Self::from(event)
+    }
+
+    fn overflow_policy(&self) -> maiko::OverflowPolicy {
+        match self {
+            Topic::TextInput => OverflowPolicy::Block,
+            Topic::KeyInput => OverflowPolicy::Block,
+            Topic::KeyOutput => OverflowPolicy::Block,
+            Topic::Stats => OverflowPolicy::Drop,
+            Topic::Monitoring => OverflowPolicy::Block,
+            Topic::Telemetry => OverflowPolicy::Drop,
+            Topic::Keyboard => OverflowPolicy::Block,
+            Topic::Client => OverflowPolicy::Drop,
+        }
     }
 }
