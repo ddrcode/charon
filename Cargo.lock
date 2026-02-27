@@ -1368,7 +1368,7 @@ dependencies = [
 
 [[package]]
 name = "maiko"
-version = "0.2.5"
+version = "0.3.0"
 dependencies = [
  "futures-util",
  "maiko-macros",
@@ -1376,14 +1376,14 @@ dependencies = [
  "serde_json",
  "thiserror 2.0.18",
  "tokio",
- "tokio-util",
+ "tokio-stream",
  "tracing",
  "uuid",
 ]
 
 [[package]]
 name = "maiko-macros"
-version = "0.2.5"
+version = "0.3.0"
 dependencies = [
  "quote",
  "syn 2.0.114",

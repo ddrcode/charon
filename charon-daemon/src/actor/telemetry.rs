@@ -28,15 +28,15 @@ impl<M: Metrics> maiko::Actor for Telemetry<M> {
         let meta = envelope.meta();
         match envelope.event() {
             CharonEvent::KeyPress(key, keyboard) => {
-                self.events.insert(meta.id(), meta.timestamp());
+                self.events.insert(meta.id().into(), meta.timestamp());
                 self.metrics.register_key_event(key, keyboard);
             }
             CharonEvent::KeyRelease(..) => {
-                self.events.insert(meta.id(), meta.timestamp());
+                self.events.insert(meta.id().into(), meta.timestamp());
             }
             CharonEvent::ReportSent => {
-                if let Some(ref source_id) = meta.correlation_id() {
-                    if let Some(timestamp) = self.events.remove(source_id) {
+                if let Some(ref source_id) = meta.parent_id() {
+                    if let Some(timestamp) = self.events.remove(&source_id.as_u128()) {
                         if let Some(diff) = meta.timestamp().checked_sub(timestamp) {
                             self.metrics.register_key_to_report_time(diff);
                         }

@@ -40,7 +40,7 @@ async fn main() -> eyre::Result<()> {
         .await?;
 
     let mut supervisor = Supervisor::new(
-        maiko::Config::default()
+        maiko::SupervisorConfig::default()
             .with_default_actor_channel_capacity(128)
             .with_broker_channel_capacity(1024),
     );
@@ -153,8 +153,6 @@ async fn main() -> eyre::Result<()> {
             // daemon.stop().await;
         }
     }
-
-    supervisor.stop().await?;
 
     tracing::info!("Charon says goodbye. Hades is waiting...");
     Ok(())

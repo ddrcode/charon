@@ -28,7 +28,7 @@ impl SystemShortcutProcessor {
         let config = self.state.config();
 
         if num == u64::from(&config.quit_shortcut) {
-            self.ctx.stop();
+            self.ctx.stop_runtime();
         } else if num == u64::from(&config.toggle_mode_shortcut) {
             self.toggle_mode().await;
         } else if num == u64::from(&config.awake_host_shortcut) {

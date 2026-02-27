@@ -29,14 +29,13 @@ impl Pipeline {
             events = next_events;
         }
 
-        let correlation_id = meta.correlation_id().unwrap_or(meta.id());
+        let parent_id = meta.parent_id().unwrap_or(meta.id());
         for event in events {
             self.ctx
-                .send_envelope(Envelope::<CharonEvent>::with_correlation(
-                    event,
-                    self.ctx.actor_id().clone(),
-                    correlation_id,
-                ))
+                .send(
+                    Envelope::<CharonEvent>::new(event, self.ctx.actor_id().clone())
+                        .with_parent_id(parent_id),
+                )
                 .await?;
         }
 

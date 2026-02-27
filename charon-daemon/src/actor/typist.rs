@@ -45,11 +45,11 @@ impl Typist {
     pub async fn send_char(&mut self, c: char, source_id: &EventId) -> maiko::Result<()> {
         if let Some(report) = self.keymap.report(c).or_else(|| self.to_ascii_report(c)) {
             self.ctx
-                .send_with_correlation(CharonEvent::HidReport(report.into()), *source_id)
+                .send_child_event(CharonEvent::HidReport(report.into()), *source_id)
                 .await?;
             tokio::time::sleep(self.speed).await;
             self.ctx
-                .send_with_correlation(
+                .send_child_event(
                     CharonEvent::HidReport(HidReport::default().into()),
                     *source_id,
                 )
@@ -72,7 +72,7 @@ impl Typist {
         debug!("Typing completed");
 
         self.ctx
-            .send_with_correlation(CharonEvent::TextSent, *source_id)
+            .send_child_event(CharonEvent::TextSent, *source_id)
             .await
     }
 
@@ -80,7 +80,7 @@ impl Typist {
         &mut self,
         path: &String,
         remove: bool,
-        source_id: &u128,
+        source_id: &EventId,
     ) -> Result<(), CharonError> {
         debug!("Typing text from file: {path}");
         let text = read_to_string(path).await?;

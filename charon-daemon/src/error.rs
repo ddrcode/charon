@@ -47,6 +47,6 @@ pub enum CharonError {
 
 impl From<CharonError> for maiko::Error {
     fn from(err: CharonError) -> Self {
-        maiko::Error::External(err.to_string().into())
+        maiko::Error::external(err)
     }
 }

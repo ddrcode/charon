@@ -150,7 +150,7 @@ impl<D: EventDevice> maiko::Actor for KeyScanner<D> {
         Ok(StepAction::Continue)
     }
 
-    fn on_error(&self, error: maiko::Error) -> maiko::Result<()> {
+    fn on_error(&mut self, error: maiko::Error) -> maiko::Result<()> {
         error!("Error occured: {:?}", error);
         Err(error)
     }

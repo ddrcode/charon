@@ -40,9 +40,9 @@ impl<D: HIDDevice> KeyWriter<D> {
     #[inline]
     async fn send_telemetry(&mut self, meta: &Meta) -> maiko::Result<()> {
         // if self.state.config().enable_telemetry {
-        if meta.correlation_id().is_some() {
+        if meta.parent_id().is_some() {
             self.ctx
-                .send_child_event(CharonEvent::ReportSent, meta)
+                .send_child_event(CharonEvent::ReportSent, meta.id())
                 .await?;
         }
         // }
